@@ -1,0 +1,9 @@
+### Skill issue  ###
+.claude/
+
+
+### Transpiled code ###
+out/
+
+### Executable ###
+*.exe

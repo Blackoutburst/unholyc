@@ -1,0 +1,10 @@
+#pragma once
+
+namespace Pair {
+    struct It {
+        I32 a;
+        I32 b;
+    };
+
+    U0 set(Pair.It& pair, I32 a, I32 b);
+}

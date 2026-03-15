@@ -1,0 +1,15 @@
+#include <stdio.h>
+
+#include "pair.uhh"
+
+I32 main() {
+    Pair.It pair = { 0, 0 };
+
+    printf("%d %d\n", pair.a, pair.b);
+
+    Pair.set(pair, 5, 4);
+
+    printf("%d %d\n", pair.a, pair.b);
+    
+    return 0;
+}
