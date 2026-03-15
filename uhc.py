@@ -136,6 +136,8 @@ def transpile(source: str) -> str:
         # 1. Fix #include extensions:  .uhh -> .hh,  .uhc -> .cc
         line = re.sub(r'(#\s*include\s+"[^"]+)\.uhh(")', r'\1.hh\2', line)
         line = re.sub(r'(#\s*include\s+"[^"]+)\.uhc(")', r'\1.cc\2', line)
+        line = re.sub(r'(#\s*include\s+<[^>]+)\.uhh(>)', r'\1.hh\2', line)
+        line = re.sub(r'(#\s*include\s+<[^>]+)\.uhc(>)', r'\1.cc\2', line)
 
         # 2. Namespace dot -> double-colon
         line = _replace_namespace_dots(line)

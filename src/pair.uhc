@@ -1,8 +1,0 @@
-#include "pair.uhh"
-
-namespace Pair {
-    U0 set(Pair.It& pair, I32 a, I32 b) {
-        pair.a = a;
-        pair.b = b;
-    }
-}

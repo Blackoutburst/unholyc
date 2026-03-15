@@ -1,0 +1,18 @@
+#pragma once
+
+namespace Log {
+    enum Level {
+        TRACE,
+        DEBUG,
+        INFO,
+        WARN,
+        ERROR,
+    };
+
+    U0 trace(const I8* fmt, ...);
+    U0 debug(const I8* fmt, ...);
+    U0 info (const I8* fmt, ...);
+    U0 warn (const I8* fmt, ...);
+    U0 error(const I8* fmt, ...);
+    U0 msg  (const I8* fmt, ...);
+}

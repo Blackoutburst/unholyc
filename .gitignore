@@ -7,3 +7,6 @@ out/
 
 ### Executable ###
 *.exe
+
+### Comp file ###
+dist/

@@ -1,0 +1,83 @@
+#include <stdio.h>
+#include <stdarg.h>
+
+#include "uhcio.uhh"
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#undef ERROR
+#endif
+
+static const I8* _levelName(Log.Level level) {
+    switch (level) {
+        case Log.TRACE: return "TRACE";
+        case Log.DEBUG: return "DEBUG";
+        case Log.INFO:  return "INFO";
+        case Log.WARN:  return "WARN";
+        case Log.ERROR: return "ERROR";
+        default:        return "UNKNOWN";
+    }
+}
+
+#if defined(_WIN32) || defined(_WIN64)
+
+static WORD _levelColor(Log.Level level) {
+    switch (level) {
+        case Log.TRACE: return FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+        case Log.DEBUG: return FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+        case Log.INFO:  return FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+        case Log.WARN:  return FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+        case Log.ERROR: return FOREGROUND_RED | FOREGROUND_INTENSITY;
+        default:        return FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+    }
+}
+
+static U0 _log(Log.Level level, const I8* fmt, va_list args) {
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hConsole, &csbi);
+    WORD originalAttrs = csbi.wAttributes;
+
+    SetConsoleTextAttribute(hConsole, _levelColor(level));
+    printf("[%s] ", _levelName(level));
+    vprintf(fmt, args);
+    printf("\n");
+    SetConsoleTextAttribute(hConsole, originalAttrs);
+}
+
+#else
+
+static const I8* _levelColor(Log.Level level) {
+    switch (level) {
+        case Log.TRACE: return "\033[96m";
+        case Log.DEBUG: return "\033[94m";
+        case Log.INFO:  return "\033[92m";
+        case Log.WARN:  return "\033[93m";
+        case Log.ERROR: return "\033[91m";
+        default:        return "\033[37m";
+    }
+}
+
+static U0 _log(Log.Level level, const I8* fmt, va_list args) {
+    printf("%s[%s] ", _levelColor(level), _levelName(level));
+    vprintf(fmt, args);
+    printf("\033[0m\n");
+}
+
+#endif
+
+namespace Log {
+    U0 trace(const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.TRACE, fmt, a); va_end(a); }
+    U0 debug(const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.DEBUG, fmt, a); va_end(a); }
+    U0 info (const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.INFO,  fmt, a); va_end(a); }
+    U0 warn (const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.WARN,  fmt, a); va_end(a); }
+    U0 error(const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.ERROR, fmt, a); va_end(a); }
+
+    U0 msg(const I8* fmt, ...) {
+        va_list a;
+        va_start(a, fmt);
+        vprintf(fmt, a);
+        printf("\n");
+        va_end(a);
+    }
+}
