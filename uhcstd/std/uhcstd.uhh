@@ -1,0 +1,22 @@
+#pragma once
+
+#if defined(_WIN32) || defined(_WIN64)
+    #include <winsock2.h>
+#else
+    #include <unistd.h>
+    #include <pthread.h>
+#endif
+
+namespace Mutex {
+#if defined(_WIN32) || defined(_WIN64)
+    U0 create(CRITICAL_SECTION* mutex);
+    U0 destroy(CRITICAL_SECTION* mutex);
+    U0 lock(CRITICAL_SECTION* mutex);
+    U0 unlock(CRITICAL_SECTION* mutex);
+#else
+    U0 create(pthread_mutex_t* mutex);
+    U0 destroy(pthread_mutex_t* mutex);
+    U0 lock(pthread_mutex_t* mutex);
+    U0 unlock(pthread_mutex_t* mutex);
+#endif
+}

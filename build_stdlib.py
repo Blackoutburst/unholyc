@@ -70,7 +70,7 @@ def main() -> None:
 
         # ── 1. Transpile ──────────────────────────────────────────────────────
         print('\n-- Transpiling ----------------------------------------------')
-        run(['unholyc', args.std, '-o', tmp])
+        run(['unholyc', args.std, '-r', '-o', tmp])
 
         # After transpile the layout is:
         #   tmp/<uhcstd_basename>/*.cc  *.hh
@@ -84,13 +84,14 @@ def main() -> None:
             sys.exit('Error: no .cc files produced by transpiler')
 
         include_flags = ['-I', inc_tmp, '-I', src_dir]
+        libs = [] if platform.system() == 'Windows' else ['-pthread']
 
         # ── 2. Compile → object files ─────────────────────────────────────────
         print('\n-- Compiling ------------------------------------------------')
         obj_files: list[str] = []
         for cc in cc_files:
             obj = cc + '.o'
-            run([clangpp, '-c', cc, '-o', obj, f'-std={args.cppstd}'] + include_flags)
+            run([clangpp, '-c', cc, '-o', obj, f'-std={args.cppstd}'] + include_flags + libs)
             obj_files.append(obj)
 
         # ── 3. Archive → static library ───────────────────────────────────────

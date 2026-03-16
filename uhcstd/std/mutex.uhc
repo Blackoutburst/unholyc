@@ -1,0 +1,37 @@
+#include "uhcstd.uhh"
+
+namespace Mutex {
+#if defined(_WIN32) || defined(_WIN64)
+    U0 create(CRITICAL_SECTION* mutex) {
+        InitializeCriticalSection(mutex);
+    }
+
+    U0 destroy(CRITICAL_SECTION* mutex) {
+        DeleteCriticalSection(mutex);
+    }
+
+    U0 lock(CRITICAL_SECTION* mutex) {
+        EnterCriticalSection(mutex);
+    }
+
+    U0 unlock(CRITICAL_SECTION* mutex) {
+        LeaveCriticalSection(mutex);
+    }
+#else
+    U0 create(pthread_mutex_t* mutex) {
+        pthread_mutex_init(mutex, NULL);
+    }
+
+    U0 destroy(pthread_mutex_t* mutex) {
+        pthread_mutex_destroy(mutex);
+    }
+
+    U0 lock(pthread_mutex_t* mutex) {
+        pthread_mutex_lock(mutex);
+    }
+
+    U0 unlock(pthread_mutex_t* mutex) {
+        pthread_mutex_unlock(mutex);
+    }
+#endif
+}
