@@ -115,6 +115,29 @@ def _replace_namespace_dots(line: str) -> str:
     return ''.join(result)
 
 
+def _replace_unused(line: str) -> str:
+    """
+    Replace 'unused' keyword:
+      unused foo;          ->  UNUSED_VAR(foo);              (statement in body)
+      unused TYPE VARNAME  ->  TYPE VARNAME __attribute__((unused))  (parameter/declaration)
+    Skips // line comments.
+    """
+    if 'unused' not in line:
+        return line
+
+    comment_pos = line.find('//')
+    if comment_pos == 0:
+        return line
+    code_part, comment_part = (line[:comment_pos], line[comment_pos:]) if comment_pos > 0 else (line, '')
+
+    # Statement form first (has semicolon)
+    code_part = re.sub(r'\bunused\s+(\w+)\s*;', r'UNUSED_VAR(\1);', code_part)
+    # Parameter / declaration form: unused TYPE VARNAME
+    code_part = re.sub(r'\bunused\s+(\w+)\s+(\w+)\b', r'\1 \2 __attribute__((unused))', code_part)
+
+    return code_part + comment_part
+
+
 def transpile(source: str) -> str:
     """Return the transpiled C++ source for a given UnHolyC source string."""
     lines = source.splitlines(keepends=True)
@@ -139,7 +162,10 @@ def transpile(source: str) -> str:
         line = re.sub(r'(#\s*include\s+<[^>]+)\.uhh(>)', r'\1.hh\2', line)
         line = re.sub(r'(#\s*include\s+<[^>]+)\.uhc(>)', r'\1.cc\2', line)
 
-        # 2. Namespace dot -> double-colon
+        # 2. Replace 'unused' keyword
+        line = _replace_unused(line)
+
+        # 3. Namespace dot -> double-colon
         line = _replace_namespace_dots(line)
 
         result.append(line)

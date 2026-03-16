@@ -1,5 +1,9 @@
 #include <uhcio.uhh>
 
+U0 unusedVar(I32 a, unused I32 b) {
+    unused a;
+} 
+
 I32 main() {
     Log.info("Hello world");
     
