@@ -1,0 +1,267 @@
+#include "uhcstd.uhh"
+
+namespace Buffer {
+    static I8 __byteOrder = UHC_LITTLE_ENDIAN;
+
+    U0 setOrder(I8 order) {
+        __byteOrder = order;
+    }
+
+    I8 getI8(U8** buffer) {
+        I8 data = (I8)**buffer;
+        (*buffer)++;
+        return data;
+    }
+
+    U8 getU8(U8** buffer) {
+        U8 data = **buffer;
+        (*buffer)++;
+        return data;
+    }
+
+    I16 getI16(U8** buffer) {
+        I16 data;
+        if (__byteOrder == UHC_LITTLE_ENDIAN)
+            data = (I16)((*buffer)[0] | ((*buffer)[1] << 8));
+        else
+            data = (I16)(((*buffer)[0] << 8) | (*buffer)[1]);
+        (*buffer) += 2;
+        return data;
+    }
+
+    U16 getU16(U8** buffer) {
+        U16 data;
+        if (__byteOrder == UHC_LITTLE_ENDIAN)
+            data = (U16)((*buffer)[0] | ((*buffer)[1] << 8));
+        else
+            data = (U16)(((*buffer)[0] << 8) | (*buffer)[1]);
+        (*buffer) += 2;
+        return data;
+    }
+
+    I32 getI32(U8** buffer) {
+        I32 data;
+        if (__byteOrder == UHC_LITTLE_ENDIAN)
+            data = (I32)(
+                ( (*buffer)[0]          ) |
+                ( (*buffer)[1] <<  8    ) |
+                ( (*buffer)[2] << 16    ) |
+                ((I32)(*buffer)[3] << 24)
+            );
+        else
+            data = (I32)(
+                ((I32)(*buffer)[0] << 24) |
+                ( (*buffer)[1] << 16    ) |
+                ( (*buffer)[2] <<  8    ) |
+                ( (*buffer)[3]          )
+            );
+        (*buffer) += 4;
+        return data;
+    }
+
+    U32 getU32(U8** buffer) {
+        U32 data;
+        if (__byteOrder == UHC_LITTLE_ENDIAN)
+            data = (U32)(
+                ( (*buffer)[0]          ) |
+                ( (*buffer)[1] <<   8   ) |
+                ( (*buffer)[2] <<  16   ) |
+                ((U32)(*buffer)[3] << 24)
+            );
+        else
+            data = (U32)(
+                ((U32)(*buffer)[0] << 24) |
+                ( (*buffer)[1] << 16    ) |
+                ( (*buffer)[2] <<  8    ) |
+                ( (*buffer)[3]          )
+            );
+        (*buffer) += 4;
+        return data;
+    }
+
+    I64 getI64(U8** buffer) {
+        I64 data;
+        if (__byteOrder == UHC_LITTLE_ENDIAN)
+            data = (I64)(
+                ((I64)(*buffer)[0]      ) |
+                ((I64)(*buffer)[1] <<  8) |
+                ((I64)(*buffer)[2] << 16) |
+                ((I64)(*buffer)[3] << 24) |
+                ((I64)(*buffer)[4] << 32) |
+                ((I64)(*buffer)[5] << 40) |
+                ((I64)(*buffer)[6] << 48) |
+                ((I64)(*buffer)[7] << 56)
+            );
+        else
+            data = (I64)(
+                ((I64)(*buffer)[0] << 56) |
+                ((I64)(*buffer)[1] << 48) |
+                ((I64)(*buffer)[2] << 40) |
+                ((I64)(*buffer)[3] << 32) |
+                ((I64)(*buffer)[4] << 24) |
+                ((I64)(*buffer)[5] << 16) |
+                ((I64)(*buffer)[6] <<  8) |
+                ((I64)(*buffer)[7]      )
+            );
+        (*buffer) += 8;
+        return data;
+    }
+
+    U64 getU64(U8** buffer) {
+        U64 data;
+        if (__byteOrder == UHC_LITTLE_ENDIAN)
+            data = (U64)(
+                ((U64)(*buffer)[0]      ) |
+                ((U64)(*buffer)[1] <<  8) |
+                ((U64)(*buffer)[2] << 16) |
+                ((U64)(*buffer)[3] << 24) |
+                ((U64)(*buffer)[4] << 32) |
+                ((U64)(*buffer)[5] << 40) |
+                ((U64)(*buffer)[6] << 48) |
+                ((U64)(*buffer)[7] << 56)
+            );
+        else
+            data = (U64)(
+                ((U64)(*buffer)[0] << 56) |
+                ((U64)(*buffer)[1] << 48) |
+                ((U64)(*buffer)[2] << 40) |
+                ((U64)(*buffer)[3] << 32) |
+                ((U64)(*buffer)[4] << 24) |
+                ((U64)(*buffer)[5] << 16) |
+                ((U64)(*buffer)[6] <<  8) |
+                ((U64)(*buffer)[7]      )
+            );
+        (*buffer) += 8;
+        return data;
+    }
+
+    F32 getF32(U8** buffer) {
+        union { U32 i; F32 f; } u;
+        u.i = getU32(buffer);
+        return u.f;
+    }
+
+    F64 getF64(U8** buffer) {
+        union { U64 i; F64 f; } u;
+        u.i = getU64(buffer);
+        return u.f;
+    }
+
+    U0 putI8(U32* index, I8 value, U8* buffer) {
+        buffer[(*index)++] = (U8)value;
+    }
+
+    U0 putU8(U32* index, U8 value, U8* buffer) {
+        buffer[(*index)++] = value;
+    }
+
+    U0 putI16(U32* index, I16 value, U8* buffer) {
+        if (__byteOrder == UHC_LITTLE_ENDIAN) {
+            buffer[*index  ] =  value       & 0xFF;
+            buffer[*index+1] = (value >> 8) & 0xFF;
+        } else {
+            buffer[*index  ] = (value >> 8) & 0xFF;
+            buffer[*index+1] =  value       & 0xFF;
+        }
+        *index += 2;
+    }
+
+    U0 putU16(U32* index, U16 value, U8* buffer) {
+        if (__byteOrder == UHC_LITTLE_ENDIAN) {
+            buffer[*index  ] =  value       & 0xFF;
+            buffer[*index+1] = (value >> 8) & 0xFF;
+        } else {
+            buffer[*index  ] = (value >> 8) & 0xFF;
+            buffer[*index+1] =  value       & 0xFF;
+        }
+        *index += 2;
+    }
+
+    U0 putI32(U32* index, I32 value, U8* buffer) {
+        if (__byteOrder == UHC_LITTLE_ENDIAN) {
+            buffer[*index  ] =  value        & 0xFF;
+            buffer[*index+1] = (value >>  8) & 0xFF;
+            buffer[*index+2] = (value >> 16) & 0xFF;
+            buffer[*index+3] = (value >> 24) & 0xFF;
+        } else {
+            buffer[*index  ] = (value >> 24) & 0xFF;
+            buffer[*index+1] = (value >> 16) & 0xFF;
+            buffer[*index+2] = (value >>  8) & 0xFF;
+            buffer[*index+3] =  value        & 0xFF;
+        }
+        *index += 4;
+    }
+
+    U0 putU32(U32* index, U32 value, U8* buffer) {
+        if (__byteOrder == UHC_LITTLE_ENDIAN) {
+            buffer[*index  ] =  value        & 0xFF;
+            buffer[*index+1] = (value >>  8) & 0xFF;
+            buffer[*index+2] = (value >> 16) & 0xFF;
+            buffer[*index+3] = (value >> 24) & 0xFF;
+        } else {
+            buffer[*index  ] = (value >> 24) & 0xFF;
+            buffer[*index+1] = (value >> 16) & 0xFF;
+            buffer[*index+2] = (value >>  8) & 0xFF;
+            buffer[*index+3] =  value        & 0xFF;
+        }
+        *index += 4;
+    }
+
+    U0 putI64(U32* index, I64 value, U8* buffer) {
+        if (__byteOrder == UHC_LITTLE_ENDIAN) {
+            buffer[*index  ] =  value        & 0xFF;
+            buffer[*index+1] = (value >>  8) & 0xFF;
+            buffer[*index+2] = (value >> 16) & 0xFF;
+            buffer[*index+3] = (value >> 24) & 0xFF;
+            buffer[*index+4] = (value >> 32) & 0xFF;
+            buffer[*index+5] = (value >> 40) & 0xFF;
+            buffer[*index+6] = (value >> 48) & 0xFF;
+            buffer[*index+7] = (value >> 56) & 0xFF;
+        } else {
+            buffer[*index  ] = (value >> 56) & 0xFF;
+            buffer[*index+1] = (value >> 48) & 0xFF;
+            buffer[*index+2] = (value >> 40) & 0xFF;
+            buffer[*index+3] = (value >> 32) & 0xFF;
+            buffer[*index+4] = (value >> 24) & 0xFF;
+            buffer[*index+5] = (value >> 16) & 0xFF;
+            buffer[*index+6] = (value >>  8) & 0xFF;
+            buffer[*index+7] =  value        & 0xFF;
+        }
+        *index += 8;
+    }
+
+    U0 putU64(U32* index, U64 value, U8* buffer) {
+        if (__byteOrder == UHC_LITTLE_ENDIAN) {
+            buffer[*index  ] =  value        & 0xFF;
+            buffer[*index+1] = (value >>  8) & 0xFF;
+            buffer[*index+2] = (value >> 16) & 0xFF;
+            buffer[*index+3] = (value >> 24) & 0xFF;
+            buffer[*index+4] = (value >> 32) & 0xFF;
+            buffer[*index+5] = (value >> 40) & 0xFF;
+            buffer[*index+6] = (value >> 48) & 0xFF;
+            buffer[*index+7] = (value >> 56) & 0xFF;
+        } else {
+            buffer[*index  ] = (value >> 56) & 0xFF;
+            buffer[*index+1] = (value >> 48) & 0xFF;
+            buffer[*index+2] = (value >> 40) & 0xFF;
+            buffer[*index+3] = (value >> 32) & 0xFF;
+            buffer[*index+4] = (value >> 24) & 0xFF;
+            buffer[*index+5] = (value >> 16) & 0xFF;
+            buffer[*index+6] = (value >>  8) & 0xFF;
+            buffer[*index+7] =  value        & 0xFF;
+        }
+        *index += 8;
+    }
+
+    U0 putF32(U32* index, F32 value, U8* buffer) {
+        union { F32 f; U32 u; } u;
+        u.f = value;
+        putU32(index, u.u, buffer);
+    }
+
+    U0 putF64(U32* index, F64 value, U8* buffer) {
+        union { F64 f; U64 u; } u;
+        u.f = value;
+        putU64(index, u.u, buffer);
+    }
+}
