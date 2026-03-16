@@ -1,4 +1,4 @@
-# UnHolyC
+# UnholyC
 
 A small C dialect that adds **HolyC types** and **dot namespace syntax** on top of C++.
 Files use `.uhc` (source) and `.uhh` (header) extensions and transpile to plain `.cc` / `.hh`.
@@ -21,8 +21,6 @@ Files use `.uhc` (source) and `.uhh` (header) extensions and transpile to plain 
 | `F32`  | `float`          |
 | `F64`  | `double`         |
 | `F128` | `long double`    |
-
-These are automatically available in every `.uhc` / `.uhh` file — no manual include needed.
 
 ### unused keyword
 
@@ -67,9 +65,6 @@ namespace Pair {
 Pair::It p = { 0, 0 };
 Pair::set(p, 5, 4);
 ```
-
-**Rule:** an identifier starting with an **uppercase letter** followed by `.` is treated as a
-namespace qualifier. Lowercase variable member access (`pair.a`, `desc.stride`) is left untouched.
 
 ---
 
@@ -151,4 +146,15 @@ Files are written alongside the source with `.cc` / `.hh` extensions:
 ```bash
 unholyc src/main.uhc
 # produces src/main.cc
+```
+
+## STD library
+
+There is a standard library you can build it with `python3 build_stdlib.py` (transpiler must be built first)
+
+STD lib is build inside `/dist` you have both headers and actual library file.
+
+### Usage
+```
+clang++ ... -Idist/include -Ldist/lib -lunholy
 ```
