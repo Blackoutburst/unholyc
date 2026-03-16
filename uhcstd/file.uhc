@@ -19,6 +19,10 @@ namespace File {
         return file;
     }
 
+    U0 close(FILE* file) {
+        fclose(file);
+    }
+
     I8* read(FILE* file) {
         I64 fileSize = File.getSize(file);
         if (!fileSize) {
