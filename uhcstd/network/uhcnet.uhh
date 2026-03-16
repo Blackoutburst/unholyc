@@ -1,0 +1,29 @@
+#pragma once
+
+#include <string.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+#else
+    #include <pthread.h>
+    #include <unistd.h>
+    #include <arpa/inet.h>
+#endif
+
+namespace TcpClient {
+#if defined(_WIN32) || defined(_WIN64)
+    struct It {
+        SOCKET sockfd;
+    };
+#else
+    struct It {
+        I32 sockfd;
+    };
+#endif
+    TcpClient.It open(I8* ip, I16 port);
+    U0 close(TcpClient.It& client);
+    U0 write(TcpClient.It& client, I8* buffer, U32 size);
+    U0 read(TcpClient.It& client, I8* buffer, U32 size);
+    U0 readAll(TcpClient.It& client, I8* buffer, U32 size);
+}
