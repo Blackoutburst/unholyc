@@ -3,8 +3,8 @@ readonly NAME="unholyc"
 readonly SRC="out/src/*.cc"
 readonly INCLUDE="-Iout/include"
 
-readonly I_UHC="$HOME/.local/include"
-readonly L_UHC="$HOME/.local/lib"
+readonly I_UHC="../dist/include"
+readonly L_UHC="../dist/.local/lib"
 readonly UHC="-I$I_UHC -L$L_UHC -lunholyc"
 
 readonly F_ERROR="-Wall -Wextra -Wpedantic"

@@ -65,3 +65,27 @@ namespace Thread {
 #endif
     U0 join(Thread.It& thread);
 }
+
+namespace DynamicLibrary {
+#if defined(_WIN32) || defined(_WIN64)
+    #include <windows.h>
+
+    struct It {
+        HINSTANCE handle;
+        I8* name;
+        U8 isValid;
+    };
+#else
+    #include <dlfcn.h>
+
+    struct It {
+        U0* handle;
+        I8* name;
+        U8 isValid;
+    };
+#endif
+
+    DynamicLibrary.It load(const I8* name);
+    U0* get(DynamicLibrary.It& dll, const I8* functionName);
+    U0 unload(DynamicLibrary.It& dll);
+}
