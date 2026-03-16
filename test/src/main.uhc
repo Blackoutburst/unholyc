@@ -1,0 +1,7 @@
+#include <uhcio.uhh>
+
+I32 main() {
+    Log.info("Hello world");
+    
+    return 0;
+}

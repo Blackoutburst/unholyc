@@ -1,7 +1,6 @@
 ### Skill issue  ###
 .claude/
 
-
 ### Transpiled code ###
 out/
 
@@ -10,3 +9,10 @@ out/
 
 ### Comp file ###
 dist/
+
+### Mac ###
+.DS_Store
+
+### Test ###
+test/unholyc
+test/unholyc.dSYM
