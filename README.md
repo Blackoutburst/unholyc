@@ -1,6 +1,6 @@
 # UnholyC
 
-<img align="right" src="./logo.png" width=5%>
+<img align="right" src="./logo.png" width=10%>
 
 A small C dialect that adds **HolyC types** and **dot namespace syntax** on top of C++.
 Files use `.uhc` (source) and `.uhh` (header) extensions and transpile to plain `.cc` / `.hh`.
