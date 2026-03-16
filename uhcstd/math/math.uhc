@@ -1,0 +1,46 @@
+#include "uhcmath.uhh"
+
+namespace Math {
+    F32 rad(F32 angle) {
+        return angle * UHC_PI / 180.0f;
+    }
+
+    I8 sign(I32 value) {
+        if (value == 0) return 0;
+        if (value < 0) return -1;
+        
+        return 1;
+    }
+
+    I8 fsign(F32 value) {
+        if (value == 0.0) return 0;
+        if (value < 0.0) return -1;
+        
+        return 1;
+    }
+
+    F32 fsignf(F32 value) {
+        if (value == 0.0) return 0;
+        if (value < 0.0) return -1;
+        
+        return 1;
+    }
+
+    I32 clamp(I32 v, I32 min, I32 max) {
+        if (v > max) v = max;
+        if (v < min) v = min;
+        return v;
+    }
+
+    I32 fclamp(F32 v, F32 min, F32 max) {
+        if (v > max) v = max;
+        if (v < min) v = min;
+        return v;
+    }
+
+    F32 fclampf(F32 v, F32 min, F32 max) {
+        if (v > max) v = max;
+        if (v < min) v = min;
+        return v;
+    }
+}

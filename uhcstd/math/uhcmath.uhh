@@ -1,0 +1,80 @@
+#pragma once
+
+#include <math.h>
+
+#define UHC_PI 3.141592653589793
+
+namespace Math {
+    F32 rad(F32 angle);
+    I8 sign(I32 value);
+    I8 fsign(F32 value);
+    F32 fsignf(F32 value);
+    I32 clamp(I32 v, I32 min, I32 max);
+    I32 fclamp(F32 v, F32 min, F32 max);
+    F32 fclampf(F32 v, F32 min, F32 max);
+}
+
+namespace VectorF {
+    struct It {
+        F32 x;
+        F32 y;
+        F32 z;
+        F32 w;
+    };
+
+    U8 equals(VectorF.It& a, VectorF.It& b);
+    U0 set(VectorF.It& vec, F32 x, F32 y, F32 z, F32 w);
+    U0 normalize(VectorF.It& vec);
+    F32 length(VectorF.It& vec);
+    U0 zero(VectorF.It& vec);
+}
+
+namespace VectorI {
+    struct It {
+        I32 x;
+        I32 y;
+        I32 z;
+        I32 w;
+    };
+
+    U8 equals(VectorI.It& a, VectorI.It& b);
+    U0 set(VectorI.It& vec, I32 x, I32 y, I32 z, I32 w);
+    U0 normalize(VectorI.It& vec);
+    F32 length(VectorI.It& vec);
+    U0 zero(VectorI.It& vec);
+}
+
+#define M00 0x00
+#define M01 0x01
+#define M02 0x02
+#define M03 0x03
+
+#define M10 0x04
+#define M11 0x05
+#define M12 0x06
+#define M13 0x07
+
+#define M20 0x08
+#define M21 0x09
+#define M22 0x0A
+#define M23 0x0B
+
+#define M30 0x0C
+#define M31 0x0D
+#define M32 0x0E
+#define M33 0x0F
+
+namespace Matrix {
+    struct It {
+        F32 values[16];
+    };
+
+    U0 setIdentity(Matrix.It& mat);
+    U0 multiply(Matrix.It& result, Matrix.It& left, Matrix.It& right);
+    U0 copy(Matrix.It& src, Matrix.It& dest);
+    U0 ortho2D(Matrix.It& mat, F32 left, F32 right, F32 bottom, F32 top, F32 near, F32 far);
+    U0 projection(Matrix.It& mat, F32 width, F32 height, F32 fov, F32 near, F32 far);
+    U0 scale(Matrix.It& mat, F32 x, F32 y, F32 z, F32 w);
+    U0 translate(Matrix.It& mat, F32 x, F32 y, F32 z, F32 w);
+    U0 rotate(Matrix.It& mat, F32 angle, F32 x, F32 y, F32 z);
+}
