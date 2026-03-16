@@ -1,0 +1,5 @@
+# UnholyC Language
+*.uhc linguist-language=C++
+*.uhh linguist-language=C++
+*.uhc linguist-detectable=true
+*.uhh linguist-detectable=true
