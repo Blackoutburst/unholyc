@@ -50,3 +50,18 @@ namespace Buffer {
     U0 putF32(U32* index, F32 value, U8* buffer);
     U0 putF64(U32* index, F64 value, U8* buffer);
 }
+
+namespace Thread {
+#if defined(_WIN32) || defined(_WIN64)
+    struct It {
+        HANDLE handle;
+    };
+    Thread.It start(DWORD WINAPI (*method)(LPVOID), U0 *arg);
+#else
+    struct It {
+        pthread_t handle;
+    };
+    Thread.It start(U0* (*method)(U0 *), U0 *arg);
+#endif
+    U0 join(Thread.It& thread);
+}

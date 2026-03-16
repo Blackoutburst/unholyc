@@ -1,0 +1,38 @@
+#include "uhcstd.uhh"
+#include "io/uhcio.uhh"
+
+namespace Thread {
+#if defined(_WIN32) || defined(_WIN64)
+    Thread.It start(DWORD WINAPI (*method)(LPVOID), void *arg) {
+        Thread.It thread;
+        HANDLE thread.handle = CreateThread(NULL, 0, method, arg, 0, NULL);
+
+        if (thread.handle == NULL) {
+            Log.warn("Thread creation failed");
+            return thread;
+        }
+        
+        return thread;
+    }
+
+    U0 join(Thread.It& thread) {
+        WaitForSingleObject(thread.handle, INFINITE);
+    }
+#else
+    Thread.It start(void* (*method)(void *), void *arg) {
+        Thread.It thread;
+
+        if (pthread_create(&thread.handle, NULL, method, arg)) {
+            Log.warn("Thread creation failed");
+            return thread;
+        }
+
+        return thread;
+    }
+
+    U0 join(Thread.It& thread) {
+        pthread_join(thread.handle, 0);
+    }
+#endif
+}
+
