@@ -1,4 +1,5 @@
 #include <uhcio.uhh>
+#include <uhcstd.uhh>
 
 U0 unusedVar(I32 a, unused I32 b) {
     unused a;
@@ -6,6 +7,10 @@ U0 unusedVar(I32 a, unused I32 b) {
 
 I32 main() {
     Log.info("Hello world");
+    Mutex.It m = Mutex.create();
+    Mutex.lock(m);
+    Mutex.unlock(m);
+    Mutex.destroy(m);
     
     return 0;
 }

@@ -9,14 +9,17 @@
 
 namespace Mutex {
 #if defined(_WIN32) || defined(_WIN64)
-    U0 create(CRITICAL_SECTION* mutex);
-    U0 destroy(CRITICAL_SECTION* mutex);
-    U0 lock(CRITICAL_SECTION* mutex);
-    U0 unlock(CRITICAL_SECTION* mutex);
+    struct It {
+        CRITICAL_SECTION handle;
+    };
 #else
-    U0 create(pthread_mutex_t* mutex);
-    U0 destroy(pthread_mutex_t* mutex);
-    U0 lock(pthread_mutex_t* mutex);
-    U0 unlock(pthread_mutex_t* mutex);
+    struct It {
+        pthread_mutex_t handle;
+    };
 #endif
+
+    Mutex.It create();
+    U0 destroy(Mutex.It& mutex);
+    U0 lock(Mutex.It& mutex);
+    U0 unlock(Mutex.It& mutex);
 }
