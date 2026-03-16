@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stdio.h>
+#include <stdlib.h>
+
 namespace Log {
     enum Level {
         TRACE,
@@ -15,4 +18,10 @@ namespace Log {
     U0 warn (const I8* fmt, ...);
     U0 error(const I8* fmt, ...);
     U0 msg  (const I8* fmt, ...);
+}
+
+namespace File {
+    I64 size(FILE* file);
+    FILE* open(const I8* filePath);
+    I8* read(FILE* file);
 }

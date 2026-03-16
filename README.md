@@ -24,6 +24,24 @@ Files use `.uhc` (source) and `.uhh` (header) extensions and transpile to plain 
 
 These are automatically available in every `.uhc` / `.uhh` file — no manual include needed.
 
+### unused keyword
+
+Silence unuser variable warnings
+
+```c
+// UnHolyC (.uhc)
+U0 unusedVar(I32 a, unused I32 b) {
+    unused a;
+}
+```
+
+```cpp
+// Transpiled output (.cc)
+U0 unusedVar(I32 a, I32 b __attribute__((unused))) {
+    UNUSED_VAR(a);
+} 
+```
+
 ### Dot namespace syntax
 
 Use `.` instead of `::` to access namespaces:
