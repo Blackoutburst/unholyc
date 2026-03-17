@@ -1,0 +1,29 @@
+#include <uhcio.uhh>
+#include <uhcstd.uhh>
+#include <uhcnet.uhh>
+
+        
+void* readServer(void* arg) {
+    TcpClient.It* client = (TcpClient.It*)arg;
+
+    I8 buffer[1024];
+    if (TcpClient.read(*client, buffer, sizeof(buffer))) {
+        Log.msg("Received: %s", buffer);
+    }
+    
+    return NULL;
+}
+
+I32 main() {
+    TcpClient.It client = TcpClient.create("127.0.0.1", 12345);
+    Thread.It t = Thread.start(readServer, &client);
+
+    I8 buffer[5] = "ABCD";
+    
+    TcpClient.write(client, buffer, sizeof(buffer));
+    
+    Thread.join(t);
+    TcpClient.destroy(client);
+
+    return 0;
+}

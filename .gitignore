@@ -16,6 +16,7 @@ dist/
 ### Test ###
 test/unholyc
 test/unholyc.dSYM
+test2/unholyc.dSYM
 
 ### Python ###
 __pycache__/
