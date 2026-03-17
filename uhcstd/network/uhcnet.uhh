@@ -44,10 +44,10 @@ namespace TcpServer {
         U16 slots;
     };
 #endif
-    U0 listen(TcpServer.It& server, U0 (*callback)(TcpClient.It*));
 
     TcpServer.It create(I16 port, U16 slots);
     U0 destroy(TcpServer.It& server);
+    U0 listen(TcpServer.It& server, U0 (*callback)(TcpClient.It*));
     U8 write(TcpClient.It& client, I8* buffer, U32 size);
     U8 read(TcpClient.It& client, I8* buffer, U32 size);
     U8 readAll(TcpClient.It& client, I8* buffer, U32 size);

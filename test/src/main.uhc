@@ -4,8 +4,10 @@
 
 U0 onClient(TcpClient.It* client) {
     I8 buffer[1024];
-    while (TcpServer.read(*client, buffer, sizeof(buffer)))
-        Log.info("Received: %s", buffer);
+    while (TcpServer.read(*client, buffer, sizeof(buffer))) {
+        Log.msg("Received: %s", buffer);
+        TcpServer.write(*client, buffer, sizeof(buffer));
+    }
 }
 
 void* serverThread(void* arg) {
