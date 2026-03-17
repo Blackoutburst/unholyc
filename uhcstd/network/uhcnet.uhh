@@ -15,15 +15,40 @@ namespace TcpClient {
 #if defined(_WIN32) || defined(_WIN64)
     struct It {
         SOCKET sockfd;
+        HANDLE thread;
     };
 #else
     struct It {
         I32 sockfd;
+        pthread_t thread;
     };
 #endif
-    TcpClient.It open(I8* ip, I16 port);
-    U0 close(TcpClient.It& client);
-    U0 write(TcpClient.It& client, I8* buffer, U32 size);
-    U0 read(TcpClient.It& client, I8* buffer, U32 size);
-    U0 readAll(TcpClient.It& client, I8* buffer, U32 size);
+    TcpClient.It create(I8* ip, I16 port);
+    U0 destroy(TcpClient.It& client);
+    U8 write(TcpClient.It& client, I8* buffer, U32 size);
+    U8 read(TcpClient.It& client, I8* buffer, U32 size);
+    U8 readAll(TcpClient.It& client, I8* buffer, U32 size);
+}
+
+namespace TcpServer {
+#if defined(_WIN32) || defined(_WIN64)
+    struct It {
+        SOCKET sockfd;
+        U8 running;
+        U16 slots;
+    };
+#else
+    struct It {
+        I32 sockfd;
+        U8 running;
+        U16 slots;
+    };
+#endif
+    U0 listen(TcpServer.It& server, U0 (*callback)(TcpClient.It*));
+
+    TcpServer.It create(I16 port, U16 slots);
+    U0 destroy(TcpServer.It& server);
+    U8 write(TcpClient.It& client, I8* buffer, U32 size);
+    U8 read(TcpClient.It& client, I8* buffer, U32 size);
+    U8 readAll(TcpClient.It& client, I8* buffer, U32 size);
 }

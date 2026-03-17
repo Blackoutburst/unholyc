@@ -3,7 +3,7 @@
 
 namespace TcpClient {
 #if defined(_WIN32) || defined(_WIN64)
-    TcpClient.It open(I8* ip, I16 port) {
+    TcpClient.It create(I8* ip, I16 port) {
         TcpClient.It client;
         
         struct sockaddr_in server_addr;
@@ -28,58 +28,56 @@ namespace TcpClient {
 
         if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
             Log.warn("Invalid server address");
-            close(client);
+            destroy(client);
             return client;
         }
 
         if (connect(client.sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == SOCKET_ERROR) {
             Log.warn("Connection failed");
-            close(client);
+            destroy(client);
             return client;
         }
 
         return client;
     }
 
-    U0 close(TcpClient.It& client) {
+    U0 destroy(TcpClient.It& client) {
         if (client.sockfd == INVALID_SOCKET) return;
         closesocket(client.sockfd);
         client.sockfd = INVALID_SOCKET;
         WSACleanup();
     }
 
-    U0 write(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd == INVALID_SOCKET) return;
+    U8 write(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd == INVALID_SOCKET) return 1;
         send(client.sockfd, buffer, size, 0);
+
+        return 0;
     }
 
-    U0 read(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd == INVALID_SOCKET) return;
+    U8 read(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd == INVALID_SOCKET) return 0;
 
         I32 bytesRead = recv(client.sockfd, buffer, size, 0);
-        if (bytesRead <= 0) {
-            Log.warn("Data read failed");
-            close(client);
-            return;
-        }
+        if (bytesRead <= 0) return 0;
+
+        return 1
     }
 
-    U0 readAll(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd == INVALID_SOCKET) return;
+    U8 readAll(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd == INVALID_SOCKET) return 0;
 
         I32 totalBytesRead = 0;
         while (totalBytesRead < size) {
             I32 bytesRead = recv(client.sockfd, buffer + totalBytesRead, size - totalBytesRead, 0);
             totalBytesRead += bytesRead;
-            if (bytesRead <= 0) {
-                Log.warn("Data read failed");
-                close(client);
-                return;
-            }
+            if (bytesRead <= 0) return 0;
         }
+
+        return 1;
     }
 #else
-    TcpClient.It open(I8* ip, I16 port) {
+    TcpClient.It create(I8* ip, I16 port) {
         TcpClient.It client;
         
         struct sockaddr_in server_addr;
@@ -96,54 +94,53 @@ namespace TcpClient {
 
         if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
             Log.warn("Invalid server address");
-            close(client);
+            destroy(client);
             return client;
         }
 
         if (connect(client.sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
             Log.warn("Connection failed");
-            close(client);
+            destroy(client);
             return client;
         }
 
         return client;
     }
 
-    U0 close(TcpClient.It& client) {
+    U0 destroy(TcpClient.It& client) {
         if (client.sockfd < 0) return;
-        ::close(client.sockfd);
+        close(client.sockfd);
         client.sockfd = -1;
     }
 
-    U0 write(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd < 0) return;
+    U8 write(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd < 0) return 0;
+        
         send(client.sockfd, buffer, size, 0);
+
+        return 1;
     }
 
-    U0 read(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd < 0) return;
+    U8 read(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd < 0) return 0;
 
         I32 bytesRead = recv(client.sockfd, buffer, size, 0);
-        if (bytesRead <= 0) {
-            Log.warn("Data read failed");
-            close(client);
-            return;
-        }
+        if (bytesRead <= 0) return 0;
+
+        return 1;
     }
 
-    U0 readAll(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd < 0) return;
+    U8 readAll(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd < 0) return 0;
 
         I32 totalBytesRead = 0;
         while (totalBytesRead < size) {
             I32 bytesRead = recv(client.sockfd, buffer + totalBytesRead, size - totalBytesRead, 0);
             totalBytesRead += bytesRead;
-            if (bytesRead <= 0) {
-                Log.warn("Data read failed");
-                close(client);
-                return;
-            }
+            if (bytesRead <= 0) return 0;
         }
+
+        return 1;
     }
 #endif
 }

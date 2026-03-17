@@ -1,0 +1,184 @@
+#include "uhcnet.uhh"
+#include "io/uhcio.uhh"
+
+namespace TcpServer {
+#if defined(_WIN32) || defined(_WIN64)
+    TcpServer.It create(I16 port, U16 slots) {
+        TcpServer.It server;
+        
+        struct sockaddr_in serverAddress;
+        WSADATA wsaData;
+
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+            Log.warn("WSAStartup failed");
+            return server;
+        }
+
+        server.sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (server.sockfd == INVALID_SOCKET) {
+            Log.warn("Server socket creation failed");
+            WSACleanup();
+            return server;
+        }
+
+        memset(&serverAddress, 0, sizeof(serverAddress));
+        serverAddress.sin_family = AF_INET;
+        serverAddress.sin_addr.s_addr = INADDR_ANY;
+        serverAddress.sin_port = htons(port);
+
+        if (bind(server.sockfd, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) == SOCKET_ERROR) {
+            Log.warn("Server bind failed");
+            destroy(server);
+            return server;
+        }
+
+        server.slots = slots;
+        server.running = 1;
+        return server;
+    }
+
+    U0 destroy(TcpServer.It& server) {
+        closesocket(server.sockfd);
+        WSACleanup();
+        server.running = 0;
+    }
+
+    U0 listen(TcpServer.It& server, U0 (*callback)(TcpClient.It*)) {
+        if (::listen(server.sockfd, server.slots) == SOCKET_ERROR) {
+            Log.warn("Server listen failed");
+            destroy(server);
+            return;
+        }
+
+        while (server.running) {
+            struct sockaddr_in clientAddress;
+            socklen_t clientLength;
+            TcpClient.It client;
+
+            clientLength = sizeof(clientAddress);
+            client.sockfd = accept(server.sockfd, (struct sockaddr *)&clientAddress, &clientLength);
+            if (client.sockfd == INVALID_SOCKET) {
+                Log.warn("Client accept failed");
+                continue;
+            }
+
+            callback(&client);
+        }
+    }
+
+    U8 write(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd == INVALID_SOCKET) return 0;
+        
+        send(client.sockfd, (I8*)buffer, size, 0);
+        
+        return 1;
+    }
+
+    U8 read(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd == INVALID_SOCKET) return 0;
+
+        I32 bytesRead = recv(client.sockfd, buffer, size, 0);
+        if (bytesRead <= 0) return 0;
+
+        return 1;
+    }
+
+    U8 readAll(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd == INVALID_SOCKET) return 0;
+
+        I32 totalBytesRead = 0;
+        while (totalBytesRead < size) {
+            I32 bytesRead = recv(client.sockfd, buffer + totalBytesRead, size - totalBytesRead, 0);
+            totalBytesRead += bytesRead;
+            if (bytesRead <= 0) return 0;
+        }
+
+        return 1;
+    }
+#else
+    TcpServer.It create(I16 port, U16 slots) {
+        TcpServer.It server;
+        
+        struct sockaddr_in serverAddress;
+
+        server.sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (server.sockfd < 0) {
+            Log.warn("Server socket creation failed");
+            return server;
+        }
+
+        memset(&serverAddress, 0, sizeof(serverAddress));
+        serverAddress.sin_family = AF_INET;
+        serverAddress.sin_addr.s_addr = INADDR_ANY;
+        serverAddress.sin_port = htons(port);
+
+        if (bind(server.sockfd, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0) {
+            Log.warn("Server bind failed");
+            destroy(server);
+            return server;
+        }
+
+        server.slots = slots;
+        server.running = 1;
+        return server;
+    }
+
+    U0 destroy(TcpServer.It& server) {
+        ::close(server.sockfd);
+        server.running = 0;
+    }
+
+    U0 listen(TcpServer.It& server, U0 (*callback)(TcpClient.It*)) {
+        if (::listen(server.sockfd, server.slots) < 0) {
+            Log.warn("Server listen failed");
+            destroy(server);
+            return;
+        }
+
+        while (server.running) {
+            struct sockaddr_in clientAddress;
+            socklen_t clientLength;
+            TcpClient.It client;
+
+            clientLength = sizeof(clientAddress);
+            client.sockfd = accept(server.sockfd, (struct sockaddr *)&clientAddress, &clientLength);
+            if (client.sockfd < 0) {
+                Log.warn("Client accept failed");
+                continue;
+            }
+
+            callback(&client);
+        }
+    }
+
+    U8 write(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd < 0) return 0;
+        
+        send(client.sockfd, buffer, size, MSG_NOSIGNAL);
+        
+        return 1;
+    }
+
+    U8 read(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd < 0) return 0;
+
+        I32 bytesRead = recv(client.sockfd, buffer, size, 0);
+        if (bytesRead <= 0) return 0;
+
+        return 1;
+    }
+
+    U8 readAll(TcpClient.It& client, I8* buffer, U32 size) {
+        if (client.sockfd < 0) return 0;
+
+        I32 totalBytesRead = 0;
+        while (totalBytesRead < size) {
+            I32 bytesRead = recv(client.sockfd, buffer + totalBytesRead, size - totalBytesRead, 0);
+            totalBytesRead += bytesRead;
+            if (bytesRead <= 0) return 0;
+        }
+
+        return 1;
+    }
+#endif
+}

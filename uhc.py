@@ -98,12 +98,19 @@ def _replace_namespace_dots(line: str) -> str:
             ident = line[i:j]
 
             # Followed by '.' and then alpha/underscore  ->  namespace access
+            # but only if the member name is not snake_case (no underscores),
+            # which would indicate a C struct field rather than a namespace member.
             if (j < n and line[j] == '.'
                     and j + 1 < n
                     and (line[j + 1].isalpha() or line[j + 1] == '_')):
-                result.append(ident + '::')
-                i = j + 1          # skip the dot
-                continue
+                k = j + 1
+                while k < n and (line[k].isalnum() or line[k] == '_'):
+                    k += 1
+                member = line[j + 1:k]
+                if '_' not in member:
+                    result.append(ident + '::')
+                    i = j + 1          # skip the dot
+                    continue
 
             result.append(ident)
             i = j
