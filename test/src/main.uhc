@@ -2,29 +2,14 @@
 #include <uhcstd.uhh>
 #include <uhcmath.uhh>
 
+U0 unusedExample(unused I32 a, I32 b) {
+    unused b;
+}
+
 I32 main() {
-    List.It<I32> list;
+    VectorF.It vec = { 0, 1, 2, 3 };
 
-    List.add(list, 10);
-    List.add(list, 20);
-    List.add(list, 30);
-    
-    List.addAt(list, 99, 1);
-
-    
-    List.remove(list, 10);
-    
-    List.removeAt(list, 1);
-    
-    I32 num = List.get(list, 0);
-    List.set(list, 1, num);
-
-    I32 first = List.first(list);
-    I32 last = List.last(list);
-
-    U64 size = List.size(list);
-    
-    List.clear(list);
+    Log.debug("%f %f %f %f", vec.x, vec.y, vec.z, vec.w);
 
     return 0;
 }
