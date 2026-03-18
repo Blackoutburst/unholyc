@@ -9,6 +9,9 @@
     #include <dlfcn.h>
 #endif
 
+#include <list>
+#include <algorithm>
+
 namespace Mutex {
 #if defined(_WIN32) || defined(_WIN64)
     struct It {
@@ -90,3 +93,73 @@ namespace DynamicLibrary {
     U0 unload(DynamicLibrary.It& dll);
 }
 
+
+namespace List {
+    template<typename T>
+    struct It {
+        std::list<T> handle;
+    };
+
+    template<typename T>
+    U0 add(List.It<T>& list, T value) {
+        list.handle.push_back(value);
+    }
+
+    template<typename T>
+    U0 addAt(List.It<T>& list, T value, I32 index) {
+        auto it = list.handle.begin();
+        std::advance(it, index);
+        list.handle.insert(it, value);
+    }
+
+    template<typename T>
+    U8 remove(List.It<T>& list, T value) {
+        auto it = std::find(list.handle.begin(), list.handle.end(), value);
+        if (it == list.handle.end()) return 0;
+        list.handle.erase(it);
+        return 1;
+    }
+
+    template<typename T>
+    U0 removeAt(List.It<T>& list, I32 index) {
+        auto it = list.handle.begin();
+        std::advance(it, index);
+        list.handle.erase(it);
+    }
+
+    template<typename T>
+    T* get(List.It<T>& list, I32 index) {
+        auto it = list.handle.begin();
+        std::advance(it, index);
+        return &(*it);
+    }
+
+    template<typename T>
+    U0 set(List.It<T>& list, I32 index, T value) {
+        auto it = list.handle.begin();
+        std::advance(it, index);
+        *it = value;
+    }
+
+    template<typename T>
+    T* first(List.It<T>& list) {
+        if (list.handle.empty()) return NULL;
+        return &list.handle.front();
+    }
+
+    template<typename T>
+    T* last(List.It<T>& list) {
+        if (list.handle.empty()) return NULL;
+        return &list.handle.back();
+    }
+
+    template<typename T>
+    U64 size(List.It<T>& list) {
+        return (U64)list.handle.size();
+    }
+
+    template<typename T>
+    U0 clear(List.It<T>& list) {
+        list.handle.clear();
+    }
+}

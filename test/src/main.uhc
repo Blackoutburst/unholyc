@@ -1,32 +1,17 @@
 #include <uhcio.uhh>
 #include <uhcstd.uhh>
-#include <uhcnet.uhh>
-
-U0 onClient(TcpClient.It* client) {
-    I8 buffer[1024];
-    while (TcpServer.read(*client, buffer, sizeof(buffer))) {
-        Log.msg("Received: %s", buffer);
-        TcpServer.write(*client, buffer, sizeof(buffer));
-    }
-}
-
-void* serverThread(void* arg) {
-    TcpServer.It* server = (TcpServer.It*)arg;
-    TcpServer.listen(*server, onClient);
-    
-    return NULL;
-}
+#include <uhcmath.uhh>
 
 I32 main() {
-    TcpServer.It server = TcpServer.create(12345, 10);
-    Thread.It t = Thread.start(serverThread, &server);
+    List.It<I32> list;
 
-    while (1) {
-        // Do shit on main thread
-    }
-    
-    Thread.join(t);
-    TcpServer.destroy(server);
+    List.add(list, 10);
+    List.add(list, 20);
+    List.add(list, 30);
+    List.addAt(list, 99, 1);
+    List.remove(list, 10);
+    List.removeAt(list, 1);
+    List.clear(list);
 
     return 0;
 }
