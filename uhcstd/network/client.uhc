@@ -61,7 +61,7 @@ namespace TcpClient {
         I32 bytesRead = recv(client.sockfd, buffer, size, 0);
         if (bytesRead <= 0) return 0;
 
-        return 1
+        return 1;
     }
 
     U8 readAll(TcpClient.It& client, I8* buffer, U32 size) {

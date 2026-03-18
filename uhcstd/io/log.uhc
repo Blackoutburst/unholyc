@@ -4,16 +4,15 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
-#undef ERROR
 #endif
 
 static const I8* _levelName(Log.Level level) {
     switch (level) {
-        case Log.TRACE: return "TRACE";
-        case Log.DEBUG: return "DEBUG";
-        case Log.INFO:  return "INFO";
-        case Log.WARN:  return "WARN";
-        case Log.ERROR: return "ERROR";
+        case Log.UHC_LOG_TRACE: return "TRACE";
+        case Log.UHC_LOG_DEBUG: return "DEBUG";
+        case Log.UHC_LOG_INFO:  return "INFO";
+        case Log.UHC_LOG_WARN:  return "WARN";
+        case Log.UHC_LOG_ERROR: return "ERROR";
         default:        return "UNKNOWN";
     }
 }
@@ -22,11 +21,11 @@ static const I8* _levelName(Log.Level level) {
 
 static WORD _levelColor(Log.Level level) {
     switch (level) {
-        case Log.TRACE: return FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
-        case Log.DEBUG: return FOREGROUND_BLUE | FOREGROUND_INTENSITY;
-        case Log.INFO:  return FOREGROUND_GREEN | FOREGROUND_INTENSITY;
-        case Log.WARN:  return FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
-        case Log.ERROR: return FOREGROUND_RED | FOREGROUND_INTENSITY;
+        case Log.UHC_LOG_TRACE: return FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+        case Log.UHC_LOG_DEBUG: return FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+        case Log.UHC_LOG_INFO:  return FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+        case Log.UHC_LOG_WARN:  return FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+        case Log.UHC_LOG_ERROR: return FOREGROUND_RED | FOREGROUND_INTENSITY;
         default:        return FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
     }
 }
@@ -48,11 +47,11 @@ static U0 _log(Log.Level level, const I8* fmt, va_list args) {
 
 static const I8* _levelColor(Log.Level level) {
     switch (level) {
-        case Log.TRACE: return "\033[96m";
-        case Log.DEBUG: return "\033[94m";
-        case Log.INFO:  return "\033[92m";
-        case Log.WARN:  return "\033[93m";
-        case Log.ERROR: return "\033[91m";
+        case Log.UHC_LOG_TRACE: return "\033[96m";
+        case Log.UHC_LOG_DEBUG: return "\033[94m";
+        case Log.UHC_LOG_INFO:  return "\033[92m";
+        case Log.UHC_LOG_WARN:  return "\033[93m";
+        case Log.UHC_LOG_ERROR: return "\033[91m";
         default:        return "\033[37m";
     }
 }
@@ -66,11 +65,11 @@ static U0 _log(Log.Level level, const I8* fmt, va_list args) {
 #endif
 
 namespace Log {
-    U0 trace(const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.TRACE, fmt, a); va_end(a); }
-    U0 debug(const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.DEBUG, fmt, a); va_end(a); }
-    U0 info (const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.INFO,  fmt, a); va_end(a); }
-    U0 warn (const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.WARN,  fmt, a); va_end(a); }
-    U0 error(const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.ERROR, fmt, a); va_end(a); }
+    U0 trace(const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.UHC_LOG_TRACE, fmt, a); va_end(a); }
+    U0 debug(const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.UHC_LOG_DEBUG, fmt, a); va_end(a); }
+    U0 info (const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.UHC_LOG_INFO,  fmt, a); va_end(a); }
+    U0 warn (const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.UHC_LOG_WARN,  fmt, a); va_end(a); }
+    U0 error(const I8* fmt, ...) { va_list a; va_start(a, fmt); _log(Log.UHC_LOG_ERROR, fmt, a); va_end(a); }
 
     U0 msg(const I8* fmt, ...) {
         va_list a;

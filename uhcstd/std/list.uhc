@@ -1,0 +1,12 @@
+/*
+#include "uhcstd.uhh"
+
+namespace List {
+    List.It<T> create() {
+        List.It<T> parent;
+        init( &parent.handle );
+
+        return parent;
+    }
+}
+*/

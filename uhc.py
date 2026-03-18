@@ -107,7 +107,7 @@ def _replace_namespace_dots(line: str) -> str:
                 while k < n and (line[k].isalnum() or line[k] == '_'):
                     k += 1
                 member = line[j + 1:k]
-                if '_' not in member:
+                if '_' not in member or member[0].isupper():
                     result.append(ident + '::')
                     i = j + 1          # skip the dot
                     continue

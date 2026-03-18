@@ -79,6 +79,14 @@ def main() -> None:
         src_dir     = os.path.join(tmp, uhcstd_name)
         inc_tmp     = os.path.join(tmp, 'include')          # types.hh lives here
 
+        # Copy plain .h files (ignored by transpiler) into the temp tree so
+        # relative includes like  #include "cc.h"  resolve correctly.
+        for h in glob.glob(os.path.join(args.std, '**', '*.h'), recursive=True):
+            rel = os.path.relpath(h, args.std)
+            dest_h = os.path.join(src_dir, rel)
+            os.makedirs(os.path.dirname(dest_h), exist_ok=True)
+            shutil.copy2(h, dest_h)
+
         cc_files = glob.glob(os.path.join(src_dir, '**', '*.cc'), recursive=True)
         if not cc_files:
             sys.exit('Error: no .cc files produced by transpiler')
@@ -110,10 +118,13 @@ def main() -> None:
         shutil.copy2(os.path.join(inc_tmp, 'types.hh'), inc_out)
         print(f'  types.hh  ->  {inc_out}')
 
-        # all stdlib headers
+        # all stdlib headers (.hh and plain .h)
         for hh in glob.glob(os.path.join(src_dir, '**', '*.hh'), recursive=True):
             shutil.copy2(hh, inc_out)
             print(f'  {os.path.basename(hh)}  ->  {inc_out}')
+        for h in glob.glob(os.path.join(src_dir, '**', '*.h'), recursive=True):
+            shutil.copy2(h, inc_out)
+            print(f'  {os.path.basename(h)}  ->  {inc_out}')
 
         # static lib
         dest_lib = os.path.join(lib_out, 'libunholyc.a')

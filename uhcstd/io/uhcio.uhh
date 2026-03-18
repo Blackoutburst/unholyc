@@ -5,11 +5,11 @@
 
 namespace Log {
     enum Level {
-        TRACE,
-        DEBUG,
-        INFO,
-        WARN,
-        ERROR,
+        UHC_LOG_TRACE,
+        UHC_LOG_DEBUG,
+        UHC_LOG_INFO,
+        UHC_LOG_WARN,
+        UHC_LOG_ERROR,
     };
 
     U0 trace(const I8* fmt, ...);

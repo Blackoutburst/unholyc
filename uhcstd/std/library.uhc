@@ -26,7 +26,7 @@ namespace DynamicLibrary {
     }
 
     U0* get(DynamicLibrary.It& dll, const I8* functionName) {
-        U0* func = GetProcAddress(dll.handle, functionName);
+        U0* func = (U0*)(GetProcAddress(dll.handle, functionName));
 
         if (func == NULL) {
             Log.warn("Loading function %s", functionName);

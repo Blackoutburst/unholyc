@@ -2,9 +2,11 @@
 
 #if defined(_WIN32) || defined(_WIN64)
     #include <winsock2.h>
+    #include <windows.h>
 #else
     #include <unistd.h>
     #include <pthread.h>
+    #include <dlfcn.h>
 #endif
 
 namespace Mutex {
@@ -70,16 +72,12 @@ namespace Thread {
 
 namespace DynamicLibrary {
 #if defined(_WIN32) || defined(_WIN64)
-    #include <windows.h>
-
     struct It {
         HINSTANCE handle;
         I8* name;
         U8 isValid;
     };
 #else
-    #include <dlfcn.h>
-
     struct It {
         U0* handle;
         I8* name;
@@ -91,3 +89,4 @@ namespace DynamicLibrary {
     U0* get(DynamicLibrary.It& dll, const I8* functionName);
     U0 unload(DynamicLibrary.It& dll);
 }
+
