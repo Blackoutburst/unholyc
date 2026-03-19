@@ -22,6 +22,7 @@ Usage
 import re
 import sys
 import os
+import hashlib
 import argparse
 from typing import Optional
 
@@ -49,6 +50,155 @@ typedef long double   F128;
 
 #define UNUSED_VAR(expr) do { (void)(expr); } while (0)
 """
+
+
+# ---------------------------------------------------------------------------
+# Lambda transformation
+# ---------------------------------------------------------------------------
+
+def _lambda_hash(text: str) -> str:
+    """8-char hex hash used to generate unique lambda names."""
+    return hashlib.md5(text.encode()).hexdigest()[:8]
+
+
+def _is_void_type(t: str) -> bool:
+    """True when type t is void-like (U0 or void, pointer or not)."""
+    return t.strip().rstrip('*').strip() in ('U0', 'void')
+
+
+def _collect_lambda_signatures(source: str) -> dict:
+    """
+    Scan for  funcName(... lambda (TYPES) -> RETTYPE ...)
+    Returns {func_name: (param_types_str, ret_type_str)}
+    """
+    result: dict = {}
+    pat = re.compile(r'(\w+)\s*\([^(]*\blambda\s*\(([^)]*)\)\s*->\s*(\w+\s*\*?)')
+    for m in pat.finditer(source):
+        result[m.group(1)] = (m.group(2).strip(), m.group(3).strip())
+    return result
+
+
+def _transform_lambda_decls(source: str) -> str:
+    """Replace  lambda (TYPES) -> RETTYPE  with  RETTYPE (*func)(TYPES)."""
+    def repl(m: re.Match) -> str:
+        return f'{m.group(2).strip()} (*func)({m.group(1).strip()})'
+    return re.sub(r'\blambda\s*\(([^)]*)\)\s*->\s*(\w+\s*\*?)', repl, source)
+
+
+# Matches a lambda call-site opening line:
+#   [indent][TYPE name = ]funcName(args) { (params) ->
+_CALLSITE_PAT = re.compile(
+    r'^(\s*)'                               # group 1: leading indent
+    r'((?:\w[\w\s\*]*\s+)?\w+\s*=\s*)?'   # group 2: optional lvalue  "I32 result = "
+    r'(\w+)'                                # group 3: function name
+    r'\s*\(([^)]*)\)'                       # group 4: function args
+    r'\s*\{\s*\(([^)]*)\)\s*->\s*$'        # group 5: lambda params after {
+)
+
+# Matches a function *definition* line (ends with {, not ;)
+# Excludes control-flow keywords.
+_FUNCDEF_PAT = re.compile(
+    r'^\s*(?!(?:if|else|for|while|switch|do)\b)\w.*\)\s*\{\s*$'
+)
+
+
+def _transform_one_lambda(lines: list, sig_map: dict) -> tuple:
+    """
+    Find and transform the first lambda call site in `lines`.
+    Returns (new_lines, changed_bool).
+    """
+    for start_idx, line in enumerate(lines):
+        m = _CALLSITE_PAT.match(line)
+        if not m:
+            continue
+
+        indent        = m.group(1)
+        lvalue        = m.group(2)          # e.g. "I32 result = " or None
+        func_name     = m.group(3)
+        func_args     = m.group(4).strip()
+        lambda_params = m.group(5).strip()  # e.g. "a, b"
+
+        # --- Collect body lines until matching } ---
+        depth = 1
+        body: list = []
+        j = start_idx + 1
+        while j < len(lines) and depth > 0:
+            l = lines[j]
+            depth += l.count('{') - l.count('}')
+            if depth > 0:
+                body.append(l)
+            j += 1
+        close_idx = j - 1
+
+        # --- Signature lookup ---
+        sig = sig_map.get(func_name)
+        if sig:
+            ptypes_str, ret_type = sig
+            types = [t.strip() for t in ptypes_str.split(',') if t.strip()]
+            names = [n.strip() for n in lambda_params.split(',') if n.strip()]
+            typed_params = ', '.join(f'{t} {n}' for t, n in zip(types, names))
+        else:
+            typed_params = lambda_params
+            ret_type = 'U0'
+
+        # --- Inject return before last statement if return type is non-void ---
+        if not _is_void_type(ret_type) and body:
+            if not any(re.search(r'\breturn\b', bl) for bl in body):
+                for bi in range(len(body) - 1, -1, -1):
+                    s = body[bi].strip()
+                    if s and not s.startswith('//'):
+                        lead = re.match(r'^(\s*)', body[bi]).group(1)
+                        body[bi] = f'{lead}return {s}'
+                        break
+
+        # --- Generate unique lambda name ---
+        lname = f'__lambda_{_lambda_hash(func_name + lambda_params + chr(10).join(body))}'
+
+        # --- Build lambda function lines ---
+        lambda_lines = [f'{ret_type} {lname}({typed_params}) {{', *body, '}', '']
+
+        # --- Find hoist point: before the enclosing function definition ---
+        hoist_idx = 0
+        for k in range(start_idx - 1, -1, -1):
+            if _FUNCDEF_PAT.match(lines[k]):
+                hoist_idx = k
+                break
+
+        # --- Build replacement call line ---
+        new_args = f'{func_args}, {lname}' if func_args else lname
+        if lvalue:
+            call = f'{indent}{lvalue}{func_name}({new_args});'
+        else:
+            call = f'{indent}{func_name}({new_args});'
+
+        # --- Assemble ---
+        new_lines = (
+            lines[:hoist_idx]
+            + lambda_lines
+            + lines[hoist_idx:start_idx]
+            + [call]
+            + lines[close_idx + 1:]
+        )
+        return new_lines, True
+
+    return lines, False
+
+
+def _transform_lambdas(source: str) -> str:
+    """
+    Full lambda pipeline:
+      1. Collect signatures (for return-type injection at call sites).
+      2. Transform lambda parameter declarations  ->  function pointer syntax.
+      3. Transform call sites (hoist generated functions, rewrite call).
+    """
+    source = source.replace('\r\n', '\n').replace('\r', '\n')
+    sig_map = _collect_lambda_signatures(source)
+    source = _transform_lambda_decls(source)
+    lines = source.split('\n')
+    changed = True
+    while changed:
+        lines, changed = _transform_one_lambda(lines, sig_map)
+    return '\n'.join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +297,9 @@ def _replace_unused(line: str) -> str:
 
 def transpile(source: str) -> str:
     """Return the transpiled C++ source for a given UnHolyC source string."""
+    # Pre-process: lambda syntax must run before line-by-line passes
+    source = _transform_lambdas(source)
+
     lines = source.splitlines(keepends=True)
     result: list[str] = []
     has_types_include = False

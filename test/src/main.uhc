@@ -1,15 +1,14 @@
 #include <uhcio.uhh>
-#include <uhcstd.uhh>
-#include <uhcmath.uhh>
 
-U0 unusedExample(unused I32 a, I32 b) {
-    unused b;
+I32 merge(I32 a, I32 b, lambda (I32, I32) -> I32) {
+    return func(a, b);
 }
 
 I32 main() {
-    VectorF.It vec = { 0, 1, 2, 3 };
-
-    Log.debug("%f %f %f %f", vec.x, vec.y, vec.z, vec.w);
+    I32 result = merge(3, 4) { (a, b) ->
+        a + b;
+    }
+    Log.msg("%d", result);
 
     return 0;
 }
