@@ -3,27 +3,15 @@
 #include <uhcnet.uhh>
 
         
-void* readServer(void* arg) {
-    TcpClient.It* client = (TcpClient.It*)arg;
-
-    I8 buffer[1024];
-    if (TcpClient.read(*client, buffer, sizeof(buffer))) {
-        Log.msg("Received: %s", buffer);
-    }
-    
-    return NULL;
+I32 merge(I32 a, I32 b, lambda (I32, I32) -> I32) {
+    return func(a, b);
 }
 
 I32 main() {
-    TcpClient.It client = TcpClient.create("127.0.0.1", 12345);
-    Thread.It t = Thread.start(readServer, &client);
-
-    I8 buffer[5] = "ABCD";
-    
-    TcpClient.write(client, buffer, sizeof(buffer));
-    
-    Thread.join(t);
-    TcpClient.destroy(client);
+    I32 result = merge(5, 3) { (aaa, bbbb) ->
+        aaa + bbbb;
+    };
+    Log.msg("%d", result);
 
     return 0;
 }

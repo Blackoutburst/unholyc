@@ -95,6 +95,17 @@ _CALLSITE_PAT = re.compile(
     r'\s*\{\s*\(([^)]*)\)\s*->\s*$'        # group 5: lambda params after {
 )
 
+# Matches a no-param lambda call-site:
+#   [indent][TYPE name = ]funcName(args) {
+# Only used when funcName is known to accept a lambda (checked against sig_map).
+_CALLSITE_PAT_NOPARAM = re.compile(
+    r'^(\s*)'                               # group 1: leading indent
+    r'((?:\w[\w\s\*]*\s+)?\w+\s*=\s*)?'   # group 2: optional lvalue
+    r'(\w+)'                                # group 3: function name
+    r'\s*\(([^)]*)\)'                       # group 4: function args
+    r'\s*\{\s*$'                            # just {, end of line
+)
+
 # Matches a function *definition* line (ends with {, not ;)
 # Excludes control-flow keywords.
 _FUNCDEF_PAT = re.compile(
@@ -109,6 +120,12 @@ def _transform_one_lambda(lines: list, sig_map: dict) -> tuple:
     """
     for start_idx, line in enumerate(lines):
         m = _CALLSITE_PAT.match(line)
+        noparam = False
+        if not m:
+            m2 = _CALLSITE_PAT_NOPARAM.match(line)
+            if m2 and m2.group(3) in sig_map:
+                m = m2
+                noparam = True
         if not m:
             continue
 
@@ -116,7 +133,7 @@ def _transform_one_lambda(lines: list, sig_map: dict) -> tuple:
         lvalue        = m.group(2)          # e.g. "I32 result = " or None
         func_name     = m.group(3)
         func_args     = m.group(4).strip()
-        lambda_params = m.group(5).strip()  # e.g. "a, b"
+        lambda_params = '' if noparam else m.group(5).strip()  # e.g. "a, b"
 
         # --- Collect body lines until matching } ---
         depth = 1
