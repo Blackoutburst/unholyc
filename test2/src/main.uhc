@@ -1,13 +1,12 @@
 #include <uhcio.uhh>
-#include "merge.uhh"
+
+U0 merge(I32 a, I32 b, lambda block(I32) -> U0) {
+    return block(a + b);
+}
         
 I32 main() {
     merge(5, 3) { (res) ->
         Log.msg("%d", res);
-    };
-
-    Foo.merge2(5, 5) { (res) ->
-        Log.msg("2: %d", res);
     };
 
     return 0;

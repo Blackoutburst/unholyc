@@ -13,7 +13,7 @@ static const I8* _levelName(Log.Level level) {
         case Log.UHC_LOG_INFO:  return "INFO";
         case Log.UHC_LOG_WARN:  return "WARN";
         case Log.UHC_LOG_ERROR: return "ERROR";
-        default:        return "UNKNOWN";
+        default:                return "UNKNOWN";
     }
 }
 
@@ -26,7 +26,7 @@ static WORD _levelColor(Log.Level level) {
         case Log.UHC_LOG_INFO:  return FOREGROUND_GREEN | FOREGROUND_INTENSITY;
         case Log.UHC_LOG_WARN:  return FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
         case Log.UHC_LOG_ERROR: return FOREGROUND_RED | FOREGROUND_INTENSITY;
-        default:        return FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+        default:                return FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
     }
 }
 
@@ -52,7 +52,7 @@ static const I8* _levelColor(Log.Level level) {
         case Log.UHC_LOG_INFO:  return "\033[92m";
         case Log.UHC_LOG_WARN:  return "\033[93m";
         case Log.UHC_LOG_ERROR: return "\033[91m";
-        default:        return "\033[37m";
+        default:                return "\033[37m";
     }
 }
 

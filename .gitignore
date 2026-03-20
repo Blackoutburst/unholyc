@@ -6,6 +6,9 @@ out/
 
 ### Executable ###
 *.exe
+unholyc
+test/unholyc
+test2/unholyc
 
 ### Comp file ###
 dist/
@@ -21,7 +24,7 @@ test2/unholyc.dSYM
 ### Python ###
 __pycache__/
 .venv/
-.spec
+*.spec
 
 ### Build ###
 build/
