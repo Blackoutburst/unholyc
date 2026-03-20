@@ -74,6 +74,15 @@ namespace TcpServer {
         return 1;
     }
 
+    U0 broadcast(List.It<TcpClient.It> clients, I8* buffer, U32 size) {
+        U64 clientSize = List.size(clients);
+
+        for (U64 i = 0; i < clientSize; i++) {
+            TcpClient.It client = *List.get(clients, i);
+            TcpServer.write(client, buffer, size);
+        }
+    }
+
     U8 read(TcpClient.It& client, I8* buffer, U32 size) {
         if (client.sockfd == INVALID_SOCKET) return 0;
 
@@ -157,6 +166,15 @@ namespace TcpServer {
         send(client.sockfd, buffer, size, MSG_NOSIGNAL);
         
         return 1;
+    }
+
+    U0 broadcast(List.It<TcpClient.It> clients, I8* buffer, U32 size) {
+        U64 clientSize = List.size(clients);
+
+        for (U64 i = 0; i < clientSize; i++) {
+            TcpClient.It client = *List.get(clients, i);
+            TcpServer.write(client, buffer, size);
+        }
     }
 
     U8 read(TcpClient.It& client, I8* buffer, U32 size) {

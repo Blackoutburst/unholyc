@@ -1,5 +1,7 @@
 #pragma once
 
+#include "std/uhcstd.uhh"
+
 #include <string.h>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -51,4 +53,5 @@ namespace TcpServer {
     U8 write(TcpClient.It& client, I8* buffer, U32 size);
     U8 read(TcpClient.It& client, I8* buffer, U32 size);
     U8 readAll(TcpClient.It& client, I8* buffer, U32 size);
+    U0 broadcast(List.It<TcpClient.It> clients, I8* buffer, U32 size);
 }
