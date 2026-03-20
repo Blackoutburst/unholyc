@@ -98,8 +98,6 @@ cp dist/unholyc /usr/local/bin/unholyc
 chmod +x /usr/local/bin/unholyc
 ```
 
-> After copying, delete the `build/`, `dist/` folders and `unholyc.spec` — they are not needed.
-
 ---
 
 ## Usage

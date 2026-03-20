@@ -20,6 +20,8 @@ test2/unholyc.dSYM
 
 ### Python ###
 __pycache__/
+.venv/
+.spec
 
 ### Build ###
 build/
