@@ -2,14 +2,14 @@
 #include <uhcstd.uhh>
 
 U0* asyncStuff(U0* arg) {
-    U0 (*func)() = *(U0 (**)())arg;
-    func();
+    U0 (*block)() = *(U0 (**)())arg;
+    block();
 
     return NULL;
 }
 
-U0 io(lambda () -> U0) {
-    Thread.It t = Thread.start(asyncStuff, &func);
+U0 io(lambda block() -> U0) {
+    Thread.It t = Thread.start(asyncStuff, &block);
     Thread.join(t);
 }
 
