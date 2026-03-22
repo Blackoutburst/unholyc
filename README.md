@@ -94,8 +94,8 @@ copy dist\unholyc.exe C:\Users\<you>\.local\bin\unholyc.exe
 
 ```bash
 pyinstaller --onefile --console --name unholyc uhc.py
-cp dist/unholyc /usr/local/bin/unholyc
-chmod +x /usr/local/bin/unholyc
+cp dist/unholyc ~/.local/bin/unholyc
+chmod +x ~/.local/bin/unholyc
 ```
 
 ---

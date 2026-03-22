@@ -267,6 +267,12 @@ def _replace_namespace_dots(line: str) -> str:
 
         # -- Uppercase identifier: possible namespace qualifier
         if ch.isupper():
+            # Only treat as a namespace start if this uppercase letter begins
+            # a new identifier token (not in the middle of one like the 'I' in
+            # 'appInfo' or 'createInfo').
+            prev_ch = result[-1] if result else ''
+            is_word_start = not (prev_ch.isalnum() or prev_ch == '_')
+
             j = i
             while j < n and (line[j].isalnum() or line[j] == '_'):
                 j += 1
@@ -275,7 +281,8 @@ def _replace_namespace_dots(line: str) -> str:
             # Followed by '.' and then alpha/underscore  ->  namespace access
             # but only if the member name is not snake_case (no underscores),
             # which would indicate a C struct field rather than a namespace member.
-            if (j < n and line[j] == '.'
+            if (is_word_start
+                    and j < n and line[j] == '.'
                     and j + 1 < n
                     and (line[j + 1].isalpha() or line[j + 1] == '_')):
                 k = j + 1
