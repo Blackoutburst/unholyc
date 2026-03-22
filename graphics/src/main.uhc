@@ -1,0 +1,19 @@
+#include <uhcio.uhh>
+
+#include "window/window.uhh"
+#include "core/context.uhh"
+
+I32 main() {
+     UgWindow.It window = UgWindow.create("Unholy Graphics");
+     UgContext.It ugContext = UgContext.create(window, 1);
+
+    while (UgWindow.isOpen(window)) {
+        UgWindow.update();
+    }
+
+    UgContext.destroy(ugContext);
+    UgWindow.destroy(window);
+    
+    return 0;
+}
+

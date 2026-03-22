@@ -9,17 +9,14 @@ out/
 unholyc
 test/unholyc
 test2/unholyc
+unholyc-graphics
 
 ### Comp file ###
 dist/
 
 ### Mac ###
 .DS_Store
-
-### Test ###
-test/unholyc
-test/unholyc.dSYM
-test2/unholyc.dSYM
+*.dSYM
 
 ### Python ###
 __pycache__/

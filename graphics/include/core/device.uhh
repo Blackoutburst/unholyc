@@ -1,0 +1,31 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgPhysicalDevice {
+    VkPhysicalDeviceProperties getProperties(VkPhysicalDevice device);
+    const I8* typeName(VkPhysicalDeviceType type);
+    U8 hasExtensions(VkPhysicalDevice device);
+    U32 count(UgContext.It& ctx);
+    U0 list(UgContext.It& ctx);
+    VkPhysicalDevice get(UgContext.It& ctx, U8 desiredType);
+    VkPhysicalDevice create(UgContext.It& ctx);
+}
+
+namespace UgQueueFamilies {
+    U32 count(VkPhysicalDevice device);
+    U8 hasType(VkPhysicalDevice device, VkQueueFlagBits type);
+    U32 getType(VkPhysicalDevice device, VkQueueFlagBits type);
+}
+
+namespace UgDevice {
+    VkQueue getQueue(UgContext.It& ctx, VkDevice logicalDevice, VkQueueFlagBits queueType);
+    VkQueue getPresentationQueue(UgContext.It& ctx, VkDevice logicalDevice);
+    U32 getSurfaceSupport(UgContext.It& ctx);
+    U0 destroy(UgContext.It& ctx);
+    VkDevice make(UgContext.It& ctx);
+    VkDevice create(UgContext.It& ctx);
+}
+

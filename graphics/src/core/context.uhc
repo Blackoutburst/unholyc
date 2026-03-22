@@ -1,0 +1,24 @@
+#include "core/context.uhh"
+#include "core/instance.uhh"
+#include "core/device.uhh"
+#include "debug/logCallback.uhh"
+
+namespace UgContext {
+    UgContext.It create(UgWindow.It& window, U8 debug) {
+        UgContext.It ctx;
+        ctx.instance = UgInstance.create(debug);
+        ctx.logger = UgLogCallback.create(ctx);
+        ctx.surface = UgWindowSurface.create(ctx.instance, window);
+        ctx.physicalDevice = UgPhysicalDevice.create(ctx);
+        ctx.device = UgDevice.create(ctx);
+
+        return ctx;
+    }
+    
+    U0 destroy(UgContext.It& ctx) {
+        UgDevice.destroy(ctx);
+        UgWindowSurface.destroy(ctx.instance, ctx.surface);
+        UgLogCallback.destroy(ctx);
+        UgInstance.destroy(ctx);
+    }
+}

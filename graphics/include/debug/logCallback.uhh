@@ -1,0 +1,12 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgLogCallback {
+    U0 destroy(UgContext.It& ctx);
+    VkDebugUtilsMessengerCreateInfoEXT getCreateInfo();
+    VkDebugUtilsMessengerEXT create(UgContext.It& ctx);
+    VKAPI_ATTR VkBool32 VKAPI_CALL logCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, U0* pUserData);
+}

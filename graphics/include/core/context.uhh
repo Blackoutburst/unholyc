@@ -1,0 +1,19 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
+
+#include "window/window.uhh"
+
+namespace UgContext {
+    struct It {
+        VkInstance instance;
+        VkDebugUtilsMessengerEXT logger;
+        VkSurfaceKHR surface;
+        VkPhysicalDevice physicalDevice;
+        VkDevice device;
+    };
+
+    UgContext.It create(UgWindow.It& window, U8 debug);
+    U0 destroy(UgContext.It& ctx);
+}

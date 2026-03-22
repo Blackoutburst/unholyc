@@ -1,0 +1,55 @@
+#include <stdlib.h>
+#include <uhcio.uhh>
+
+#include "debug/logCallback.uhh"
+
+namespace UgLogCallback {
+    U0 destroy(UgContext.It& ctx) {
+        PFN_vkDestroyDebugUtilsMessengerEXT func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(ctx.instance, "vkDestroyDebugUtilsMessengerEXT");
+
+        if (func && ctx.logger != NULL) {
+            func(ctx.instance, ctx.logger, NULL);
+        }
+    }
+
+    VkDebugUtilsMessengerCreateInfoEXT getCreateInfo() {
+        VkDebugUtilsMessengerCreateInfoEXT createInfo;
+        
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        createInfo.pfnUserCallback = logCallback;
+        createInfo.pUserData = NULL;
+        
+        return createInfo;
+    }
+
+    VkDebugUtilsMessengerEXT create(UgContext.It& ctx) {
+        VkDebugUtilsMessengerEXT logger = NULL;
+        PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(ctx.instance, "vkCreateDebugUtilsMessengerEXT");
+        VkDebugUtilsMessengerCreateInfoEXT createInfo = getCreateInfo();
+
+        if (func) {
+            func(ctx.instance, &createInfo, NULL, &logger);
+        }
+
+        return logger;
+    }
+
+    VKAPI_ATTR VkBool32 VKAPI_CALL logCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, U0* pUserData) {
+        unused messageType;
+        unused pUserData;
+
+        switch (messageSeverity) {
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: Log.trace("%s", pCallbackData->pMessage); break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: Log.info("%s", pCallbackData->pMessage); break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: Log.warn("%s", pCallbackData->pMessage); break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: Log.error("%s", pCallbackData->pMessage); break;
+            default: Log.msg("%s", pCallbackData->pMessage);
+        }
+
+        return VK_FALSE;
+    }
+}

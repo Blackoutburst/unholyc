@@ -1,0 +1,23 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+#include "window/window.uhh"
+
+namespace UgSwapchain {
+    struct It {
+       VkSwapchainKHR handle; 
+       VkImage* images;
+       U32 imageCount;
+       VkSurfaceFormatKHR surfaceFormat;
+       VkPresentModeKHR presentMode;
+       VkSurfaceCapabilitiesKHR capabilities;
+    };
+
+    VkExtent2D extend(UgWindow.It& window, UgSwapchain.It& swapchain);
+    U0 update(UgWindow.It& window, UgSwapchain.It& swapchain, VkCommandBuffer cmdBuffer);
+    U0 destroy(UgContext.It& ctx, UgSwapchain.It& swapchain);
+    UgSwapchain.It create(UgContext.It& ctx);
+}
+

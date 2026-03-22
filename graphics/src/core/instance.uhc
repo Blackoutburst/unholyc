@@ -1,0 +1,66 @@
+#include <uhcio.uhh>
+#include <GLFW/glfw3.h>
+#include <string.h>
+
+#include "core/instance.uhh"
+#include "debug/logCallback.uhh"
+#include "debug/validationLayers.uhh"
+
+namespace UgInstance {
+    VkInstance create(U8 debug) {
+        VkInstance instance;
+    
+        VkApplicationInfo appInfo;
+        appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+        appInfo.pNext = NULL;
+        appInfo.pApplicationName = "Unholy Graphics";
+        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.pEngineName = "Unholy Graphics";
+        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.apiVersion = VK_API_VERSION_1_4;
+
+        U32 glfwExtensionCount = 0;
+        const I8** glfwExtensions;
+
+        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+        const I8** requiredExtensions = (const I8**)malloc((glfwExtensionCount + 2) * sizeof(char*));
+        memcpy(requiredExtensions, glfwExtensions, glfwExtensionCount * sizeof(char*));
+        requiredExtensions[glfwExtensionCount++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+        requiredExtensions[glfwExtensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+
+        VkInstanceCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+        createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        createInfo.pApplicationInfo = &appInfo;
+
+        if (debug) {
+            VkDebugUtilsMessengerCreateInfoEXT logCallback = UgLogCallback.getCreateInfo();
+            createInfo.pNext = &logCallback;
+            createInfo.enabledLayerCount = UgValidationLayer.count();
+            createInfo.ppEnabledLayerNames = UgValidationLayer.get();
+        } else {
+            createInfo.pNext = NULL;
+            createInfo.enabledLayerCount = 0;
+            createInfo.ppEnabledLayerNames = NULL;
+        }
+
+        createInfo.enabledExtensionCount = glfwExtensionCount;
+        createInfo.ppEnabledExtensionNames = requiredExtensions;
+
+        VkResult result = vkCreateInstance(&createInfo, NULL, &instance);
+        if (result != VK_SUCCESS) {
+            exit(1);
+        }
+
+        if (debug) {
+            Log.info("Enabled %i validation layers", UgValidationLayer.count());
+        }
+
+        return instance;
+    }
+
+    U0 destroy(UgContext.It& ctx) {
+        vkDestroyInstance(ctx.instance, NULL);
+    }
+}

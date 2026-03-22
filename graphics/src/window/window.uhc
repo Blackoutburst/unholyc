@@ -1,0 +1,47 @@
+#define GLFW_INCLUDE_VULKAN
+
+#include "window/window.uhh"
+
+namespace UgWindow {
+    U0 update() {
+        glfwPollEvents();
+    }
+
+    U0 destroy(UgWindow.It& window) {
+        glfwDestroyWindow(window.handle);
+
+        glfwTerminate();
+    }
+
+    U8 isOpen(UgWindow.It& window) {
+        return glfwWindowShouldClose(window.handle) ? 0 : 1;
+    }
+
+    UgWindow.It create(const I8* name) {
+        UgWindow.It window;
+        
+        glfwInit();
+
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        
+        GLFWwindow* handle = glfwCreateWindow(1280, 720, name, NULL, NULL);
+
+        window.name = name;
+        window.handle = handle;
+
+        return window;
+    }
+}
+
+namespace UgWindowSurface {
+    U0 destroy(VkInstance instance, VkSurfaceKHR surface) {
+        vkDestroySurfaceKHR(instance, surface, NULL);
+    }
+
+    VkSurfaceKHR create(VkInstance instance, UgWindow.It& window) {
+        VkSurfaceKHR surface = NULL;
+        glfwCreateWindowSurface(instance, window.handle, NULL, &surface);
+
+        return surface;
+    }
+}

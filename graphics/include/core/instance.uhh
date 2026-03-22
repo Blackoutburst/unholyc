@@ -1,0 +1,10 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgInstance {
+    VkInstance create(U8 debug);
+    U0 destroy(UgContext.It& ctx);
+}
