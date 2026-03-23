@@ -1,0 +1,49 @@
+#include <string.h>
+
+#include "core/buffer.uhh"
+#include "utils/utils.uhh"
+
+namespace UgBuffer {
+
+    UgBuffer.It create(UgContext.It& ctx, U32 size, VkBufferUsageFlagBits usage) {
+        UgBuffer.It buffer;
+    
+        VkBufferCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.size = size;
+        createInfo.usage = usage;
+        createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.queueFamilyIndexCount = 0;
+        createInfo.pQueueFamilyIndices = NULL;
+
+        vkCreateBuffer(ctx.device, &createInfo, NULL, &buffer.handle);
+
+        VkMemoryRequirements memReqs;
+        vkGetBufferMemoryRequirements(ctx.device, buffer.handle, &memReqs);
+
+        VkMemoryAllocateInfo allocInfo;
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.pNext = NULL;
+        allocInfo.allocationSize = memReqs.size;
+        allocInfo.memoryTypeIndex = UgUtils.findMemoryType(ctx, memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        vkAllocateMemory(ctx.device, &allocInfo, NULL, &buffer.memory);
+        vkBindBufferMemory(ctx.device, buffer.handle, buffer.memory, 0);
+
+        return buffer;
+    }
+
+    U0 upload(UgContext.It& ctx, UgBuffer.It& buffer, U0* data, U32 size) {
+        U0* mapped;
+        vkMapMemory(ctx.device, buffer.memory, 0, size, 0, &mapped);
+        memcpy(mapped, data, size);
+        vkUnmapMemory(ctx.device, buffer.memory);
+    }
+
+    U0 destroy(UgContext.It& ctx, UgBuffer.It& buffer) {
+        vkDestroyBuffer(ctx.device, buffer.handle, NULL);
+        vkFreeMemory(ctx.device, buffer.memory, NULL);
+    }
+}

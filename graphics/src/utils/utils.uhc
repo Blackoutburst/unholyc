@@ -1,0 +1,16 @@
+#include "utils/utils.uhh"
+
+namespace UgUtils {
+    U32 findMemoryType(UgContext.It& ctx, U32 typeFilter, VkMemoryPropertyFlags properties) {
+        VkPhysicalDeviceMemoryProperties memProps;
+        vkGetPhysicalDeviceMemoryProperties(ctx.physicalDevice, &memProps);
+
+        for (U32 i = 0; i < memProps.memoryTypeCount; i++) {
+            if ((typeFilter & (1 << i)) && (memProps.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+
+        return UINT32_MAX;
+    }
+}

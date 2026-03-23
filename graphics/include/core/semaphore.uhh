@@ -1,0 +1,8 @@
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgSemaphore {
+    VkSemaphore create(UgContext.It& ctx);
+    U0 destroy(UgContext.It& ctx, VkSemaphore semaphore);
+}

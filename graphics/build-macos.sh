@@ -2,7 +2,7 @@
 
 # Source
 readonly NAME="unholyc-graphics"
-readonly SRC="out/src/*.cc out/src/window/*.cc out/src/core/*.cc out/src/debug/*.cc"
+readonly SRC="out/src/*.cc out/src/window/*.cc out/src/core/*.cc out/src/debug/*.cc out/src/utils/*.cc"
 readonly INCLUDE="-Iout/include"
 
 # UnholyC std

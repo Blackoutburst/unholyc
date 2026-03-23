@@ -1,7 +1,46 @@
+#include <stdlib.h>
+
 #include <uhcmath.uhh>
 
 #include "core/swapchain.uhh"
 #include "core/device.uhh"
+#include "core/semaphore.uhh"
+#include "utils/utils.uhh"
+
+static U0 createDepthImage(UgContext.It& ctx, UgSwapchain.It& swapchain, UgWindow.It& window) {
+    VkExtent2D ext = UgSwapchain.extend(window, swapchain);
+
+    VkImageCreateInfo imageInfo;
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.pNext = NULL;
+    imageInfo.flags = 0;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.format = VK_FORMAT_D32_SFLOAT;
+    imageInfo.extent = { ext.width, ext.height, 1 };
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.queueFamilyIndexCount = 0;
+    imageInfo.pQueueFamilyIndices = NULL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    vkCreateImage(ctx.device, &imageInfo, NULL, &swapchain.depthImage);
+
+    VkMemoryRequirements memReqs;
+    vkGetImageMemoryRequirements(ctx.device, swapchain.depthImage, &memReqs);
+
+    VkMemoryAllocateInfo allocInfo;
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.pNext = NULL;
+    allocInfo.allocationSize = memReqs.size;
+    allocInfo.memoryTypeIndex = UgUtils.findMemoryType(ctx, memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    vkAllocateMemory(ctx.device, &allocInfo, NULL, &swapchain.depthImageMemory);
+    vkBindImageMemory(ctx.device, swapchain.depthImage, swapchain.depthImageMemory, 0);
+
+    swapchain.depthImageView = UgImageView.makeView(ctx, swapchain.depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
+}
 
 namespace UgSwapchain {
     VkExtent2D extend(UgWindow.It& window, UgSwapchain.It& swapchain) {
@@ -14,7 +53,7 @@ namespace UgSwapchain {
 
         I32 minWidth = swapchain.capabilities.minImageExtent.width;
         I32 minHeight = swapchain.capabilities.minImageExtent.height;
-        
+
         I32 maxWidth = swapchain.capabilities.maxImageExtent.width;
         I32 maxHeight = swapchain.capabilities.maxImageExtent.height;
 
@@ -43,44 +82,58 @@ namespace UgSwapchain {
     }
 
     U0 destroy(UgContext.It& ctx, UgSwapchain.It& swapchain) {
-        free(swapchain.images);
-        
+        for (U32 i = 0; i < swapchain.imageCount; i++) {
+            UgImageView.destroy(ctx, swapchain.imageViews[i]);
+            UgSemaphore.destroy(ctx, swapchain.pSemaphore[i]);
+            UgSemaphore.destroy(ctx, swapchain.rSemaphore[i]);
+        }
+
+        vkDestroyImageView(ctx.device, swapchain.depthImageView, NULL);
+        vkDestroyImage(ctx.device, swapchain.depthImage, NULL);
+        vkFreeMemory(ctx.device, swapchain.depthImageMemory, NULL);
+
+        free(swapchain.imageViews);
+        free(swapchain.pSemaphore);
+        free(swapchain.rSemaphore);
+
         vkDestroySwapchainKHR(ctx.device, swapchain.handle, NULL);
     }
 
     UgSwapchain.It create(UgContext.It& ctx, UgWindow.It& window) {
         UgSwapchain.It swapchain;
-        
+        swapchain.currentFrame = 0;
+        swapchain.imageIndex = 0;
+
         VkSurfaceCapabilitiesKHR capabilities;
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx.physicalDevice, ctx.surface, &capabilities);
         swapchain.capabilities = capabilities;
-        
+
         U32 formatCount = 0;
         vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.physicalDevice, ctx.surface, &formatCount, NULL);
-        VkSurfaceFormatKHR* surfaceFormat = (VkSurfaceFormatKHR*)malloc(sizeof(VkSurfaceFormatKHR) * formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.physicalDevice, ctx.surface, &formatCount, surfaceFormat);
+        VkSurfaceFormatKHR* surfaceFormats = (VkSurfaceFormatKHR*)malloc(sizeof(VkSurfaceFormatKHR) * formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.physicalDevice, ctx.surface, &formatCount, surfaceFormats);
 
         for (U32 i = 0; i < formatCount; i++) {
-            if (surfaceFormat[i].format == VK_FORMAT_B8G8R8A8_SRGB && surfaceFormat[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-                swapchain.surfaceFormat = surfaceFormat[i];
+            if (surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_SRGB && surfaceFormats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                swapchain.surfaceFormat = surfaceFormats[i];
                 break;
             }
         }
-        free(surfaceFormat);
-        
+        free(surfaceFormats);
+
         U32 presentModeCount = 0;
         vkGetPhysicalDeviceSurfacePresentModesKHR(ctx.physicalDevice, ctx.surface, &presentModeCount, NULL);
-        VkPresentModeKHR* presentMode = (VkPresentModeKHR*)malloc(sizeof(VkSurfaceFormatKHR) * presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(ctx.physicalDevice, ctx.surface, &presentModeCount, presentMode);
+        VkPresentModeKHR* presentModes = (VkPresentModeKHR*)malloc(sizeof(VkPresentModeKHR) * presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(ctx.physicalDevice, ctx.surface, &presentModeCount, presentModes);
 
         for (U32 i = 0; i < presentModeCount; i++) {
-            if (presentMode[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
-                swapchain.presentMode = presentMode[i];
+            if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+                swapchain.presentMode = presentModes[i];
                 break;
             }
         }
-        free(presentMode);
-        
+        free(presentModes);
+
         VkExtent2D extent = extend(window, swapchain);
 
         U32 imageCount = capabilities.minImageCount + 1;
@@ -101,11 +154,11 @@ namespace UgSwapchain {
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        U32 queues[2] = { 
-            UgQueueFamilies.getType(ctx.physicalDevice, VK_QUEUE_GRAPHICS_BIT), 
-            UgDevice.getSurfaceSupport(ctx) 
+        U32 queues[2] = {
+            UgQueueFamilies.getType(ctx.physicalDevice, VK_QUEUE_GRAPHICS_BIT),
+            UgDevice.getSurfaceSupport(ctx)
         };
-        
+
         U8 sameQueue = queues[0] == queues[1];
 
         if (sameQueue) {
@@ -124,13 +177,27 @@ namespace UgSwapchain {
         createInfo.clipped = VK_TRUE;
         createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-        VkSwapchainKHR handle;
-        vkCreateSwapchainKHR(ctx.device, &createInfo, NULL, &handle);
-        swapchain.handle = handle;
+        vkCreateSwapchainKHR(ctx.device, &createInfo, NULL, &swapchain.handle);
 
-        VkImage* images = (VkImage*)malloc(sizeof(VkSurfaceFormatKHR) * imageCount);
-        vkGetSwapchainImagesKHR(ctx.device, handle, &imageCount, images);
-        swapchain.images = images;
+        VkImage* rawImages = (VkImage*)malloc(sizeof(VkImage) * imageCount);
+        vkGetSwapchainImagesKHR(ctx.device, swapchain.handle, &imageCount, rawImages);
+
+        UgImageView.It* imageViews = (UgImageView.It*)malloc(sizeof(UgImageView.It) * imageCount);
+        VkSemaphore* pSemaphore = (VkSemaphore*)malloc(sizeof(VkSemaphore) * imageCount);
+        VkSemaphore* rSemaphore = (VkSemaphore*)malloc(sizeof(VkSemaphore) * imageCount);
+
+        for (U32 i = 0; i < imageCount; i++) {
+            imageViews[i] = UgImageView.create(ctx, rawImages[i], swapchain.surfaceFormat.format);
+            pSemaphore[i] = UgSemaphore.create(ctx);
+            rSemaphore[i] = UgSemaphore.create(ctx);
+        }
+        free(rawImages);
+
+        swapchain.imageViews = imageViews;
+        swapchain.pSemaphore = pSemaphore;
+        swapchain.rSemaphore = rSemaphore;
+
+        createDepthImage(ctx, swapchain, window);
 
         return swapchain;
     }

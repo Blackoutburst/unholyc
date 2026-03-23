@@ -1,0 +1,7 @@
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgUtils {
+    U32 findMemoryType(UgContext.It& ctx, U32 typeFilter, VkMemoryPropertyFlags properties);
+}

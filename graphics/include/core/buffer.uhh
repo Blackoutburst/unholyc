@@ -1,0 +1,14 @@
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgBuffer {
+    struct It {
+        VkBuffer handle;
+        VkDeviceMemory memory;
+    };
+
+    UgBuffer.It create(UgContext.It& ctx, U32 size, VkBufferUsageFlagBits usage);
+    U0 upload(UgContext.It& ctx, UgBuffer.It& buffer, U0* data, U32 size);
+    U0 destroy(UgContext.It& ctx, UgBuffer.It& buffer);
+}

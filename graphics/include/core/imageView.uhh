@@ -1,0 +1,16 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgImageView {
+    struct It {
+        VkImage image;
+        VkImageView view;
+    };
+
+    UgImageView.It create(UgContext.It& ctx, VkImage image, VkFormat format);
+    U0 destroy(UgContext.It& ctx, UgImageView.It& imageView);
+    VkImageView makeView(UgContext.It& ctx, VkImage image, VkFormat format, VkImageAspectFlags aspectMask);
+}

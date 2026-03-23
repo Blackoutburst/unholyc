@@ -3,21 +3,28 @@
 #include <vulkan/vulkan.h>
 
 #include "core/context.uhh"
+#include "core/imageView.uhh"
 #include "window/window.uhh"
 
 namespace UgSwapchain {
     struct It {
-       VkSwapchainKHR handle; 
-       VkImage* images;
-       U32 imageCount;
-       VkSurfaceFormatKHR surfaceFormat;
-       VkPresentModeKHR presentMode;
-       VkSurfaceCapabilitiesKHR capabilities;
+        VkSwapchainKHR handle;
+        UgImageView.It* imageViews;
+        U32 imageCount;
+        U32 currentFrame;
+        U32 imageIndex;
+        VkSemaphore* pSemaphore;
+        VkSemaphore* rSemaphore;
+        VkSurfaceFormatKHR surfaceFormat;
+        VkPresentModeKHR presentMode;
+        VkSurfaceCapabilitiesKHR capabilities;
+        VkImage depthImage;
+        VkDeviceMemory depthImageMemory;
+        VkImageView depthImageView;
     };
 
     VkExtent2D extend(UgWindow.It& window, UgSwapchain.It& swapchain);
     U0 update(UgWindow.It& window, UgSwapchain.It& swapchain, VkCommandBuffer cmdBuffer);
     U0 destroy(UgContext.It& ctx, UgSwapchain.It& swapchain);
-    UgSwapchain.It create(UgContext.It& ctx);
+    UgSwapchain.It create(UgContext.It& ctx, UgWindow.It& window);
 }
-
