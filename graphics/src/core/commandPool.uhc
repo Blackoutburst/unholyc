@@ -1,0 +1,23 @@
+#include "core/commandPool.uhh"
+#include "core/device.uhh"
+
+namespace UgCommandPool {
+    U0 destroy(UgContext.It& ctx, VkCommandPool cmdPool) {
+        vkDestroyCommandPool(ctx.device.handle, cmdPool, NULL);
+    }
+
+    VkCommandPool create(UgContext.It& ctx) {
+        VkCommandPool cmdPool;
+        U32 graphicQueue = UgQueueFamilies.getType(ctx.physicalDevice, VK_QUEUE_GRAPHICS_BIT);
+
+        VkCommandPoolCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        createInfo.queueFamilyIndex = graphicQueue;
+
+        vkCreateCommandPool(ctx.device.handle, &createInfo, NULL, &cmdPool);
+
+        return cmdPool;
+    }
+}

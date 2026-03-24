@@ -1,0 +1,199 @@
+#define STB_IMAGE_IMPLEMENTATION
+
+#include <stdlib.h>
+
+#include "utils/stb_image.h"
+#include "utils/utils.uhh"
+
+#include "core/texture.uhh"
+#include "core/image.uhh"
+#include "core/buffer.uhh"
+
+static U0 submitOnce(UgContext.It& ctx, VkCommandBuffer cmdBuffer) {
+    VkSubmitInfo submitInfo;
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = NULL;
+    submitInfo.waitSemaphoreCount = 0;
+    submitInfo.pWaitSemaphores = NULL;
+    submitInfo.pWaitDstStageMask = NULL;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmdBuffer;
+    submitInfo.signalSemaphoreCount = 0;
+    submitInfo.pSignalSemaphores = NULL;
+
+    vkQueueSubmit(ctx.device.graphicQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(ctx.device.graphicQueue);
+}
+
+namespace UgTexture {
+    UgTexture.It create(UgContext.It& ctx, const I8* path) {
+        I32 width, height, channels;
+        U8* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
+        U32 imageSize = (U32)(width * height * 4);
+
+        UgBuffer.It staging = UgBuffer.create(ctx, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+        UgBuffer.upload(ctx, staging, pixels, imageSize);
+        stbi_image_free(pixels);
+
+        VkImage image;
+        VkDeviceMemory memory;
+
+        VkImageCreateInfo imageInfo;
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.pNext = NULL;
+        imageInfo.flags = 0;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+        imageInfo.extent = { (U32)width, (U32)height, 1 };
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.queueFamilyIndexCount = 0;
+        imageInfo.pQueueFamilyIndices = NULL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        vkCreateImage(ctx.device.handle, &imageInfo, NULL, &image);
+
+        VkMemoryRequirements memReqs;
+        vkGetImageMemoryRequirements(ctx.device.handle, image, &memReqs);
+
+        VkMemoryAllocateInfo allocInfo;
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.pNext = NULL;
+        allocInfo.allocationSize = memReqs.size;
+        allocInfo.memoryTypeIndex = UgUtils.findMemoryType(ctx, memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        vkAllocateMemory(ctx.device.handle, &allocInfo, NULL, &memory);
+        vkBindImageMemory(ctx.device.handle, image, memory, 0);
+
+        VkCommandBuffer cmd = UgCommandBuffer.create(ctx);
+        UgCommandBuffer.begin(cmd);
+
+        UgImageLayout.transition(cmd, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        VkBufferImageCopy region;
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = { 0, 0, 0 };
+        region.imageExtent = { (U32)width, (U32)height, 1 };
+        vkCmdCopyBufferToImage(cmd, staging.handle, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+        UgImageLayout.transition(cmd, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        UgCommandBuffer.end(cmd);
+        submitOnce(ctx, cmd);
+        UgCommandBuffer.destroy(ctx, cmd);
+
+        UgBuffer.destroy(ctx, staging);
+
+        VkImageView view = UgImageView.makeView(ctx, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+        VkSampler sampler = UgSampler.create(ctx);
+
+        VkDescriptorSetLayoutBinding samplerBinding;
+        samplerBinding.binding = 0;
+        samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        samplerBinding.descriptorCount = 1;
+        samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        samplerBinding.pImmutableSamplers = NULL;
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo;
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.pNext = NULL;
+        layoutInfo.flags = 0;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &samplerBinding;
+
+        VkDescriptorSetLayout setLayout;
+        vkCreateDescriptorSetLayout(ctx.device.handle, &layoutInfo, NULL, &setLayout);
+
+        VkDescriptorSetAllocateInfo descAllocInfo;
+        descAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        descAllocInfo.pNext = NULL;
+        descAllocInfo.descriptorPool = ctx.descriptorPool;
+        descAllocInfo.descriptorSetCount = 1;
+        descAllocInfo.pSetLayouts = &setLayout;
+
+        VkDescriptorSet descriptorSet;
+        vkAllocateDescriptorSets(ctx.device.handle, &descAllocInfo, &descriptorSet);
+
+        VkDescriptorImageInfo imageDescInfo;
+        imageDescInfo.sampler = sampler;
+        imageDescInfo.imageView = view;
+        imageDescInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet write;
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext = NULL;
+        write.dstSet = descriptorSet;
+        write.dstBinding = 0;
+        write.dstArrayElement = 0;
+        write.descriptorCount = 1;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write.pImageInfo = &imageDescInfo;
+        write.pBufferInfo = NULL;
+        write.pTexelBufferView = NULL;
+        vkUpdateDescriptorSets(ctx.device.handle, 1, &write, 0, NULL);
+
+        UgTexture.It texture;
+        texture.image = image;
+        texture.memory = memory;
+        texture.view = view;
+        texture.sampler = sampler;
+        texture.setLayout = setLayout;
+        texture.descriptorSet = descriptorSet;
+
+        return texture;
+    }
+
+    U0 bind(UgTexture.It& texture, VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout) {
+        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texture.descriptorSet, 0, NULL);
+    }
+
+    U0 destroy(UgContext.It& ctx, UgTexture.It& texture) {
+        vkDestroyDescriptorSetLayout(ctx.device.handle, texture.setLayout, NULL);
+        UgSampler.destroy(ctx, texture.sampler);
+        vkDestroyImageView(ctx.device.handle, texture.view, NULL);
+        vkDestroyImage(ctx.device.handle, texture.image, NULL);
+        vkFreeMemory(ctx.device.handle, texture.memory, NULL);
+    }
+}
+
+namespace UgSampler {
+    VkSampler create(UgContext.It& ctx) {
+        VkSampler sampler;
+
+        VkSamplerCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.magFilter = VK_FILTER_NEAREST;
+        createInfo.minFilter = VK_FILTER_NEAREST;
+        createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.mipLodBias = 0.0f;
+        createInfo.anisotropyEnable = VK_TRUE;
+        createInfo.maxAnisotropy = ctx.device.properties.limits.maxSamplerAnisotropy;
+        createInfo.compareEnable = VK_FALSE;
+        createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        createInfo.minLod = 0.0f;
+        createInfo.maxLod = 0.0f;
+        createInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        createInfo.unnormalizedCoordinates = VK_FALSE;
+
+        vkCreateSampler(ctx.device.handle, &createInfo, NULL, &sampler);
+
+        return sampler;
+    }
+
+    U0 destroy(UgContext.It& ctx, VkSampler sampler) {
+        vkDestroySampler(ctx.device.handle, sampler, NULL);
+    }
+}

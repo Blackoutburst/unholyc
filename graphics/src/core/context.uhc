@@ -1,6 +1,8 @@
 #include "core/context.uhh"
 #include "core/instance.uhh"
 #include "core/device.uhh"
+#include "core/commandPool.uhh"
+#include "core/descriptorPool.uhh"
 #include "debug/logCallback.uhh"
 
 namespace UgContext {
@@ -9,14 +11,18 @@ namespace UgContext {
         ctx.instance = UgInstance.create(debug);
         ctx.logger = UgLogCallback.create(ctx);
         ctx.surface = UgWindowSurface.create(ctx.instance, window);
-        ctx.physicalDevice = UgPhysicalDevice.create(ctx);
-        ctx.device = UgDevice.create(ctx);
+        ctx.physicalDevice = UgPhysicalDevice.create(ctx.instance, ctx.surface);
+        ctx.device = UgDevice.create(ctx.physicalDevice, ctx.surface);
+        ctx.cmdPool = UgCommandPool.create(ctx);
+        ctx.descriptorPool = UgDescriptorPool.create(ctx);
 
         return ctx;
     }
-    
+
     U0 destroy(UgContext.It& ctx) {
-        UgDevice.destroy(ctx);
+        UgDescriptorPool.destroy(ctx, ctx.descriptorPool);
+        UgCommandPool.destroy(ctx, ctx.cmdPool);
+        UgDevice.destroy(ctx.device);
         UgWindowSurface.destroy(ctx.instance, ctx.surface);
         UgLogCallback.destroy(ctx);
         UgInstance.destroy(ctx);

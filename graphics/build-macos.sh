@@ -6,8 +6,8 @@ readonly SRC="out/src/*.cc out/src/window/*.cc out/src/core/*.cc out/src/debug/*
 readonly INCLUDE="-Iout/include"
 
 # UnholyC std
-readonly I_UHC="$HOME/.local/include"
-readonly L_UHC="$HOME/.local/lib"
+readonly I_UHC="../dist/include"
+readonly L_UHC="../dist/lib"
 readonly UHC="-I$I_UHC -L$L_UHC -lunholyc"
 
 # Vulkan
@@ -27,6 +27,13 @@ readonly F_DISABLED="-Wno-writable-strings"
 readonly FRAMEWORKS="-framework Cocoa -framework IOKit"
 
 unholyc ./ -r -o out/
+
+# Copy plain C headers that the transpiler doesn't process
+find include -name "*.h" | while read f; do
+    dest="out/${f}"
+    mkdir -p "$(dirname "$dest")"
+    cp "$f" "$dest"
+done
 
 printf "\e[94mCLANG\e[0m: "
 clang++ -o $NAME $ENGINE_SRC $SRC $INCLUDE $UHC $VK $GLFW $F_ERROR $F_DEBUG $F_DISABLED $FRAMEWORKS

@@ -21,7 +21,7 @@ namespace Log {
 }
 
 namespace File {
-    I64 size(FILE* file);
+    I64 getSize(FILE* file);
     FILE* open(const I8* filePath);
     U0 close(FILE* file);
     I8* read(FILE* file);

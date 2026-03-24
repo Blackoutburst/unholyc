@@ -2,16 +2,14 @@
 
 #include <vulkan/vulkan.h>
 
-#include "core/context.uhh"
-
 namespace UgPhysicalDevice {
     VkPhysicalDeviceProperties getProperties(VkPhysicalDevice device);
     const I8* typeName(VkPhysicalDeviceType type);
     U8 hasExtensions(VkPhysicalDevice device);
-    U32 count(UgContext.It& ctx);
-    U0 list(UgContext.It& ctx);
-    VkPhysicalDevice get(UgContext.It& ctx, U8 desiredType);
-    VkPhysicalDevice create(UgContext.It& ctx);
+    U32 count(VkInstance instance);
+    U0 list(VkInstance instance);
+    VkPhysicalDevice get(VkInstance instance, VkSurfaceKHR surface, U8 desiredType);
+    VkPhysicalDevice create(VkInstance instance, VkSurfaceKHR surface);
 }
 
 namespace UgQueueFamilies {
@@ -21,11 +19,18 @@ namespace UgQueueFamilies {
 }
 
 namespace UgDevice {
-    VkQueue getQueue(UgContext.It& ctx, VkDevice logicalDevice, VkQueueFlagBits queueType);
-    VkQueue getPresentationQueue(UgContext.It& ctx, VkDevice logicalDevice);
-    U32 getSurfaceSupport(UgContext.It& ctx);
-    U0 destroy(UgContext.It& ctx);
-    VkDevice make(UgContext.It& ctx);
-    VkDevice create(UgContext.It& ctx);
+    struct It {
+        VkDevice handle;
+        VkPhysicalDeviceProperties properties;
+        VkQueue graphicQueue;
+        VkQueue presentQueue;
+    };
+    
+    VkQueue getQueue(VkPhysicalDevice device, VkDevice logicalDevice, VkQueueFlagBits queueType);
+    VkQueue getPresentationQueue(VkPhysicalDevice device, VkSurfaceKHR surface, VkDevice logicalDevice);
+    U32 getSurfaceSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
+    U0 destroy(UgDevice.It& device);
+    VkDevice make(VkPhysicalDevice device, VkSurfaceKHR surface);
+    UgDevice.It create(VkPhysicalDevice device, VkSurfaceKHR surface);
 }
 

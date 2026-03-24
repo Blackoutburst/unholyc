@@ -1,0 +1,27 @@
+#include "core/fence.uhh"
+
+namespace UgFence {
+    VkFence create(UgContext.It& ctx) {
+        VkFence fence;
+        VkFenceCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        vkCreateFence(ctx.device.handle, &createInfo, NULL, &fence);
+
+        return fence;
+    }
+
+    U0 destroy(UgContext.It& ctx, VkFence fence) {
+        vkDestroyFence(ctx.device.handle, fence, NULL);
+    }
+
+    U0 wait(UgContext.It& ctx, VkFence fence) {
+        vkWaitForFences(ctx.device.handle, 1, &fence, VK_TRUE, UINT64_MAX);
+    }
+    
+    U0 reset(UgContext.It& ctx, VkFence fence) {
+        vkResetFences(ctx.device.handle, 1, &fence);
+    }
+}

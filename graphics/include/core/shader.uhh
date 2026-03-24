@@ -1,0 +1,22 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgShader {
+    U0 destroy(UgContext.It& ctx, VkShaderModule shader);
+    VkShaderModule create(UgContext.It& ctx, const I8* filePath);
+}
+
+namespace UgShaderProgram {
+    struct It {
+        VkPipelineShaderStageCreateInfo handle[2];
+        VkShaderModule vertexShader;
+        VkShaderModule fragmentShader;
+    };
+
+    VkPipelineShaderStageCreateInfo createShaderInfo(VkShaderStageFlagBits stage, VkShaderModule shader);
+    UgShaderProgram.It create(UgContext.It& ctx, const I8* vertexSource, const I8* fragmentSource);
+    U0 destroy(UgContext.It& ctx, UgShaderProgram.It& shaderProgram);
+}

@@ -1,19 +1,73 @@
+#include <stdlib.h>
+
 #include <uhcio.uhh>
 
 #include "window/window.uhh"
 #include "core/context.uhh"
+#include "core/swapchain.uhh"
+#include "core/renderPass.uhh"
+#include "core/pipeline.uhh"
+#include "core/shader.uhh"
+#include "core/buffer.uhh"
+#include "core/fence.uhh"
+
+static U32 vertexCount = 192;
+static U32 indexCount = 36;
+
+static F32 vertex[192] = {
+    // Front
+    -1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f,
+     1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  1.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  0.0f, 0.0f,
+
+    // Back
+    -1.0f, -1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f, 1.0f,
+     1.0f, -1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 1.0f,
+     1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f, 0.0f,
+
+    // Left
+    -1.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f,  0.0f, 1.0f,
+    -1.0f, -1.0f,  1.0f,  0.0f, 0.0f, 1.0f,  1.0f, 1.0f,
+    -1.0f,  1.0f,  1.0f,  0.0f, 0.0f, 1.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f,
+
+    // Right
+     1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  1.0f, 1.0f,
+     1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 0.0f,  0.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 0.0f,  0.0f, 0.0f,
+     1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  1.0f, 0.0f,
+
+    // Top
+    -1.0f,  1.0f,  1.0f,  0.0f, 1.0f, 1.0f,  0.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,  0.0f, 1.0f, 1.0f,  1.0f, 1.0f,
+     1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 1.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 1.0f,  0.0f, 0.0f,
+
+    // Bottom
+    -1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f, 0.0f,
+     1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  1.0f, 0.0f,
+     1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  1.0f, 1.0f,
+    -1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  0.0f, 1.0f,
+};
+
+static U32 index[36] = {
+    // Front
+    0,  1,  2,   2,  3,  0,
+    // Back
+    5,  4,  7,   7,  6,  5,
+    // Left
+    8,  9,  10,  10, 11, 8,
+    // Right
+    13, 12, 15,  15, 14, 13,
+    // Top
+    16, 17, 18,  18, 19, 16,
+    // Bottom
+    20, 23, 22,  22, 21, 20,
+};
 
 I32 main() {
-     UgWindow.It window = UgWindow.create("Unholy Graphics");
-     UgContext.It ugContext = UgContext.create(window, 1);
 
-    while (UgWindow.isOpen(window)) {
-        UgWindow.update();
-    }
-
-    UgContext.destroy(ugContext);
-    UgWindow.destroy(window);
-    
     return 0;
 }
-

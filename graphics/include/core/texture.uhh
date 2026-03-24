@@ -1,0 +1,25 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgTexture {
+    struct It {
+        VkImage image;
+        VkDeviceMemory memory;
+        VkImageView view;
+        VkSampler sampler;
+        VkDescriptorSetLayout setLayout;
+        VkDescriptorSet descriptorSet;
+    };
+
+    UgTexture.It create(UgContext.It& ctx, const I8* path);
+    U0 bind(UgTexture.It& texture, VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout);
+    U0 destroy(UgContext.It& ctx, UgTexture.It& texture);
+}
+
+namespace UgSampler {
+    VkSampler create(UgContext.It& ctx);
+    U0 destroy(UgContext.It& ctx, VkSampler sampler);
+}

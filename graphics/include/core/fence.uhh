@@ -1,0 +1,12 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgFence {
+    VkFence create(UgContext.It& ctx);
+    U0 destroy(UgContext.It& ctx, VkFence fence);
+    U0 wait(UgContext.It& ctx, VkFence fence);
+    U0 reset(UgContext.It& ctx, VkFence fence);
+}

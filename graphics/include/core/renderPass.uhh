@@ -1,0 +1,14 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+#include "core/swapchain.uhh"
+#include "core/buffer.uhh"
+
+namespace RenderPass {
+    U0 end(VkCommandBuffer cmdBuffer);
+    U0 begin(VkRenderPass renderPass, UgFramebuffer.It& framebuffers, VkCommandBuffer cmdBuffer, U32 imageIndex);
+    U0 destroy(UgContext.It& ctx, VkRenderPass renderPass);
+    VkRenderPass create(UgContext.It& ctx, UgSwapchain.It& swapchain);
+}

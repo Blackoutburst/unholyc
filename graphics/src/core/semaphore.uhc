@@ -8,12 +8,12 @@ namespace UgSemaphore {
         createInfo.pNext = NULL;
         createInfo.flags = 0;
 
-        vkCreateSemaphore(ctx.device, &createInfo, NULL, &semaphore);
+        vkCreateSemaphore(ctx.device.handle, &createInfo, NULL, &semaphore);
 
         return semaphore;
     }
 
     U0 destroy(UgContext.It& ctx, VkSemaphore semaphore) {
-        vkDestroySemaphore(ctx.device, semaphore, NULL);
+        vkDestroySemaphore(ctx.device.handle, semaphore, NULL);
     }
 }

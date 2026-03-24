@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 
 #include "core/buffer.uhh"
@@ -18,10 +19,10 @@ namespace UgBuffer {
         createInfo.queueFamilyIndexCount = 0;
         createInfo.pQueueFamilyIndices = NULL;
 
-        vkCreateBuffer(ctx.device, &createInfo, NULL, &buffer.handle);
+        vkCreateBuffer(ctx.device.handle, &createInfo, NULL, &buffer.handle);
 
         VkMemoryRequirements memReqs;
-        vkGetBufferMemoryRequirements(ctx.device, buffer.handle, &memReqs);
+        vkGetBufferMemoryRequirements(ctx.device.handle, buffer.handle, &memReqs);
 
         VkMemoryAllocateInfo allocInfo;
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -29,21 +30,177 @@ namespace UgBuffer {
         allocInfo.allocationSize = memReqs.size;
         allocInfo.memoryTypeIndex = UgUtils.findMemoryType(ctx, memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        vkAllocateMemory(ctx.device, &allocInfo, NULL, &buffer.memory);
-        vkBindBufferMemory(ctx.device, buffer.handle, buffer.memory, 0);
+        vkAllocateMemory(ctx.device.handle, &allocInfo, NULL, &buffer.memory);
+        vkBindBufferMemory(ctx.device.handle, buffer.handle, buffer.memory, 0);
 
         return buffer;
     }
 
     U0 upload(UgContext.It& ctx, UgBuffer.It& buffer, U0* data, U32 size) {
         U0* mapped;
-        vkMapMemory(ctx.device, buffer.memory, 0, size, 0, &mapped);
+        vkMapMemory(ctx.device.handle, buffer.memory, 0, size, 0, &mapped);
         memcpy(mapped, data, size);
-        vkUnmapMemory(ctx.device, buffer.memory);
+        vkUnmapMemory(ctx.device.handle, buffer.memory);
     }
 
     U0 destroy(UgContext.It& ctx, UgBuffer.It& buffer) {
-        vkDestroyBuffer(ctx.device, buffer.handle, NULL);
-        vkFreeMemory(ctx.device, buffer.memory, NULL);
+        vkDestroyBuffer(ctx.device.handle, buffer.handle, NULL);
+        vkFreeMemory(ctx.device.handle, buffer.memory, NULL);
+    }
+}
+
+namespace UgFramebuffer {
+    U0 destroy(UgContext.It& ctx, UgFramebuffer.It& framebuffers) {
+        for (U32 i = 0; i < framebuffers.bufferCount; i++) {
+            vkDestroyFramebuffer(ctx.device.handle, framebuffers.handles[i], NULL);
+        }
+        
+        free(framebuffers.handles);
+    }
+
+    UgFramebuffer.It create(UgWindow.It& window, UgContext.It& ctx, UgSwapchain.It& swapchain, VkRenderPass renderPass) {
+        UgFramebuffer.It parent;
+        
+        U32 imageCount = swapchain.imageCount;
+        VkFramebuffer* framebuffers = (VkFramebuffer*)malloc(sizeof(VkFramebuffer) * imageCount);
+        VkExtent2D extends = UgSwapchain.extend(window, swapchain);
+
+        for (U32 i = 0; i < imageCount; i++) {
+            VkImageView attachments[2] = { swapchain.imageViews[i].view, swapchain.depthImageView };
+
+            VkFramebufferCreateInfo createInfo;
+            createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            createInfo.pNext = NULL;
+            createInfo.flags = 0;
+            createInfo.renderPass = renderPass;
+            createInfo.attachmentCount = 2;
+            createInfo.pAttachments = attachments;
+            createInfo.width = extends.width;
+            createInfo.height = extends.height;
+            createInfo.layers = 1;
+
+            vkCreateFramebuffer(ctx.device.handle, &createInfo, NULL, &framebuffers[i]);
+        }
+
+        parent.handles = framebuffers;
+        parent.extends = extends;
+        parent.bufferCount = imageCount;
+
+        return parent;
+    }
+}
+
+namespace UgUniformBuffer {
+
+    UgUniformBuffer.It create(UgContext.It& ctx, U32 binding, U32 size) {
+        VkDescriptorSetLayoutBinding layout;
+        layout.binding = binding;
+        layout.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        layout.descriptorCount = 1;
+        layout.stageFlags = VK_SHADER_STAGE_ALL;
+        layout.pImmutableSamplers = NULL;
+
+        VkDescriptorSetLayoutCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.bindingCount = 1;
+        createInfo.pBindings = &layout;
+
+        VkDescriptorSetLayout setLayout;
+        vkCreateDescriptorSetLayout(ctx.device.handle, &createInfo, NULL, &setLayout);
+
+        UgBuffer.It buffer = UgBuffer.create(ctx, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+        UgUniformBuffer.It uniformBuffer;
+        uniformBuffer.buffer = buffer;
+        uniformBuffer.setLayout = setLayout;
+        uniformBuffer.binding = binding;
+        uniformBuffer.size = size;
+        
+        vkMapMemory(ctx.device.handle, buffer.memory, 0, size, 0, &uniformBuffer.mappedData);
+
+        VkDescriptorSetAllocateInfo allocInfo;
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.pNext = NULL;
+        allocInfo.descriptorPool = ctx.descriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &uniformBuffer.setLayout;
+
+        VkDescriptorSet descriptorSet;
+        vkAllocateDescriptorSets(ctx.device.handle, &allocInfo, &descriptorSet);
+
+        VkDescriptorBufferInfo bufferInfo;
+        bufferInfo.buffer = uniformBuffer.buffer.handle;
+        bufferInfo.offset = 0;
+        bufferInfo.range = size;
+
+        VkWriteDescriptorSet write;
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext = NULL;
+        write.dstSet = descriptorSet;
+        write.dstBinding = binding;
+        write.dstArrayElement = 0;
+        write.descriptorCount = 1;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        write.pBufferInfo = &bufferInfo;
+        write.pImageInfo = NULL;
+        write.pTexelBufferView = NULL;
+
+        vkUpdateDescriptorSets(ctx.device.handle, 1, &write, 0, NULL);
+
+        uniformBuffer.descriptorSet = descriptorSet;
+
+        return uniformBuffer;
+    }
+
+    U0 bind(UgUniformBuffer.It& uniformBuffer, VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout) {
+        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformBuffer.descriptorSet, 0, NULL);
+    }
+
+    U0 update(UgUniformBuffer.It& uniformBuffer, U0* data, U32 size) {
+        memcpy(uniformBuffer.mappedData, data, size);
+    }
+    
+    U0 destroy(UgContext.It& ctx, UgUniformBuffer.It& uniformBuffer) {
+        vkUnmapMemory(ctx.device.handle, uniformBuffer.buffer.memory);
+        vkDestroyDescriptorSetLayout(ctx.device.handle, uniformBuffer.setLayout, NULL);
+        UgBuffer.destroy(ctx, uniformBuffer.buffer);
+    }
+}
+
+namespace UgCommandBuffer {
+    U0 end(VkCommandBuffer cmdBuffer) {
+        vkEndCommandBuffer(cmdBuffer);
+    }
+
+    U0 begin(VkCommandBuffer cmdBuffer) {
+        VkCommandBufferBeginInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.pInheritanceInfo = NULL;
+
+        vkResetCommandBuffer(cmdBuffer, 0);
+        vkBeginCommandBuffer(cmdBuffer, &createInfo);
+    }
+
+    U0 destroy(UgContext.It& ctx, VkCommandBuffer cmdBuffer) {
+        vkFreeCommandBuffers(ctx.device.handle, ctx.cmdPool, 1, &cmdBuffer);
+    }
+
+    VkCommandBuffer create(UgContext.It& ctx) {
+        VkCommandBuffer cmdBuffer;
+
+        VkCommandBufferAllocateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.commandPool = ctx.cmdPool;
+        createInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        createInfo.commandBufferCount = 1;
+
+        vkAllocateCommandBuffers(ctx.device.handle, &createInfo, &cmdBuffer);
+        
+        return cmdBuffer;
     }
 }

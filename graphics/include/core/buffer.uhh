@@ -1,6 +1,9 @@
+#pragma once
+
 #include <vulkan/vulkan.h>
 
 #include "core/context.uhh"
+#include "core/swapchain.uhh"
 
 namespace UgBuffer {
     struct It {
@@ -11,4 +14,39 @@ namespace UgBuffer {
     UgBuffer.It create(UgContext.It& ctx, U32 size, VkBufferUsageFlagBits usage);
     U0 upload(UgContext.It& ctx, UgBuffer.It& buffer, U0* data, U32 size);
     U0 destroy(UgContext.It& ctx, UgBuffer.It& buffer);
+}
+
+namespace UgFramebuffer {
+
+    struct It {
+        VkFramebuffer* handles;
+        VkExtent2D extends;
+        U32 bufferCount;
+    };
+
+    U0 destroy(UgContext.It& ctx, UgFramebuffer.It& framebuffers);
+    UgFramebuffer.It create(UgWindow.It& window, UgContext.It& ctx, UgSwapchain.It& swapchain, VkRenderPass renderPass);
+}
+
+namespace UgUniformBuffer {
+    struct It {
+        UgBuffer.It buffer;
+        VkDescriptorSetLayout setLayout;
+        U0* mappedData;
+        U32 binding;
+        U32 size;
+        VkDescriptorSet descriptorSet;
+    };
+
+    UgUniformBuffer.It create(UgContext.It& ctx, U32 binding, U32 size);
+    U0 update(UgUniformBuffer.It& uniformBuffer, U0* data, U32 size);
+    U0 bind(UgUniformBuffer.It& uniformBuffer, VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout);
+    U0 destroy(UgContext.It& ctx, UgUniformBuffer.It& uniformBuffer);
+}
+
+namespace UgCommandBuffer {
+    U0 begin(VkCommandBuffer cmdBuffer);
+    U0 end(VkCommandBuffer cmdBuffer);
+    U0 destroy(UgContext.It& ctx, VkCommandBuffer cmdBuffer);
+    VkCommandBuffer create(UgContext.It& ctx);
 }

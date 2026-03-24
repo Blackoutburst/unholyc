@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 
 #include "window/window.uhh"
+#include "core/device.uhh"
 
 namespace UgContext {
     struct It {
@@ -11,7 +12,9 @@ namespace UgContext {
         VkDebugUtilsMessengerEXT logger;
         VkSurfaceKHR surface;
         VkPhysicalDevice physicalDevice;
-        VkDevice device;
+        UgDevice.It device;
+        VkDescriptorPool descriptorPool;
+        VkCommandPool cmdPool;
     };
 
     UgContext.It create(UgWindow.It& window, U8 debug);

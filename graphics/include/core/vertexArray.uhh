@@ -1,0 +1,38 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+#include "core/shader.uhh"
+#include "core/texture.uhh"
+#include "core/buffer.uhh"
+
+namespace UgVertexAttrib {
+    struct It {
+        U32 location;
+        VkFormat format;
+        U32 offset;
+    };
+
+}
+
+namespace UgVertexDesc {
+    struct It {
+        U32 stride;
+        UgVertexAttrib.It* attributes;
+        U32 attributeCount;
+    };
+}
+
+namespace UgVertexArray {
+    struct It {
+        VkPipelineLayout layout;
+        VkPipeline pipeline;
+        UgUniformBuffer.It uniformBuffer;
+    };
+
+    UgVertexArray.It create(UgWindow.It& window, UgContext.It& ctx, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram, UgSwapchain.It& swapchain, VkRenderPass renderPass);
+    U0 bind(UgVertexArray.It& vao, VkCommandBuffer cmdBuffer);
+    U0 destroy(UgContext.It& ctx, UgVertexArray.It& vao);
+}
+

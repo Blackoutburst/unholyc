@@ -14,3 +14,7 @@ namespace UgImageView {
     U0 destroy(UgContext.It& ctx, UgImageView.It& imageView);
     VkImageView makeView(UgContext.It& ctx, VkImage image, VkFormat format, VkImageAspectFlags aspectMask);
 }
+
+namespace UgImageLayout {
+    U0 transition(VkCommandBuffer cmdBuffer, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+}

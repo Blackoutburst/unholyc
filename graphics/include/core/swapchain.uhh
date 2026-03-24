@@ -3,7 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include "core/context.uhh"
-#include "core/imageView.uhh"
+#include "core/image.uhh"
 #include "window/window.uhh"
 
 namespace UgSwapchain {

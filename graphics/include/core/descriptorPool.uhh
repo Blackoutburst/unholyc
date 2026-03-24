@@ -1,0 +1,10 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+namespace UgDescriptorPool {
+    VkDescriptorPool create(UgContext.It& ctx);
+    U0 destroy(UgContext.It& ctx, VkDescriptorPool descriptorPool);
+}

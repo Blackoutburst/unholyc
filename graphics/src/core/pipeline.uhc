@@ -1,0 +1,229 @@
+#include "core/pipeline.uhh"
+
+static VkDynamicState dynamicStates[2] = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
+}; 
+
+namespace UgPipeline {
+    VkPipelineDynamicStateCreateInfo createDynamicState() {
+        VkPipelineDynamicStateCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.dynamicStateCount = 2;
+        createInfo.pDynamicStates = dynamicStates;
+
+        return createInfo;
+    }
+
+    VkPipelineInputAssemblyStateCreateInfo createInputAssembly() {
+        VkPipelineInputAssemblyStateCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        createInfo.primitiveRestartEnable = VK_FALSE;
+
+        return createInfo;
+    }
+
+    VkViewport createViewport(UgWindow.It& window, UgSwapchain.It& swapchain) {
+        VkExtent2D extend = UgSwapchain.extend(window, swapchain);
+
+        VkViewport viewport;
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = (F32) extend.width;
+        viewport.height = (F32) extend.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        return viewport;
+    }
+
+    VkRect2D createScissor(UgWindow.It& window, UgSwapchain.It& swapchain) {
+        VkExtent2D extend = UgSwapchain.extend(window, swapchain);
+
+        VkRect2D scissor;
+        scissor.offset = {0, 0};
+        scissor.extent = extend;
+
+        return scissor;
+    }
+
+    VkPipelineViewportStateCreateInfo createViewportState(VkViewport* viewport, VkRect2D* scissor) {
+        VkPipelineViewportStateCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.viewportCount = 1;
+        createInfo.pViewports = viewport;
+        createInfo.scissorCount = 1;
+        createInfo.pScissors = scissor;
+
+        return createInfo;
+    }
+
+    VkPipelineRasterizationStateCreateInfo createRasterizerState() {
+        VkPipelineRasterizationStateCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.depthClampEnable = VK_FALSE;
+        createInfo.rasterizerDiscardEnable = VK_FALSE;
+        createInfo.polygonMode = VK_POLYGON_MODE_FILL;
+        createInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+        createInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        createInfo.depthBiasEnable = VK_FALSE;
+        createInfo.depthBiasConstantFactor = 0.0f;
+        createInfo.depthBiasClamp = 0.0f;
+        createInfo.depthBiasSlopeFactor = 0.0f;
+        createInfo.lineWidth = 1.0f;
+
+        return createInfo;
+    }
+
+    VkPipelineMultisampleStateCreateInfo createMultisamplingState() {
+        VkPipelineMultisampleStateCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.sampleShadingEnable = VK_FALSE;
+        createInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        createInfo.minSampleShading = 1.0f;
+        createInfo.pSampleMask = NULL;
+        createInfo.alphaToCoverageEnable = VK_FALSE;
+        createInfo.alphaToOneEnable = VK_FALSE;
+
+        return createInfo;
+    }
+
+    VkPipelineColorBlendAttachmentState createColorBlendAttachmentState() {
+        VkPipelineColorBlendAttachmentState createInfo;
+        createInfo.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        createInfo.blendEnable = VK_FALSE;
+        createInfo.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        createInfo.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+        createInfo.colorBlendOp = VK_BLEND_OP_ADD;
+        createInfo.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        createInfo.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        createInfo.alphaBlendOp = VK_BLEND_OP_ADD;
+
+        return createInfo;
+    }
+
+    VkPipelineColorBlendStateCreateInfo createColorBlendState(VkPipelineColorBlendAttachmentState* colorBlendAttachment) {
+        VkPipelineColorBlendStateCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.logicOpEnable = VK_FALSE;
+        createInfo.logicOp = VK_LOGIC_OP_COPY;
+        createInfo.attachmentCount = 1;
+        createInfo.pAttachments = colorBlendAttachment;
+        createInfo.blendConstants[0] = 0.0f;
+        createInfo.blendConstants[1] = 0.0f;
+        createInfo.blendConstants[2] = 0.0f;
+        createInfo.blendConstants[3] = 0.0f;
+
+        return createInfo;
+    }
+
+    VkPipelineDepthStencilStateCreateInfo createDepthStencil() {
+        VkStencilOpState stencilOp = {};
+        stencilOp.failOp = VK_STENCIL_OP_KEEP;
+        stencilOp.passOp = VK_STENCIL_OP_KEEP;
+        stencilOp.depthFailOp = VK_STENCIL_OP_KEEP;
+        stencilOp.compareOp = VK_COMPARE_OP_ALWAYS;
+        stencilOp.compareMask = 0;
+        stencilOp.writeMask = 0;
+        stencilOp.reference = 0;
+
+        VkPipelineDepthStencilStateCreateInfo depthStencil;
+        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.pNext = NULL;
+        depthStencil.flags = 0;
+        depthStencil.depthTestEnable = VK_TRUE;
+        depthStencil.depthWriteEnable = VK_TRUE;
+        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depthStencil.depthBoundsTestEnable = VK_FALSE;
+        depthStencil.stencilTestEnable = VK_FALSE;
+        depthStencil.front = stencilOp;
+        depthStencil.back = stencilOp;
+        depthStencil.minDepthBounds = 0.0f;
+        depthStencil.maxDepthBounds = 1.0f;
+
+        return depthStencil;
+    }
+
+    U0 destroy(UgContext.It& ctx, VkPipeline graphicsPipeline) {
+        vkDestroyPipeline(ctx.device.handle, graphicsPipeline, NULL);
+    }
+
+    VkPipeline create(UgWindow.It& window, UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput) {
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly = createInputAssembly();
+        VkViewport viewPort = createViewport(window, swapchain);
+        VkRect2D scissor = createScissor(window, swapchain);
+        VkPipelineViewportStateCreateInfo viewport = createViewportState(&viewPort, &scissor);
+        VkPipelineRasterizationStateCreateInfo rasterizer = createRasterizerState();
+        VkPipelineMultisampleStateCreateInfo multiSampling = createMultisamplingState();
+        VkPipelineColorBlendAttachmentState colorBlendAttachmentState = createColorBlendAttachmentState();
+        VkPipelineColorBlendStateCreateInfo colorBlend =  createColorBlendState(&colorBlendAttachmentState);
+        VkPipelineDynamicStateCreateInfo dynamicState = createDynamicState();
+        VkPipelineDepthStencilStateCreateInfo depthStencil = createDepthStencil();
+
+        VkGraphicsPipelineCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        createInfo.flags = 0;
+        createInfo.pNext = NULL;
+        createInfo.stageCount = 2;
+        createInfo.pStages = shaderProgram.handle;
+        createInfo.pVertexInputState = vertexInput;
+        createInfo.pInputAssemblyState = &inputAssembly;
+        createInfo.pTessellationState = NULL;
+        createInfo.pViewportState = &viewport;
+        createInfo.pRasterizationState = &rasterizer;
+        createInfo.pMultisampleState = &multiSampling;
+        createInfo.pDepthStencilState = &depthStencil;
+        createInfo.pColorBlendState = &colorBlend;
+        createInfo.pDynamicState = &dynamicState;
+        createInfo.layout = layout;
+        createInfo.renderPass = renderPass;
+        createInfo.subpass = 0;
+        createInfo.basePipelineHandle = VK_NULL_HANDLE;
+        createInfo.basePipelineIndex = -1;
+
+        VkPipeline graphicsPipeline;
+        vkCreateGraphicsPipelines(ctx.device.handle, VK_NULL_HANDLE, 1, &createInfo, NULL, &graphicsPipeline);
+
+        return graphicsPipeline;
+    }
+}
+
+namespace UgPipelineLayout {
+    U0 remove(UgContext.It& ctx, VkPipelineLayout layout) {
+        vkDestroyPipelineLayout(ctx.device.handle, layout, NULL);
+    }
+
+    VkPipelineLayout create(UgContext.It& ctx, U32 count, VkDescriptorSetLayout* setLayouts) {
+        VkPipelineLayout pipelineLayout;
+
+        VkPipelineLayoutCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.setLayoutCount = count;
+        createInfo.pSetLayouts = setLayouts;
+        createInfo.pushConstantRangeCount = 0;
+        createInfo.pPushConstantRanges = NULL;
+
+        vkCreatePipelineLayout(ctx.device.handle, &createInfo, NULL, &pipelineLayout);
+
+        return pipelineLayout;
+    }
+
+    U0 destroy(UgContext.It& ctx, VkPipelineLayout pipelineLayout) {
+        vkDestroyPipelineLayout(ctx.device.handle, pipelineLayout, NULL);
+    }
+}
