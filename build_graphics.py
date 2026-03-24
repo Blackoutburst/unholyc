@@ -59,8 +59,8 @@ def main() -> None:
     parser.add_argument('--graphics', default=GRAPHICS,                 help='graphics source dir')
     parser.add_argument('--out',      default=DIST_DIR,                 help='output dist dir')
     parser.add_argument('--uhc-dist', default=UHC_DIST,                 help='uhcstd dist dir')
-    parser.add_argument('--vk-inc',   default='/opt/homebrew/include',  help='Vulkan include path')
-    parser.add_argument('--glfw-inc', default='/opt/homebrew/include',  help='GLFW include path')
+    parser.add_argument('--vk-inc',   default='C:\\VulkanSDK\\1.4.341.1\\include', help='Vulkan include path')
+    parser.add_argument('--glfw-inc', default='C:\\GLFW\\include',      help='GLFW include path')
     parser.add_argument('--cppstd',   default='c++17',                  help='C++ standard')
     args = parser.parse_args()
 

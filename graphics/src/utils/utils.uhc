@@ -1,6 +1,25 @@
 #include "utils/utils.uhh"
 
+static F32 clearColor[4] = { 0, 0, 0, 1 };
+
 namespace UgUtils {
+
+    U0 setClearColor(F32 r, F32 g, F32 b, F32 a) {
+        clearColor[0] = r;
+        clearColor[1] = g;
+        clearColor[2] = b;
+        clearColor[3] = a;
+    }
+    
+    VkClearColorValue getClearColor() {
+        VkClearColorValue clearValue; 
+        clearValue.float32[0] = clearColor[0];
+        clearValue.float32[1] = clearColor[1];
+        clearValue.float32[2] = clearColor[2];
+        clearValue.float32[3] = clearColor[3];
+        return clearValue;
+    }
+
     U32 findMemoryType(UgContext.It& ctx, U32 typeFilter, VkMemoryPropertyFlags properties) {
         VkPhysicalDeviceMemoryProperties memProps;
         vkGetPhysicalDeviceMemoryProperties(ctx.physicalDevice, &memProps);

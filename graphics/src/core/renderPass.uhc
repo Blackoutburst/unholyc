@@ -1,6 +1,8 @@
 #include "core/renderPass.uhh"
 #include "core/swapchain.uhh"
 
+#include "utils/utils.uhh"
+
 namespace UgRenderPass {
     U0 end(VkCommandBuffer cmdBuffer) {
         vkCmdEndRenderPass(cmdBuffer);
@@ -8,7 +10,7 @@ namespace UgRenderPass {
 
     U0 begin(VkRenderPass renderPass, UgFrameBuffer.It& framebuffers, VkCommandBuffer cmdBuffer, U32 imageIndex) {
         VkClearValue clearValues[2];
-        clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+        clearValues[0].color = UgUtils.getClearColor();
         clearValues[1].depthStencil = {1.0f, 0};
 
         VkRenderPassBeginInfo createInfo;
