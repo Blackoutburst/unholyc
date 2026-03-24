@@ -126,9 +126,10 @@ namespace UgSwapchain {
         VkPresentModeKHR* presentModes = (VkPresentModeKHR*)malloc(sizeof(VkPresentModeKHR) * presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(ctx.physicalDevice, ctx.surface, &presentModeCount, presentModes);
 
+        swapchain.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         for (U32 i = 0; i < presentModeCount; i++) {
             if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
-                swapchain.presentMode = presentModes[i];
+                swapchain.presentMode = VK_PRESENT_MODE_MAILBOX_KHR; 
                 break;
             }
         }
