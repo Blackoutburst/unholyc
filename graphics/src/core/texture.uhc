@@ -9,7 +9,7 @@
 #include "core/image.uhh"
 #include "core/buffer.uhh"
 
-static U0 submitOnce(UgContext.It& ctx, VkCommandBuffer cmdBuffer) {
+static U0 submitOnce(UgContext.It& ctx, UgCommandBuffer.It cmd) {
     VkSubmitInfo submitInfo;
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.pNext = NULL;
@@ -17,7 +17,7 @@ static U0 submitOnce(UgContext.It& ctx, VkCommandBuffer cmdBuffer) {
     submitInfo.pWaitSemaphores = NULL;
     submitInfo.pWaitDstStageMask = NULL;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmdBuffer;
+    submitInfo.pCommandBuffers = &cmd.handle;
     submitInfo.signalSemaphoreCount = 0;
     submitInfo.pSignalSemaphores = NULL;
 
@@ -67,10 +67,10 @@ namespace UgTexture {
         vkAllocateMemory(ctx.device.handle, &allocInfo, NULL, &memory);
         vkBindImageMemory(ctx.device.handle, image, memory, 0);
 
-        VkCommandBuffer cmd = UgCommandBuffer.create(ctx);
+        UgCommandBuffer.It cmd = UgCommandBuffer.create(ctx);
         UgCommandBuffer.begin(cmd);
 
-        UgImageLayout.transition(cmd, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        UgImageLayout.transition(cmd.handle, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         VkBufferImageCopy region;
         region.bufferOffset = 0;
@@ -82,9 +82,9 @@ namespace UgTexture {
         region.imageSubresource.layerCount = 1;
         region.imageOffset = { 0, 0, 0 };
         region.imageExtent = { (U32)width, (U32)height, 1 };
-        vkCmdCopyBufferToImage(cmd, staging.handle, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(cmd.handle, staging.handle, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-        UgImageLayout.transition(cmd, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        UgImageLayout.transition(cmd.handle, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         UgCommandBuffer.end(cmd);
         submitOnce(ctx, cmd);
@@ -151,8 +151,8 @@ namespace UgTexture {
         return texture;
     }
 
-    U0 bind(UgTexture.It& texture, VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout) {
-        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texture.descriptorSet, 0, NULL);
+    U0 bind(UgTexture.It& texture, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout) {
+        vkCmdBindDescriptorSets(cmd.handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texture.descriptorSet, 0, NULL);
     }
 
     U0 destroy(UgContext.It& ctx, UgTexture.It& texture) {

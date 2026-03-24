@@ -49,8 +49,8 @@ namespace UgBuffer {
     }
 }
 
-namespace UgFramebuffer {
-    U0 destroy(UgContext.It& ctx, UgFramebuffer.It& framebuffers) {
+namespace UgFrameBuffer {
+    U0 destroy(UgContext.It& ctx, UgFrameBuffer.It& framebuffers) {
         for (U32 i = 0; i < framebuffers.bufferCount; i++) {
             vkDestroyFramebuffer(ctx.device.handle, framebuffers.handles[i], NULL);
         }
@@ -58,12 +58,12 @@ namespace UgFramebuffer {
         free(framebuffers.handles);
     }
 
-    UgFramebuffer.It create(UgWindow.It& window, UgContext.It& ctx, UgSwapchain.It& swapchain, VkRenderPass renderPass) {
-        UgFramebuffer.It parent;
+    UgFrameBuffer.It create(UgContext.It& ctx, UgSwapchain.It& swapchain, VkRenderPass renderPass) {
+        UgFrameBuffer.It parent;
         
         U32 imageCount = swapchain.imageCount;
         VkFramebuffer* framebuffers = (VkFramebuffer*)malloc(sizeof(VkFramebuffer) * imageCount);
-        VkExtent2D extends = UgSwapchain.extend(window, swapchain);
+        VkExtent2D extends = UgSwapchain.extend(ctx, swapchain);
 
         for (U32 i = 0; i < imageCount; i++) {
             VkImageView attachments[2] = { swapchain.imageViews[i].view, swapchain.depthImageView };
@@ -158,40 +158,75 @@ namespace UgUniformBuffer {
         vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformBuffer.descriptorSet, 0, NULL);
     }
 
-    U0 update(UgUniformBuffer.It& uniformBuffer, U0* data, U32 size) {
-        memcpy(uniformBuffer.mappedData, data, size);
-    }
-    
     U0 destroy(UgContext.It& ctx, UgUniformBuffer.It& uniformBuffer) {
         vkUnmapMemory(ctx.device.handle, uniformBuffer.buffer.memory);
         vkDestroyDescriptorSetLayout(ctx.device.handle, uniformBuffer.setLayout, NULL);
         UgBuffer.destroy(ctx, uniformBuffer.buffer);
     }
+
+    U0 reset(UgUniformBuffer.It& buffer) {
+        buffer.cursor = 0;
+    }
+    
+    U0 setFloat(UgUniformBuffer.It& buffer, F32 value) {
+        U32 size = sizeof(F32) * 1;
+        F32 v[1] = { value };
+        memcpy((U8*)buffer.mappedData + buffer.cursor, v, size);
+        buffer.cursor += size;
+    }
+
+    U0 setVec2f(UgUniformBuffer.It& buffer, VectorF.It vec) {
+        U32 size = sizeof(F32) * 2;
+        F32 v[2] = { vec.x, vec.y };
+        memcpy((U8*)buffer.mappedData + buffer.cursor, v, size);
+        buffer.cursor += size;
+    }
+
+    U0 setVec3f(UgUniformBuffer.It& buffer, VectorF.It vec) {
+        U32 size = sizeof(F32) * 3;
+        F32 v[3] = { vec.x, vec.y, vec.z };
+        memcpy((U8*)buffer.mappedData + buffer.cursor, v, size);
+        buffer.cursor += size;
+    }
+
+    U0 setVec4f(UgUniformBuffer.It& buffer, VectorF.It vec) {
+        U32 size = sizeof(F32) * 4;
+        F32 v[4] = { vec.x, vec.y, vec.z, vec.w };
+        memcpy((U8*)buffer.mappedData + buffer.cursor, v, size);
+        buffer.cursor += size;
+    }
+
+    U0 setMat(UgUniformBuffer.It& buffer, Matrix.It mat) {
+        U32 size = sizeof(F32) * 16;
+        memcpy((U8*)buffer.mappedData + buffer.cursor, mat.values, size);
+        buffer.cursor += size;
+    }
 }
 
 namespace UgCommandBuffer {
-    U0 end(VkCommandBuffer cmdBuffer) {
-        vkEndCommandBuffer(cmdBuffer);
+    U0 end(UgCommandBuffer.It& cmd) {
+        vkEndCommandBuffer(cmd.handle);
     }
 
-    U0 begin(VkCommandBuffer cmdBuffer) {
+    U0 begin(UgCommandBuffer.It& cmd) {
         VkCommandBufferBeginInfo createInfo;
         createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         createInfo.pNext = NULL;
         createInfo.flags = 0;
         createInfo.pInheritanceInfo = NULL;
 
-        vkResetCommandBuffer(cmdBuffer, 0);
-        vkBeginCommandBuffer(cmdBuffer, &createInfo);
+        vkResetCommandBuffer(cmd.handle, 0);
+        vkBeginCommandBuffer(cmd.handle, &createInfo);
     }
 
-    U0 destroy(UgContext.It& ctx, VkCommandBuffer cmdBuffer) {
-        vkFreeCommandBuffers(ctx.device.handle, ctx.cmdPool, 1, &cmdBuffer);
+    U0 destroy(UgContext.It& ctx, UgCommandBuffer.It& cmd) {
+        vkFreeCommandBuffers(ctx.device.handle, ctx.cmdPool, 1, &cmd.handle);
     }
 
-    VkCommandBuffer create(UgContext.It& ctx) {
-        VkCommandBuffer cmdBuffer;
+    UgCommandBuffer.It create(UgContext.It& ctx) {
+        UgCommandBuffer.It cmd;
 
+        VkCommandBuffer handle;
         VkCommandBufferAllocateInfo createInfo;
         createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         createInfo.pNext = NULL;
@@ -199,8 +234,9 @@ namespace UgCommandBuffer {
         createInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         createInfo.commandBufferCount = 1;
 
-        vkAllocateCommandBuffers(ctx.device.handle, &createInfo, &cmdBuffer);
+        vkAllocateCommandBuffers(ctx.device.handle, &createInfo, &handle);
+        cmd.handle = handle;
         
-        return cmdBuffer;
+        return cmd;
     }
 }

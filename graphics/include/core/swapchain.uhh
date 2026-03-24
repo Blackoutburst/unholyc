@@ -4,6 +4,7 @@
 
 #include "core/context.uhh"
 #include "core/image.uhh"
+#include "core/semaphore.uhh"
 #include "window/window.uhh"
 
 namespace UgSwapchain {
@@ -13,8 +14,8 @@ namespace UgSwapchain {
         U32 imageCount;
         U32 currentFrame;
         U32 imageIndex;
-        VkSemaphore* pSemaphore;
-        VkSemaphore* rSemaphore;
+        UgSemaphore.It* pSemaphore;
+        UgSemaphore.It* rSemaphore;
         VkSurfaceFormatKHR surfaceFormat;
         VkPresentModeKHR presentMode;
         VkSurfaceCapabilitiesKHR capabilities;
@@ -23,8 +24,8 @@ namespace UgSwapchain {
         VkImageView depthImageView;
     };
 
-    VkExtent2D extend(UgWindow.It& window, UgSwapchain.It& swapchain);
-    U0 update(UgWindow.It& window, UgSwapchain.It& swapchain, VkCommandBuffer cmdBuffer);
+    VkExtent2D extend(UgContext.It& ctx, UgSwapchain.It& swapchain);
+    U0 update(UgContext.It& ctx, UgSwapchain.It& swapchain, VkCommandBuffer cmdBuffer);
     U0 destroy(UgContext.It& ctx, UgSwapchain.It& swapchain);
-    UgSwapchain.It create(UgContext.It& ctx, UgWindow.It& window);
+    UgSwapchain.It create(UgContext.It& ctx);
 }

@@ -5,8 +5,12 @@
 #include "core/context.uhh"
 
 namespace UgFence {
-    VkFence create(UgContext.It& ctx);
-    U0 destroy(UgContext.It& ctx, VkFence fence);
-    U0 wait(UgContext.It& ctx, VkFence fence);
-    U0 reset(UgContext.It& ctx, VkFence fence);
+    struct It {
+        VkFence handle;
+    };
+
+    UgFence.It create(UgContext.It& ctx);
+    U0 destroy(UgContext.It& ctx, UgFence.It& fence);
+    U0 wait(UgContext.It& ctx, UgFence.It& fence);
+    U0 reset(UgContext.It& ctx, UgFence.It& fence);
 }

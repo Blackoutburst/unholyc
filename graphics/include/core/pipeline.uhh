@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
 
 #include "core/context.uhh"
 #include "core/shader.uhh"
@@ -10,15 +9,15 @@
 namespace UgPipeline {
     VkPipelineDynamicStateCreateInfo createDynamicState();
     VkPipelineInputAssemblyStateCreateInfo createInputAssembly();
-    VkViewport createViewport(UgWindow.It& window, UgSwapchain.It& swapchain);
-    VkRect2D createScissor(UgWindow.It& window, UgSwapchain.It& swapchain);
+    VkViewport createViewport(UgContext.It& ctx, UgSwapchain.It& swapchain);
+    VkRect2D createScissor(UgContext.It& ctx, UgSwapchain.It& swapchain);
     VkPipelineViewportStateCreateInfo createViewportState(VkViewport* viewport, VkRect2D* scissor);
     VkPipelineRasterizationStateCreateInfo createRasterizerState();
     VkPipelineMultisampleStateCreateInfo createMultisamplingState();
     VkPipelineColorBlendAttachmentState createColorBlendAttachmentState();
     VkPipelineColorBlendStateCreateInfo createColorBlendState(VkPipelineColorBlendAttachmentState* colorBlendAttachment);
     U0 destroy(UgContext.It& ctx, VkPipeline graphicsPipeline);
-    VkPipeline create(UgWindow.It& window, UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput);
+    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput);
     VkPipelineDepthStencilStateCreateInfo createDepthStencil();
 }
 

@@ -13,6 +13,13 @@ namespace UgWindow {
         glfwTerminate();
     }
 
+    U8 isMinimized(UgWindow.It& window) {                                                                                                                                                                                                                                        
+        I32 w = 0;                                                                                                                                                                                                                                                               
+        I32 h = 0;                                                                                                                                                                                                                                                               
+        glfwGetFramebufferSize(window.handle, &w, &h);                                                                                                                                                                                                                           
+        return w == 0 || h == 0;                                                                                                                                                                                                                                                 
+    }
+
     U8 isOpen(UgWindow.It& window) {
         return glfwWindowShouldClose(window.handle) ? 0 : 1;
     }
@@ -30,18 +37,5 @@ namespace UgWindow {
         window.handle = handle;
 
         return window;
-    }
-}
-
-namespace UgWindowSurface {
-    U0 destroy(VkInstance instance, VkSurfaceKHR surface) {
-        vkDestroySurfaceKHR(instance, surface, NULL);
-    }
-
-    VkSurfaceKHR create(VkInstance instance, UgWindow.It& window) {
-        VkSurfaceKHR surface = NULL;
-        glfwCreateWindowSurface(instance, window.handle, NULL, &surface);
-
-        return surface;
     }
 }

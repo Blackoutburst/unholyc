@@ -1,0 +1,27 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+#include "core/swapchain.uhh"
+#include "core/image.uhh"
+#include "core/fence.uhh"
+#include "core/buffer.uhh"
+
+namespace UgRenderer {
+    struct It {
+        UgSwapchain.It swapchain;
+        UgFrameBuffer.It framebuffers;
+        VkRenderPass renderPass;
+    };
+
+    UgRenderer.It create(UgContext.It& ctx);
+    U0 destroy(UgContext.It& ctx, UgRenderer.It& renderer);
+    U0 update(UgContext.It& ctx, UgRenderer.It& renderer);
+    U0 begin(UgRenderer.It& renderer, UgCommandBuffer.It& cmd);
+    U0 end(UgCommandBuffer.It& cmd);
+    U0 setViewport(UgContext.It& ctx, UgRenderer.It& renderer, UgCommandBuffer.It& cmd);
+    U0 submit(UgContext.It& ctx, UgRenderer.It& renderer, UgCommandBuffer.It& cmd, UgFence.It& fence);
+    VkResult present(UgContext.It& ctx, UgRenderer.It& renderer);
+    VkResult aquire(UgContext.It& ctx, UgRenderer.It& renderer);
+}

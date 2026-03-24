@@ -1,6 +1,7 @@
 #include "core/context.uhh"
 #include "core/instance.uhh"
 #include "core/device.uhh"
+#include "core/surface.uhh"
 #include "core/commandPool.uhh"
 #include "core/descriptorPool.uhh"
 #include "debug/logCallback.uhh"
@@ -8,9 +9,10 @@
 namespace UgContext {
     UgContext.It create(UgWindow.It& window, U8 debug) {
         UgContext.It ctx;
+        ctx.window = window;
         ctx.instance = UgInstance.create(debug);
         ctx.logger = UgLogCallback.create(ctx);
-        ctx.surface = UgWindowSurface.create(ctx.instance, window);
+        ctx.surface = UgWindowSurface.create(ctx.instance, ctx.window);
         ctx.physicalDevice = UgPhysicalDevice.create(ctx.instance, ctx.surface);
         ctx.device = UgDevice.create(ctx.physicalDevice, ctx.surface);
         ctx.cmdPool = UgCommandPool.create(ctx);

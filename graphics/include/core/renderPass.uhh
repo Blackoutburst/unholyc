@@ -6,9 +6,9 @@
 #include "core/swapchain.uhh"
 #include "core/buffer.uhh"
 
-namespace RenderPass {
+namespace UgRenderPass {
     U0 end(VkCommandBuffer cmdBuffer);
-    U0 begin(VkRenderPass renderPass, UgFramebuffer.It& framebuffers, VkCommandBuffer cmdBuffer, U32 imageIndex);
+    U0 begin(VkRenderPass renderPass, UgFrameBuffer.It& framebuffers, VkCommandBuffer cmdBuffer, U32 imageIndex);
     U0 destroy(UgContext.It& ctx, VkRenderPass renderPass);
     VkRenderPass create(UgContext.It& ctx, UgSwapchain.It& swapchain);
 }

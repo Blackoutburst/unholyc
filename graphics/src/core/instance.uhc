@@ -27,7 +27,9 @@ namespace UgInstance {
         const I8** requiredExtensions = (const I8**)malloc((glfwExtensionCount + 2) * sizeof(char*));
         memcpy(requiredExtensions, glfwExtensions, glfwExtensionCount * sizeof(char*));
         requiredExtensions[glfwExtensionCount++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
-        requiredExtensions[glfwExtensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+        if (debug) {
+            requiredExtensions[glfwExtensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+        }
 
         VkInstanceCreateInfo createInfo;
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;

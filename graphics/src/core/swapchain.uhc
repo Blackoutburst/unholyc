@@ -7,8 +7,8 @@
 #include "core/semaphore.uhh"
 #include "utils/utils.uhh"
 
-static U0 createDepthImage(UgContext.It& ctx, UgSwapchain.It& swapchain, UgWindow.It& window) {
-    VkExtent2D ext = UgSwapchain.extend(window, swapchain);
+static U0 createDepthImage(UgContext.It& ctx, UgSwapchain.It& swapchain) {
+    VkExtent2D ext = UgSwapchain.extend(ctx, swapchain);
 
     VkImageCreateInfo imageInfo;
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -43,13 +43,13 @@ static U0 createDepthImage(UgContext.It& ctx, UgSwapchain.It& swapchain, UgWindo
 }
 
 namespace UgSwapchain {
-    VkExtent2D extend(UgWindow.It& window, UgSwapchain.It& swapchain) {
+    VkExtent2D extend(UgContext.It& ctx, UgSwapchain.It& swapchain) {
         if (swapchain.capabilities.currentExtent.width != 0xFFFFFFFF)
             return swapchain.capabilities.currentExtent;
 
         I32 width = 0;
         I32 height = 0;
-        glfwGetFramebufferSize(window.handle, &width, &height);
+        glfwGetFramebufferSize(ctx.window.handle, &width, &height);
 
         I32 minWidth = swapchain.capabilities.minImageExtent.width;
         I32 minHeight = swapchain.capabilities.minImageExtent.height;
@@ -63,8 +63,8 @@ namespace UgSwapchain {
         };
     }
 
-    U0 update(UgWindow.It& window, UgSwapchain.It& swapchain, VkCommandBuffer cmdBuffer) {
-        VkExtent2D ext = extend(window, swapchain);
+    U0 update(UgContext.It& ctx, UgSwapchain.It& swapchain, VkCommandBuffer cmd) {
+        VkExtent2D ext = extend(ctx, swapchain);
 
         VkViewport viewport;
         viewport.x = 0.0f;
@@ -73,12 +73,12 @@ namespace UgSwapchain {
         viewport.height = (F32)ext.height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
 
         VkRect2D scissor;
         scissor.offset = {0, 0};
         scissor.extent = ext;
-        vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
     }
 
     U0 destroy(UgContext.It& ctx, UgSwapchain.It& swapchain) {
@@ -99,7 +99,7 @@ namespace UgSwapchain {
         vkDestroySwapchainKHR(ctx.device.handle, swapchain.handle, NULL);
     }
 
-    UgSwapchain.It create(UgContext.It& ctx, UgWindow.It& window) {
+    UgSwapchain.It create(UgContext.It& ctx) {
         UgSwapchain.It swapchain;
         swapchain.currentFrame = 0;
         swapchain.imageIndex = 0;
@@ -134,7 +134,7 @@ namespace UgSwapchain {
         }
         free(presentModes);
 
-        VkExtent2D extent = extend(window, swapchain);
+        VkExtent2D extent = extend(ctx, swapchain);
 
         U32 imageCount = capabilities.minImageCount + 1;
         if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) {
@@ -183,8 +183,8 @@ namespace UgSwapchain {
         vkGetSwapchainImagesKHR(ctx.device.handle, swapchain.handle, &imageCount, rawImages);
 
         UgImageView.It* imageViews = (UgImageView.It*)malloc(sizeof(UgImageView.It) * imageCount);
-        VkSemaphore* pSemaphore = (VkSemaphore*)malloc(sizeof(VkSemaphore) * imageCount);
-        VkSemaphore* rSemaphore = (VkSemaphore*)malloc(sizeof(VkSemaphore) * imageCount);
+        UgSemaphore.It* pSemaphore = (UgSemaphore.It*)malloc(sizeof(UgSemaphore.It) * imageCount);
+        UgSemaphore.It* rSemaphore = (UgSemaphore.It*)malloc(sizeof(UgSemaphore.It) * imageCount);
 
         for (U32 i = 0; i < imageCount; i++) {
             imageViews[i] = UgImageView.create(ctx, rawImages[i], swapchain.surfaceFormat.format);
@@ -197,7 +197,7 @@ namespace UgSwapchain {
         swapchain.pSemaphore = pSemaphore;
         swapchain.rSemaphore = rSemaphore;
 
-        createDepthImage(ctx, swapchain, window);
+        createDepthImage(ctx, swapchain);
 
         return swapchain;
     }

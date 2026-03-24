@@ -1,0 +1,10 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "window/window.uhh"
+
+namespace UgWindowSurface {
+    U0 destroy(VkInstance instance, VkSurfaceKHR surface);
+    VkSurfaceKHR create(VkInstance instance, UgWindow.It& window);
+}

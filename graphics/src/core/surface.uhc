@@ -1,0 +1,14 @@
+#include "core/surface.uhh"
+
+namespace UgWindowSurface {
+    U0 destroy(VkInstance instance, VkSurfaceKHR surface) {
+        vkDestroySurfaceKHR(instance, surface, NULL);
+    }
+
+    VkSurfaceKHR create(VkInstance instance, UgWindow.It& window) {
+        VkSurfaceKHR surface = NULL;
+        glfwCreateWindowSurface(instance, window.handle, NULL, &surface);
+
+        return surface;
+    }
+}

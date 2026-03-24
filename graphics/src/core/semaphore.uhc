@@ -1,19 +1,21 @@
 #include "core/semaphore.uhh"
 
 namespace UgSemaphore {
-    VkSemaphore create(UgContext.It& ctx) {
-        VkSemaphore semaphore;
+    UgSemaphore.It create(UgContext.It& ctx) {
+        UgSemaphore.It semaphore;
+        VkSemaphore handle;
         VkSemaphoreCreateInfo createInfo;
         createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
         createInfo.pNext = NULL;
         createInfo.flags = 0;
 
-        vkCreateSemaphore(ctx.device.handle, &createInfo, NULL, &semaphore);
+        vkCreateSemaphore(ctx.device.handle, &createInfo, NULL, &handle);
+        semaphore.handle = handle;
 
         return semaphore;
     }
 
-    U0 destroy(UgContext.It& ctx, VkSemaphore semaphore) {
-        vkDestroySemaphore(ctx.device.handle, semaphore, NULL);
+    U0 destroy(UgContext.It& ctx, UgSemaphore.It& semaphore) {
+        vkDestroySemaphore(ctx.device.handle, semaphore.handle, NULL);
     }
 }

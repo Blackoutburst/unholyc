@@ -1,12 +1,12 @@
 #include "core/renderPass.uhh"
 #include "core/swapchain.uhh"
 
-namespace RenderPass {
+namespace UgRenderPass {
     U0 end(VkCommandBuffer cmdBuffer) {
         vkCmdEndRenderPass(cmdBuffer);
     }
 
-    U0 begin(VkRenderPass renderPass, UgFramebuffer.It& framebuffers, VkCommandBuffer cmdBuffer, U32 imageIndex) {
+    U0 begin(VkRenderPass renderPass, UgFrameBuffer.It& framebuffers, VkCommandBuffer cmdBuffer, U32 imageIndex) {
         VkClearValue clearValues[2];
         clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
         clearValues[1].depthStencil = {1.0f, 0};
@@ -74,6 +74,15 @@ namespace RenderPass {
 
         VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
 
+        VkSubpassDependency dependency;
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependency.dependencyFlags = 0;
+
         VkRenderPassCreateInfo renderPassInfo;
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
         renderPassInfo.flags = 0;
@@ -82,8 +91,8 @@ namespace RenderPass {
         renderPassInfo.pAttachments = attachments;
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = 0;
-        renderPassInfo.pDependencies = NULL;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
 
         VkRenderPass renderPass;
         vkCreateRenderPass(ctx.device.handle, &renderPassInfo, NULL, &renderPass);

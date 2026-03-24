@@ -1,11 +1,11 @@
 #include <stdlib.h>
 
-#include "core/vertexArray.hh"
+#include "core/vao.hh"
 #include "core/pipeline.hh"
 
-namespace VertexArray {
+namespace UgVertexArray {
 
-    UgVertexArray.It create(UgWindow.It& window, UgContext.It& ctx, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram, UgSwapchain.It& swapchain, VkRenderPass renderPass) {
+    UgVertexArray.It create(UgContext.It& ctx, UgRenderer.It& renderer, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram) {
         VkVertexInputBindingDescription bindingDesc;
         bindingDesc.binding = 0;
         bindingDesc.stride = desc.stride;
@@ -37,7 +37,7 @@ namespace VertexArray {
             layout = UgPipelineLayout.create(ctx, 1, setLayouts);
         }
 
-        VkPipeline pipeline = UgPipeline.create(window, ctx, layout, swapchain, shaderProgram, renderPass, &vertexInput);
+        VkPipeline pipeline = UgPipeline.create(ctx, layout, renderer.swapchain, shaderProgram, renderer.renderPass, &vertexInput);
 
         free(attrDescs);
 
@@ -49,9 +49,9 @@ namespace VertexArray {
         return vao;
     }
 
-    U0 bind(UgVertexArray.It& vao, VkCommandBuffer cmdBuffer) {
-        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vao.pipeline);
-        UgUniformBuffer.bind(vao.uniformBuffer, cmdBuffer, vao.layout);
+    U0 bind(UgVertexArray.It& vao, UgCommandBuffer.It& cmd) {
+        vkCmdBindPipeline(cmd.handle, VK_PIPELINE_BIND_POINT_GRAPHICS, vao.pipeline);
+        UgUniformBuffer.bind(vao.uniformBuffer, cmd.handle, vao.layout);
     }
 
     U0 destroy(UgContext.It& ctx, UgVertexArray.It& vao) {

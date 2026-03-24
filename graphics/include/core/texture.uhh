@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include "core/context.uhh"
+#include "core/buffer.uhh"
 
 namespace UgTexture {
     struct It {
@@ -15,7 +16,7 @@ namespace UgTexture {
     };
 
     UgTexture.It create(UgContext.It& ctx, const I8* path);
-    U0 bind(UgTexture.It& texture, VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout);
+    U0 bind(UgTexture.It& texture, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout);
     U0 destroy(UgContext.It& ctx, UgTexture.It& texture);
 }
 

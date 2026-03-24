@@ -8,6 +8,7 @@
 
 namespace UgContext {
     struct It {
+        UgWindow.It window;
         VkInstance instance;
         VkDebugUtilsMessengerEXT logger;
         VkSurfaceKHR surface;

@@ -6,6 +6,7 @@
 #include "core/shader.uhh"
 #include "core/texture.uhh"
 #include "core/buffer.uhh"
+#include "core/renderer.uhh"
 
 namespace UgVertexAttrib {
     struct It {
@@ -31,8 +32,8 @@ namespace UgVertexArray {
         UgUniformBuffer.It uniformBuffer;
     };
 
-    UgVertexArray.It create(UgWindow.It& window, UgContext.It& ctx, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram, UgSwapchain.It& swapchain, VkRenderPass renderPass);
-    U0 bind(UgVertexArray.It& vao, VkCommandBuffer cmdBuffer);
+    UgVertexArray.It create(UgContext.It& ctx, UgRenderer.It& renderer, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram);
+    U0 bind(UgVertexArray.It& vao, UgCommandBuffer.It& cmd);
     U0 destroy(UgContext.It& ctx, UgVertexArray.It& vao);
 }
 

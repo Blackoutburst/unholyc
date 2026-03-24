@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include <uhcmath.uhh>
+
 #include "core/context.uhh"
 #include "core/swapchain.uhh"
 
@@ -16,7 +18,7 @@ namespace UgBuffer {
     U0 destroy(UgContext.It& ctx, UgBuffer.It& buffer);
 }
 
-namespace UgFramebuffer {
+namespace UgFrameBuffer {
 
     struct It {
         VkFramebuffer* handles;
@@ -24,8 +26,8 @@ namespace UgFramebuffer {
         U32 bufferCount;
     };
 
-    U0 destroy(UgContext.It& ctx, UgFramebuffer.It& framebuffers);
-    UgFramebuffer.It create(UgWindow.It& window, UgContext.It& ctx, UgSwapchain.It& swapchain, VkRenderPass renderPass);
+    U0 destroy(UgContext.It& ctx, UgFrameBuffer.It& framebuffers);
+    UgFrameBuffer.It create(UgContext.It& ctx, UgSwapchain.It& swapchain, VkRenderPass renderPass);
 }
 
 namespace UgUniformBuffer {
@@ -36,17 +38,27 @@ namespace UgUniformBuffer {
         U32 binding;
         U32 size;
         VkDescriptorSet descriptorSet;
+        U32 cursor;
     };
 
     UgUniformBuffer.It create(UgContext.It& ctx, U32 binding, U32 size);
-    U0 update(UgUniformBuffer.It& uniformBuffer, U0* data, U32 size);
     U0 bind(UgUniformBuffer.It& uniformBuffer, VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout);
     U0 destroy(UgContext.It& ctx, UgUniformBuffer.It& uniformBuffer);
+    U0 reset(UgUniformBuffer.It& uniformBuffer);
+    U0 setFloat(UgUniformBuffer.It& buffer, F32 value);
+    U0 setVec2f(UgUniformBuffer.It& buffer, VectorF.It vec);
+    U0 setVec3f(UgUniformBuffer.It& buffer, VectorF.It vec);
+    U0 setVec4f(UgUniformBuffer.It& buffer, VectorF.It vec);
+    U0 setMat(UgUniformBuffer.It& buffer, Matrix.It mat);
 }
 
 namespace UgCommandBuffer {
-    U0 begin(VkCommandBuffer cmdBuffer);
-    U0 end(VkCommandBuffer cmdBuffer);
-    U0 destroy(UgContext.It& ctx, VkCommandBuffer cmdBuffer);
-    VkCommandBuffer create(UgContext.It& ctx);
+    struct It {
+        VkCommandBuffer handle;
+    };
+    
+    U0 begin(UgCommandBuffer.It& cmd);
+    U0 end(UgCommandBuffer.It& cmd);
+    U0 destroy(UgContext.It& ctx, UgCommandBuffer.It& cmd);
+    UgCommandBuffer.It create(UgContext.It& ctx);
 }

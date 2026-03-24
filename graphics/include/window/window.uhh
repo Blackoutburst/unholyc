@@ -11,11 +11,8 @@ namespace UgWindow {
 
     U0 update();
     U0 destroy(UgWindow.It& window);
+    U8 isMinimized(UgWindow.It& window);
     U8 isOpen(UgWindow.It& window);
     UgWindow.It create(const I8* name);
 }
 
-namespace UgWindowSurface {
-    U0 destroy(VkInstance instance, VkSurfaceKHR surface);
-    VkSurfaceKHR create(VkInstance instance, UgWindow.It& window);
-}

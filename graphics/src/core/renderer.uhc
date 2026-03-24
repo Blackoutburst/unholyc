@@ -1,0 +1,88 @@
+#include "core/renderer.uhh"
+#include "core/swapchain.uhh"
+#include "core/renderPass.uhh"
+
+namespace UgRenderer {
+    UgRenderer.It create(UgContext.It& ctx) {
+        UgSwapchain.It swapchain = UgSwapchain.create(ctx);
+        VkRenderPass renderPass = UgRenderPass.create(ctx, swapchain);
+        UgFrameBuffer.It framebuffers = UgFrameBuffer.create(ctx, swapchain, renderPass);
+    
+        UgRenderer.It renderer;
+        renderer.swapchain = swapchain;
+        renderer.framebuffers = framebuffers;
+        renderer.renderPass = renderPass;
+
+        return renderer;
+    }
+    
+    U0 destroy(UgContext.It& ctx, UgRenderer.It& renderer) {
+        UgFrameBuffer.destroy(ctx, renderer.framebuffers);
+        UgRenderPass.destroy(ctx, renderer.renderPass);
+        UgSwapchain.destroy(ctx, renderer.swapchain);
+    }
+
+    U0 begin(UgRenderer.It& renderer, UgCommandBuffer.It& cmd) {
+        UgRenderPass.begin(renderer.renderPass, renderer.framebuffers, cmd.handle, renderer.swapchain.imageIndex);
+    }
+
+    U0 end(UgCommandBuffer.It& cmd) {
+        UgRenderPass.end(cmd.handle);
+    }
+
+    U0 setViewport(UgContext.It& ctx, UgRenderer.It& renderer, UgCommandBuffer.It& cmd) {
+        UgSwapchain.update(ctx, renderer.swapchain, cmd.handle);
+    }
+
+    U0 submit(UgContext.It& ctx, UgRenderer.It& renderer, UgCommandBuffer.It& cmd, UgFence.It& fence) {
+        VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+        VkSubmitInfo submitInfo;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pNext = NULL;
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &renderer.swapchain.pSemaphore[renderer.swapchain.currentFrame].handle;
+        submitInfo.pWaitDstStageMask = &waitStage;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmd.handle;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &renderer.swapchain.rSemaphore[renderer.swapchain.currentFrame].handle;
+
+        vkQueueSubmit(ctx.device.graphicQueue, 1, &submitInfo, fence.handle);
+    }
+
+    VkResult present(UgContext.It& ctx, UgRenderer.It& renderer) {
+        VkPresentInfoKHR presentInfo;
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.pNext = NULL;
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = &renderer.swapchain.rSemaphore[renderer.swapchain.currentFrame].handle;
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &renderer.swapchain.handle;
+        presentInfo.pImageIndices = &renderer.swapchain.imageIndex;
+        presentInfo.pResults = NULL;
+
+        VkResult result = vkQueuePresentKHR(ctx.device.presentQueue, &presentInfo);
+
+        renderer.swapchain.currentFrame = (renderer.swapchain.currentFrame + 1) % renderer.swapchain.imageCount;
+
+        return result;
+    }
+
+    U0 update(UgContext.It& ctx, UgRenderer.It& renderer) {
+        vkDeviceWaitIdle(ctx.device.handle);
+
+        UgFrameBuffer.destroy(ctx, renderer.framebuffers);
+        UgSwapchain.destroy(ctx, renderer.swapchain);
+
+        UgSwapchain.It swapchain = UgSwapchain.create(ctx);
+        UgFrameBuffer.It framebuffers = UgFrameBuffer.create(ctx, swapchain, renderer.renderPass);
+
+        renderer.swapchain = swapchain;
+        renderer.framebuffers = framebuffers;
+    }
+
+    VkResult aquire(UgContext.It& ctx, UgRenderer.It& renderer) {
+        return vkAcquireNextImageKHR(ctx.device.handle, renderer.swapchain.handle, UINT64_MAX, renderer.swapchain.pSemaphore[renderer.swapchain.currentFrame].handle, VK_NULL_HANDLE, &renderer.swapchain.imageIndex);
+    } 
+}
