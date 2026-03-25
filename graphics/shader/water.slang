@@ -8,6 +8,7 @@ struct UniformBuffer {
     float4x4 model;
     float4x4 view;
     float4x4 projection;
+    float3 lightDir;
 };
 [[vk::binding(0, 0)]] ConstantBuffer<UniformBuffer> ubo;
 
@@ -26,13 +27,12 @@ VSOutput vertMain(VSInput input) {
 
 [shader("fragment")]
 float4 fragMain(VSOutput vertIn) : SV_TARGET {
-    float3 lightDir = normalize(float3(0.6, 1.0, 0.4));
     float3 normal = normalize(vertIn.normal);
 
     float ambient = 0.25;
-    float diffuse = max(dot(normal, lightDir), 0.0);
+    float diffuse = max(dot(normal, ubo.lightDir), 0.0);
     float light = ambient + (1.0 - ambient) * diffuse;
 
-    float3 waterColor = float3(0.16, 0.52, 0.78);
+    float3 waterColor = float3(0.06, 0.42, 0.68);
     return float4(waterColor * light, 0.6);
 }

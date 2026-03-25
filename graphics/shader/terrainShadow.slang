@@ -9,6 +9,7 @@ struct UniformBuffer {
     float4x4 view;
     float4x4 projection;
     float4x4 lightMVP;
+    float3 lightDir;
 };
 [[vk::binding(0, 0)]] ConstantBuffer<UniformBuffer> ubo;
 [[vk::binding(0, 1)]] Sampler2D shadowMap;
@@ -26,7 +27,8 @@ VSOutput vertMain(VSInput input) {
     float4 worldPos = mul(ubo.model, float4(input.inPosition, 1.0));
     output.pos = mul(ubo.projection, mul(ubo.view, worldPos));
     output.normal = normalize(mul((float3x3)ubo.model, input.inNormal));
-    output.lightSpacePos = mul(ubo.lightMVP, float4(input.inPosition, 1.0));
+
+    output.lightSpacePos = mul(ubo.lightMVP, worldPos);
     output.worldY = worldPos.y;
     return output;
 }
@@ -64,9 +66,10 @@ float shadowCalc(float4 lightSpacePos, float3 normal, float3 lightDir, float2 sc
 
     float currentDepth = proj.z;
 
-    float cosTheta = clamp(dot(normal, normalize(lightDir)), 0.0, 1.0);
-    float bias = 0.01 * tan(acos(cosTheta));
-    bias = clamp(bias, 0.0, 0.01);
+    float cosTheta = clamp(dot(normal, normalize(ubo.lightDir)), 0.0, 1.0);
+    float depthRange = 200.0 - 0.1;
+    float bias = (0.5 / depthRange) * tan(acos(cosTheta));
+    bias = clamp(bias, 0.0, 2.0 / depthRange); // max ~2 world units
 
     // Interleaved Gradient Noise (Jimenez 2014) — no visible period in screen space
     float angle = frac(52.9829189 * frac(0.06711056 * screenPos.x + 0.00583715 * screenPos.y)) * 6.28318;
@@ -87,13 +90,12 @@ float shadowCalc(float4 lightSpacePos, float3 normal, float3 lightDir, float2 sc
 
 [shader("fragment")]
 float4 fragMain(VSOutput vertIn) : SV_TARGET {
-    float3 lightDir = normalize(float3(1.0, 0.8, 1.0));
     float3 normal   = normalize(vertIn.normal);
 
-    float shadow = shadowCalc(vertIn.lightSpacePos, normal, lightDir, vertIn.pos.xy);
+    float shadow = shadowCalc(vertIn.lightSpacePos, normal, ubo.lightDir, vertIn.pos.xy);
 
     float ambient = 0.35;
-    float diffuse = max(dot(normal, lightDir), 0.0);
+    float diffuse = max(dot(normal, ubo.lightDir), 0.0);
     //float light   = ambient + (1.0) * (1.0 - ambient) * diffuse;
     float light   = ambient + (1.0 - shadow) * (1.0 - ambient) * diffuse;
 
@@ -102,12 +104,12 @@ float4 fragMain(VSOutput vertIn) : SV_TARGET {
     float grassStart = 5.5;
     float t = clamp((vertIn.worldY - waterLevel) / (grassStart - waterLevel), 0.0, 1.0);
     float3 sandColor  = float3(0.85, 0.78, 0.40);
-    float3 grassColor = float3(0.27, 0.65, 0.18);
+    float3 grassColor = float3(0.17, 0.55, 0.08);
     float3 color = lerp(grassColor, sandColor, t);
 
     // Underwater darkening
-    if (vertIn.worldY < waterLevel) {
-        float depth = clamp((waterLevel - vertIn.worldY) / 8.0, 0.0, 1.0);
+    if (vertIn.worldY > waterLevel) {
+        float depth = clamp((vertIn.worldY - waterLevel) / 8.0, 0.0, 1.0);
         float3 waterTint = float3(0.05, 0.10, 0.18);
         color = lerp(color, waterTint, depth * 0.75);
     }
