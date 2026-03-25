@@ -161,7 +161,7 @@ namespace UgPipeline {
         vkDestroyPipeline(ctx.device.handle, graphicsPipeline, NULL);
     }
 
-    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, U8 alphaBlend) {
+    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, U8 alphaBlend, U8 depthOnly) {
         VkPipelineInputAssemblyStateCreateInfo inputAssembly = createInputAssembly();
         VkViewport viewPort = createViewport(ctx, swapchain);
         VkRect2D scissor = createScissor(ctx, swapchain);
@@ -169,7 +169,14 @@ namespace UgPipeline {
         VkPipelineRasterizationStateCreateInfo rasterizer = createRasterizerState();
         VkPipelineMultisampleStateCreateInfo multiSampling = createMultisamplingState();
         VkPipelineColorBlendAttachmentState colorBlendAttachmentState = createColorBlendAttachmentState(alphaBlend);
-        VkPipelineColorBlendStateCreateInfo colorBlend =  createColorBlendState(&colorBlendAttachmentState);
+        VkPipelineColorBlendStateCreateInfo colorBlend = createColorBlendState(&colorBlendAttachmentState);
+        if (depthOnly) {
+            colorBlend.attachmentCount = 0;
+            colorBlend.pAttachments = NULL;
+            rasterizer.depthBiasEnable = VK_TRUE;
+            rasterizer.depthBiasConstantFactor = 1.25f;
+            rasterizer.depthBiasSlopeFactor = 1.75f;
+        }
         VkPipelineDynamicStateCreateInfo dynamicState = createDynamicState();
         VkPipelineDepthStencilStateCreateInfo depthStencil = createDepthStencil();
 

@@ -43,7 +43,7 @@ namespace UgTexture {
         imageInfo.pNext = NULL;
         imageInfo.flags = 0;
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+        imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
         imageInfo.extent = { (U32)width, (U32)height, 1 };
         imageInfo.mipLevels = 1;
         imageInfo.arrayLayers = 1;
@@ -70,7 +70,7 @@ namespace UgTexture {
         UgCommandBuffer.It cmd = UgCommandBuffer.create(ctx);
         UgCommandBuffer.begin(cmd);
 
-        UgImageLayout.transition(cmd.handle, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        UgImageLayout.transition(cmd.handle, image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         VkBufferImageCopy region;
         region.bufferOffset = 0;
@@ -84,7 +84,7 @@ namespace UgTexture {
         region.imageExtent = { (U32)width, (U32)height, 1 };
         vkCmdCopyBufferToImage(cmd.handle, staging.handle, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-        UgImageLayout.transition(cmd.handle, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        UgImageLayout.transition(cmd.handle, image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         UgCommandBuffer.end(cmd);
         submitOnce(ctx, cmd);
@@ -92,7 +92,7 @@ namespace UgTexture {
 
         UgBuffer.destroy(ctx, staging);
 
-        VkImageView view = UgImageView.makeView(ctx, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+        VkImageView view = UgImageView.makeView(ctx, image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
         VkSampler sampler = UgSampler.create(ctx);
 
         VkDescriptorSetLayoutBinding samplerBinding;

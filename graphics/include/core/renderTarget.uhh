@@ -1,0 +1,23 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+#include "core/texture.uhh"
+#include "core/buffer.uhh"
+
+namespace UgRenderTarget {
+    struct It {
+        VkRenderPass renderPass;
+        VkFramebuffer framebuffer;
+        UgTexture.It texture;
+        U32 width;
+        U32 height;
+    };
+
+    UgRenderTarget.It create(UgContext.It& ctx, U32 width, U32 height);
+    U0 begin(UgRenderTarget.It& rt, UgCommandBuffer.It& cmd);
+    U0 end(UgCommandBuffer.It& cmd);
+    U0 setViewport(UgRenderTarget.It& rt, UgCommandBuffer.It& cmd);
+    U0 destroy(UgContext.It& ctx, UgRenderTarget.It& rt);
+}

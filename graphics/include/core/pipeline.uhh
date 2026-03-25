@@ -17,7 +17,7 @@ namespace UgPipeline {
     VkPipelineColorBlendAttachmentState createColorBlendAttachmentState(U8 alphaBlend);
     VkPipelineColorBlendStateCreateInfo createColorBlendState(VkPipelineColorBlendAttachmentState* colorBlendAttachment);
     U0 destroy(UgContext.It& ctx, VkPipeline graphicsPipeline);
-    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, U8 alphaBlend);
+    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, U8 alphaBlend, U8 depthOnly);
     VkPipelineDepthStencilStateCreateInfo createDepthStencil();
 }
 

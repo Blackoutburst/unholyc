@@ -33,6 +33,7 @@ namespace UgVertexArray {
     };
 
     UgVertexArray.It create(UgContext.It& ctx, UgRenderer.It& renderer, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram, U8 alphaBlend);
+    UgVertexArray.It createShadow(UgContext.It& ctx, UgRenderer.It& renderer, VkRenderPass shadowRenderPass, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgShaderProgram.It& shaderProgram);
     U0 bind(UgVertexArray.It& vao, UgCommandBuffer.It& cmd);
     U0 destroy(UgContext.It& ctx, UgVertexArray.It& vao);
 }

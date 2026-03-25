@@ -45,11 +45,23 @@ else
     printf "\e[92mOK\e[0m\n"
 fi
 
+slangc shader/cube.slang -entry vertMain -stage vertex -target spirv -o shader/cubeVert.spv 
+slangc shader/cube.slang -entry fragMain -stage fragment -target spirv -o shader/cubeFrag.spv
+
 slangc shader/terrain.slang -entry vertMain -stage vertex -target spirv -o shader/terrainVert.spv 
 slangc shader/terrain.slang -entry fragMain -stage fragment -target spirv -o shader/terrainFrag.spv
 
 slangc shader/water.slang -entry vertMain -stage vertex -target spirv -o shader/waterVert.spv 
 slangc shader/water.slang -entry fragMain -stage fragment -target spirv -o shader/waterFrag.spv
+
+slangc shader/shadow.slang -entry vertMain -stage vertex -target spirv -o shader/shadowVert.spv 
+slangc shader/shadow.slang -entry fragMain -stage fragment -target spirv -o shader/shadowFrag.spv
+
+slangc shader/terrainShadow.slang -entry vertMain -stage vertex -target spirv -o shader/terrainShadowVert.spv
+slangc shader/terrainShadow.slang -entry fragMain -stage fragment -target spirv -o shader/terrainShadowFrag.spv
+
+slangc shader/debugQuad.slang -entry vertMain -stage vertex -target spirv -o shader/debugQuadVert.spv
+slangc shader/debugQuad.slang -entry fragMain -stage fragment -target spirv -o shader/debugQuadFrag.spv
 
 
 rm -rf out/

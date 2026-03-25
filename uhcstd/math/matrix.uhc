@@ -98,6 +98,36 @@ namespace Matrix {
         mat.values[M33] = 1.0f;
     }
 
+    U0 ortho2DVk(Matrix.It& mat, F32 left, F32 right, F32 bottom, F32 top, F32 near, F32 far) {
+        F32 xOrt = 2.0f / (right - left);
+        F32 yOrt = 2.0f / (top - bottom);
+        F32 zOrt = -1.0f / (far - near);
+
+        F32 tx = -(right + left) / (right - left);
+        F32 ty = -(top + bottom) / (top - bottom);
+        F32 tz = -near / (far - near);
+
+        mat.values[M00] = xOrt;
+        mat.values[M10] = 0.0f;
+        mat.values[M20] = 0.0f;
+        mat.values[M30] = tx;
+
+        mat.values[M01] = 0.0f;
+        mat.values[M11] = yOrt;
+        mat.values[M21] = 0.0f;
+        mat.values[M31] = ty;
+
+        mat.values[M02] = 0.0f;
+        mat.values[M12] = 0.0f;
+        mat.values[M22] = zOrt;
+        mat.values[M32] = tz;
+
+        mat.values[M03] = 0.0f;
+        mat.values[M13] = 0.0f;
+        mat.values[M23] = 0.0f;
+        mat.values[M33] = 1.0f;
+    }
+
     U0 projection(Matrix.It& mat, F32 width, F32 height, F32 fov, F32 near, F32 far) {
         F32 aspectRatio = width / height;
         F32 yScale = 1.0f / tan(Math.rad(fov / 2.0f));

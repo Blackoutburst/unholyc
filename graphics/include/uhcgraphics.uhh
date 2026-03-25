@@ -13,6 +13,7 @@
 #include "core/pipeline.uhh"
 #include "core/renderer.uhh"
 #include "core/renderPass.uhh"
+#include "core/renderTarget.uhh"
 #include "core/semaphore.uhh"
 #include "core/shader.uhh"
 #include "core/surface.uhh"
