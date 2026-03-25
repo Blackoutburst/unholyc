@@ -182,6 +182,7 @@ I32 main() {
     // Terrain with shadow receiving
     UgShaderProgram.It terrainShader = UgShaderProgram.create(ctx, "./shader/terrainShadowVert.spv", "./shader/terrainShadowFrag.spv");
     UgUniformBuffer.It ubo = UgUniformBuffer.create(ctx, 0, 272);
+    
     UgVertexArray.It vao = UgVertexArray.create(ctx,  renderer.swapchain, renderer.renderPass, desc, ubo, &shadowRT.texture, terrainShader, {});
 
     // Debug quad: 250x250 in top-left corner (CCW winding)
@@ -233,7 +234,7 @@ I32 main() {
     Matrix.rotate(lightView, Math.rad(-40), 1, 0, 0);
     Matrix.rotate(lightView, Math.rad(-45), 0, 1, 0);
     Matrix.translate(lightView, -10, 10, -10, 0.0f);
-    VectorF.It lightDir =  { 1, 0.8, 1, 0 };
+    VectorF.It lightDir =  { -1, 0.8, -1, 0 };
 
     Matrix.ortho2DVk(lightProj, -10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 200.0f);
 
