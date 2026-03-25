@@ -180,7 +180,7 @@ I32 main() {
 
     // Terrain with shadow receiving
     UgShaderProgram.It terrainShader = UgShaderProgram.create(ctx, "./shader/terrainShadowVert.spv", "./shader/terrainShadowFrag.spv");
-    UgUniformBuffer.It ubo = UgUniformBuffer.create(ctx, 0, 256);
+    UgUniformBuffer.It ubo = UgUniformBuffer.create(ctx, 0, 272);
     UgVertexArray.It vao = UgVertexArray.create(ctx, renderer, desc, ubo, &shadowRT.texture, terrainShader, 0);
 
     // Debug quad: 250x250 in top-left corner (CCW winding)
@@ -201,7 +201,7 @@ I32 main() {
     // Water
     UgBuffer.It waterVB          = UgBuffer.create(ctx, waterVertCount * 8 * sizeof(F32), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     UgShaderProgram.It waterShader = UgShaderProgram.create(ctx, "./shader/waterVert.spv", "./shader/waterFrag.spv");
-    UgUniformBuffer.It waterUbo  = UgUniformBuffer.create(ctx, 0, 192);
+    UgUniformBuffer.It waterUbo  = UgUniformBuffer.create(ctx, 0, 208);
     UgVertexArray.It waterVao    = UgVertexArray.create(ctx, renderer, desc, waterUbo, NULL, waterShader, 1);
 
     Matrix.It model;
