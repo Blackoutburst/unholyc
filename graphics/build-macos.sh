@@ -45,4 +45,11 @@ else
     printf "\e[92mOK\e[0m\n"
 fi
 
+slangc shader/terrain.slang -entry vertMain -stage vertex -target spirv -o shader/terrainVert.spv 
+slangc shader/terrain.slang -entry fragMain -stage fragment -target spirv -o shader/terrainFrag.spv
+
+slangc shader/water.slang -entry vertMain -stage vertex -target spirv -o shader/waterVert.spv 
+slangc shader/water.slang -entry fragMain -stage fragment -target spirv -o shader/waterFrag.spv
+
+
 rm -rf out/

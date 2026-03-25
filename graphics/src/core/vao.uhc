@@ -5,7 +5,7 @@
 
 namespace UgVertexArray {
 
-    UgVertexArray.It create(UgContext.It& ctx, UgRenderer.It& renderer, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram) {
+    UgVertexArray.It create(UgContext.It& ctx, UgRenderer.It& renderer, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram, U8 alphaBlend) {
         VkVertexInputBindingDescription bindingDesc;
         bindingDesc.binding = 0;
         bindingDesc.stride = desc.stride;
@@ -37,7 +37,7 @@ namespace UgVertexArray {
             layout = UgPipelineLayout.create(ctx, 1, setLayouts);
         }
 
-        VkPipeline pipeline = UgPipeline.create(ctx, layout, renderer.swapchain, shaderProgram, renderer.renderPass, &vertexInput);
+        VkPipeline pipeline = UgPipeline.create(ctx, layout, renderer.swapchain, shaderProgram, renderer.renderPass, &vertexInput, alphaBlend);
 
         free(attrDescs);
 

@@ -99,12 +99,12 @@ namespace UgPipeline {
         return createInfo;
     }
 
-    VkPipelineColorBlendAttachmentState createColorBlendAttachmentState() {
+    VkPipelineColorBlendAttachmentState createColorBlendAttachmentState(U8 alphaBlend) {
         VkPipelineColorBlendAttachmentState createInfo;
         createInfo.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        createInfo.blendEnable = VK_FALSE;
-        createInfo.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-        createInfo.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+        createInfo.blendEnable = alphaBlend ? VK_TRUE : VK_FALSE;
+        createInfo.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        createInfo.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         createInfo.colorBlendOp = VK_BLEND_OP_ADD;
         createInfo.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         createInfo.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -161,14 +161,14 @@ namespace UgPipeline {
         vkDestroyPipeline(ctx.device.handle, graphicsPipeline, NULL);
     }
 
-    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput) {
+    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, U8 alphaBlend) {
         VkPipelineInputAssemblyStateCreateInfo inputAssembly = createInputAssembly();
         VkViewport viewPort = createViewport(ctx, swapchain);
         VkRect2D scissor = createScissor(ctx, swapchain);
         VkPipelineViewportStateCreateInfo viewport = createViewportState(&viewPort, &scissor);
         VkPipelineRasterizationStateCreateInfo rasterizer = createRasterizerState();
         VkPipelineMultisampleStateCreateInfo multiSampling = createMultisamplingState();
-        VkPipelineColorBlendAttachmentState colorBlendAttachmentState = createColorBlendAttachmentState();
+        VkPipelineColorBlendAttachmentState colorBlendAttachmentState = createColorBlendAttachmentState(alphaBlend);
         VkPipelineColorBlendStateCreateInfo colorBlend =  createColorBlendState(&colorBlendAttachmentState);
         VkPipelineDynamicStateCreateInfo dynamicState = createDynamicState();
         VkPipelineDepthStencilStateCreateInfo depthStencil = createDepthStencil();

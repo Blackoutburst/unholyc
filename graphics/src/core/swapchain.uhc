@@ -114,7 +114,7 @@ namespace UgSwapchain {
         vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.physicalDevice, ctx.surface, &formatCount, surfaceFormats);
 
         for (U32 i = 0; i < formatCount; i++) {
-            if (surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_SRGB && surfaceFormats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            if (surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_UNORM && surfaceFormats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 swapchain.surfaceFormat = surfaceFormats[i];
                 break;
             }

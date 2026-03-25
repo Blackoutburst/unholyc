@@ -1,81 +1,117 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <GLFW/glfw3.h>
+
 #include <uhcio.uhh>
 #include <uhcmath.uhh>
 
 #include "uhcgraphics.uhh"
 
-static U32 CUBE_VERTEX_COUNT = 192;
-static U32 CUBE_INDEX_COUNT = 36;
+#define CAMERA_SPEED 0.1
+#define CAMERA_SENSITIVITY 0.1
 
-static F32 CUBE_VERTEX[192] = {
-    // Front
-    -1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f,
-     1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  1.0f, 1.0f,
-     1.0f,  1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  1.0f, 0.0f,
-    -1.0f,  1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  0.0f, 0.0f,
-
-    // Back
-    -1.0f, -1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f, 1.0f,
-     1.0f, -1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 1.0f,
-     1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f, 0.0f,
-
-    // Left
-    -1.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f,  0.0f, 1.0f,
-    -1.0f, -1.0f,  1.0f,  0.0f, 0.0f, 1.0f,  1.0f, 1.0f,
-    -1.0f,  1.0f,  1.0f,  0.0f, 0.0f, 1.0f,  1.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f,
-
-    // Right
-     1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  1.0f, 1.0f,
-     1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 0.0f,  0.0f, 1.0f,
-     1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 0.0f,  0.0f, 0.0f,
-     1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  1.0f, 0.0f,
-
-    // Top
-    -1.0f,  1.0f,  1.0f,  0.0f, 1.0f, 1.0f,  0.0f, 1.0f,
-     1.0f,  1.0f,  1.0f,  0.0f, 1.0f, 1.0f,  1.0f, 1.0f,
-     1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 1.0f,  1.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 1.0f,  0.0f, 0.0f,
-
-    // Bottom
-    -1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f, 0.0f,
-     1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  1.0f, 0.0f,
-     1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  1.0f, 1.0f,
-    -1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  0.0f, 1.0f,
-};
-
-static U32 CUBE_INDEX[36] = {
-    // Front
-    0,  1,  2,   2,  3,  0,
-    // Back
-    5,  4,  7,   7,  6,  5,
-    // Left
-    8,  9,  10,  10, 11, 8,
-    // Right
-    13, 12, 15,  15, 14, 13,
-    // Top
-    16, 17, 18,  18, 19, 16,
-    // Bottom
-    20, 23, 22,  22, 21, 20,
-};
+#define WATER_RES   100
+#define WATER_LEVEL 6.0f
+#define WATER_AMP   0.2f
 
 I32 main() {
-    UgWindow.It window = UgWindow.create("Unholy Graphics");
-    UgContext.It ctx = UgContext.create(window, 1);
+    I32 hmWidth, hmHeight, hmChannels;
+    U8* heightmap = stbi_load("./heightmap.bmp", &hmWidth, &hmHeight, &hmChannels, 1);
+    if (!heightmap) {
+        return 1;
+    }
+
+    F32 terrainW = 300.0f;
+    F32 terrainD = 300.0f;
+    F32 heightScale = 15.0f;
+    VectorF.It position = { 0, 10, 0, 0 };
+    F32 yaw = 0;
+    F32 pitch = 0;
+    F64 prevMouseX = 0;
+    F64 prevMouseY = 0;
+
+    U32 waterGridPts  = (WATER_RES + 1) * (WATER_RES + 1);
+    U32 waterVertCount = WATER_RES * WATER_RES * 6;
+    F32* waterH     = (F32*)malloc(waterGridPts  * sizeof(F32));
+    F32* waterPhase = (F32*)malloc(waterGridPts  * sizeof(F32));
+    F32* waterVerts = (F32*)malloc(waterVertCount * 8 * sizeof(F32));
+    srand(42);
+    for (U32 i = 0; i < waterGridPts; i++) {
+        waterPhase[i] = (F32)(rand() % 62832) / 10000.0f;
+        waterH[i] = 0.0f;
+    }
+
+    U32 vertexCount = (U32)(hmWidth * hmHeight);
+    F32* vertices = (F32*)malloc(vertexCount * 8 * sizeof(F32));
+
+    for (I32 row = 0; row < hmHeight; row++) {
+        for (I32 col = 0; col < hmWidth; col++) {
+            F32 h = (F32)heightmap[row * hmWidth + col] / 255.0f;
+            U32 vi = (U32)(row * hmWidth + col) * 8;
+
+            vertices[vi + 0] = ((F32)col / (F32)(hmWidth - 1) - 0.5f) * terrainW;
+            vertices[vi + 1] = h * heightScale;
+            vertices[vi + 2] = ((F32)row / (F32)(hmHeight - 1) - 0.5f) * terrainD;
+
+            F32 hL = (col > 0)          ? (F32)heightmap[row * hmWidth + (col - 1)]     / 255.0f * heightScale : h * heightScale;
+            F32 hR = (col < hmWidth-1)  ? (F32)heightmap[row * hmWidth + (col + 1)]     / 255.0f * heightScale : h * heightScale;
+            F32 hU = (row > 0)          ? (F32)heightmap[(row - 1) * hmWidth + col]     / 255.0f * heightScale : h * heightScale;
+            F32 hD = (row < hmHeight-1) ? (F32)heightmap[(row + 1) * hmWidth + col]     / 255.0f * heightScale : h * heightScale;
+            F32 step = terrainW / (F32)(hmWidth - 1);
+            F32 nx = -(hR - hL);
+            F32 ny = 2.0f * step;
+            F32 nz = -(hD - hU);
+            F32 nlen = sqrtf(nx*nx + ny*ny + nz*nz);
+            vertices[vi + 3] = nx / nlen;
+            vertices[vi + 4] = ny / nlen;
+            vertices[vi + 5] = nz / nlen;
+
+            vertices[vi + 6] = (F32)col / (F32)(hmWidth - 1) * 4.0f;
+            vertices[vi + 7] = (F32)row / (F32)(hmHeight - 1) * 4.0f;
+        }
+    }
+
+    U32 indexCount = (U32)((hmWidth - 1) * (hmHeight - 1) * 6);
+    U32* indices = (U32*)malloc(indexCount * sizeof(U32));
+
+    U32 idx = 0;
+    for (I32 row = 0; row < hmHeight - 1; row++) {
+        for (I32 col = 0; col < hmWidth - 1; col++) {
+            U32 tl = (U32)(row * hmWidth + col);
+            U32 tr = (U32)(row * hmWidth + col + 1);
+            U32 bl = (U32)((row + 1) * hmWidth + col);
+            U32 br = (U32)((row + 1) * hmWidth + col + 1);
+
+            indices[idx++] = tl;
+            indices[idx++] = tr;
+            indices[idx++] = bl;
+
+            indices[idx++] = tr;
+            indices[idx++] = br;
+            indices[idx++] = bl;
+        }
+    }
+
+    stbi_image_free(heightmap);
+
+    UgWindow.It window = UgWindow.create("Terrain");
+    glfwSetInputMode(window.handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    
+    UgContext.It ctx = UgContext.create(window, 0);
     UgRenderer.It renderer = UgRenderer.create(ctx);
     UgCommandBuffer.It cmd = UgCommandBuffer.create(ctx);
     UgFence.It fence = UgFence.create(ctx);
 
-    // Cube
-    UgBuffer.It vertexBuffer = UgBuffer.create(ctx, sizeof(CUBE_VERTEX[0]) * CUBE_VERTEX_COUNT, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    UgBuffer.It indexBuffer = UgBuffer.create(ctx, sizeof(CUBE_INDEX[0]) * CUBE_INDEX_COUNT, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-    UgShaderProgram.It shaderProgram = UgShaderProgram.create(ctx, "./shader/cubeVert.spv", "./shader/cubeFrag.spv");
+    UgBuffer.It vertexBuffer = UgBuffer.create(ctx, vertexCount * 8 * sizeof(F32), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    UgBuffer.It indexBuffer = UgBuffer.create(ctx, indexCount * sizeof(U32), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    UgShaderProgram.It shaderProgram = UgShaderProgram.create(ctx, "./shader/terrainVert.spv", "./shader/terrainFrag.spv");
 
-    UgBuffer.upload(ctx, vertexBuffer, CUBE_VERTEX, sizeof(CUBE_VERTEX[0]) * CUBE_VERTEX_COUNT);
-    UgBuffer.upload(ctx, indexBuffer, CUBE_INDEX, sizeof(CUBE_INDEX[0]) * CUBE_INDEX_COUNT);
+    UgBuffer.upload(ctx, vertexBuffer, vertices, vertexCount * 8 * sizeof(F32));
+    UgBuffer.upload(ctx, indexBuffer, indices, indexCount * sizeof(U32));
+
+    free(vertices);
+    free(indices);
 
     UgVertexAttrib.It attrs[3] = {
         { 0, VK_FORMAT_R32G32B32_SFLOAT, 0  },
@@ -85,9 +121,12 @@ I32 main() {
     UgVertexDesc.It desc = { 32, attrs, 3 };
 
     UgUniformBuffer.It ubo = UgUniformBuffer.create(ctx, 0, 192);
-    UgTexture.It texture = UgTexture.create(ctx, "./texture.png");
-    UgVertexArray.It vao = UgVertexArray.create(ctx, renderer, desc, ubo, &texture, shaderProgram);
-    // End Cube
+    UgVertexArray.It vao = UgVertexArray.create(ctx, renderer, desc, ubo, NULL, shaderProgram, 0);
+
+    UgBuffer.It waterVB          = UgBuffer.create(ctx, waterVertCount * 8 * sizeof(F32), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    UgShaderProgram.It waterShader = UgShaderProgram.create(ctx, "./shader/waterVert.spv", "./shader/waterFrag.spv");
+    UgUniformBuffer.It waterUbo  = UgUniformBuffer.create(ctx, 0, 192);
+    UgVertexArray.It waterVao    = UgVertexArray.create(ctx, renderer, desc, waterUbo, NULL, waterShader, 1);
 
     Matrix.It model;
     Matrix.It view;
@@ -98,15 +137,61 @@ I32 main() {
     Matrix.setIdentity(projection);
 
     VkExtent2D ext = UgSwapchain.extend(ctx, renderer.swapchain);
-    Matrix.projection(projection, ext.width, ext.height, 90, 0.1, 1000);
-    Matrix.translate(model, 0, 0, -5, 0);
-    Matrix.rotate(model, Math.rad(54), 1, 0, 0);
-    Matrix.rotate(model, Math.rad(54), 0, 1, 0);
+    Matrix.projection(projection, ext.width, ext.height, 60, 0.1, 1000);
 
+    UgUtils.setClearColor(0.509803922, 0.780392157, 0.949019608, 1);
 
     while (UgWindow.isOpen(window)) {
-        UgWindow.update();
+        if (glfwGetKey(window.handle, GLFW_KEY_W) == GLFW_PRESS) {
+            position.x -= sin(Math.rad(-yaw)) * CAMERA_SPEED;
+            position.z -= cos(Math.rad(-yaw)) * CAMERA_SPEED;
+        }
+        if (glfwGetKey(window.handle, GLFW_KEY_S) == GLFW_PRESS) {
+            position.x += sin(Math.rad(-yaw)) * CAMERA_SPEED;
+            position.z += cos(Math.rad(-yaw)) * CAMERA_SPEED;
+        }
+        if (glfwGetKey(window.handle, GLFW_KEY_A) == GLFW_PRESS) {
+            position.x += sin(Math.rad(-yaw - 90)) * CAMERA_SPEED;
+            position.z += cos(Math.rad(-yaw - 90)) * CAMERA_SPEED;
+        }
+        if (glfwGetKey(window.handle, GLFW_KEY_D) == GLFW_PRESS) {
+            position.x += sin(Math.rad(-yaw + 90)) * CAMERA_SPEED;
+            position.z += cos(Math.rad(-yaw + 90)) * CAMERA_SPEED;
+        }
+        if (glfwGetKey(window.handle, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+            position.y -= 1 * CAMERA_SPEED;
+        }
+        if (glfwGetKey(window.handle, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            position.y += 1 * CAMERA_SPEED;
+        }
+
+        F64 mouseX = 0;
+        F64 mouseY = 0;
+        glfwGetCursorPos(window.handle, &mouseX, &mouseY);
+
+        F64 yawOffset = mouseX - prevMouseX;
+        F64 pitchOffset = mouseY - prevMouseY;
+
+        pitchOffset *= CAMERA_SENSITIVITY;
+        yawOffset *= CAMERA_SENSITIVITY;
+
+        prevMouseX = mouseX;
+        prevMouseY = mouseY;
+
+        yaw += yawOffset;
+        pitch -= pitchOffset;
+        if (pitch > 89) pitch = 89;
+        if (pitch < -89) pitch = -89;
+
         
+        Matrix.setIdentity(view);
+        Matrix.rotate(view, Math.rad(pitch), 1, 0, 0);
+        Matrix.rotate(view, Math.rad(yaw), 0, 1, 0);
+        Matrix.translate(view, -position.x, position.y, -position.z, 0);
+
+    
+        UgWindow.update();
+
         if (UgWindow.isMinimized(window)) continue;
 
         UgFence.wait(ctx, fence);
@@ -114,10 +199,10 @@ I32 main() {
         if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
             UgRenderer.update(ctx, renderer);
             VkExtent2D ext = UgSwapchain.extend(ctx, renderer.swapchain);
-            Matrix.projection(projection, ext.width, ext.height, 90, 0.1, 1000);
+            Matrix.projection(projection, ext.width, ext.height, 60, 0.1, 1000);
             continue;
         }
-        
+
         UgFence.reset(ctx, fence);
 
         UgCommandBuffer.begin(cmd);
@@ -125,8 +210,7 @@ I32 main() {
         UgRenderer.setViewport(ctx, renderer, cmd);
 
         UgVertexArray.bind(vao, cmd);
-        UgTexture.bind(texture, cmd, vao.layout);
-        
+
         UgUniformBuffer.reset(ubo);
         UgUniformBuffer.setMat(ubo, model);
         UgUniformBuffer.setMat(ubo, view);
@@ -137,7 +221,75 @@ I32 main() {
 
         vkCmdBindVertexBuffers(cmd.handle, 0, 1, vertexBuffers, offsets);
         vkCmdBindIndexBuffer(cmd.handle, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cmd.handle, CUBE_INDEX_COUNT, 1, 0, 0, 0);
+        vkCmdDrawIndexed(cmd.handle, indexCount, 1, 0, 0, 0);
+
+        {
+            F32 wt    = (F32)glfwGetTime();
+            F32 stepX = terrainW / (F32)WATER_RES;
+            F32 stepZ = terrainD / (F32)WATER_RES;
+
+            for (I32 wr = 0; wr <= WATER_RES; wr++) {
+                for (I32 wc = 0; wc <= WATER_RES; wc++) {
+                    F32 wx = ((F32)wc / WATER_RES - 0.5f) * terrainW;
+                    F32 wz = ((F32)wr / WATER_RES - 0.5f) * terrainD;
+                    F32 ph = waterPhase[wr * (WATER_RES + 1) + wc];
+                    waterH[wr * (WATER_RES + 1) + wc] =
+                        sinf(wx * 0.15f + wt * 1.5f + ph)        * WATER_AMP * 0.7f +
+                        sinf(wz * 0.12f + wt * 1.2f + ph * 0.7f) * WATER_AMP * 0.5f;
+                }
+            }
+
+            U32 wvi = 0;
+            for (I32 wr = 0; wr < WATER_RES; wr++) {
+                for (I32 wc = 0; wc < WATER_RES; wc++) {
+                    F32 x0  = ((F32)wc       / WATER_RES - 0.5f) * terrainW;
+                    F32 x1  = ((F32)(wc + 1) / WATER_RES - 0.5f) * terrainW;
+                    F32 z0  = ((F32)wr       / WATER_RES - 0.5f) * terrainD;
+                    F32 z1  = ((F32)(wr + 1) / WATER_RES - 0.5f) * terrainD;
+                    F32 h00 = WATER_LEVEL + waterH[wr       * (WATER_RES + 1) + wc];
+                    F32 h10 = WATER_LEVEL + waterH[wr       * (WATER_RES + 1) + (wc + 1)];
+                    F32 h01 = WATER_LEVEL + waterH[(wr + 1) * (WATER_RES + 1) + wc];
+                    F32 h11 = WATER_LEVEL + waterH[(wr + 1) * (WATER_RES + 1) + (wc + 1)];
+
+                    F32 e1y = h01-h00,  e1z = stepZ;
+                    F32 e2x = stepX,    e2y = h10-h00;
+                    F32 n1x = e1y*0   - e1z*e2y;
+                    F32 n1y = e1z*e2x - 0   *0;
+                    F32 n1z = 0  *e2y - e1y*e2x;
+                    F32 n1l = sqrtf(n1x*n1x + n1y*n1y + n1z*n1z);
+                    n1x/=n1l; n1y/=n1l; n1z/=n1l;
+
+                    waterVerts[wvi+0]=x0; waterVerts[wvi+1]=h00; waterVerts[wvi+2]=z0; waterVerts[wvi+3]=n1x; waterVerts[wvi+4]=n1y; waterVerts[wvi+5]=n1z; waterVerts[wvi+6]=0; waterVerts[wvi+7]=0; wvi+=8;
+                    waterVerts[wvi+0]=x1; waterVerts[wvi+1]=h10; waterVerts[wvi+2]=z0; waterVerts[wvi+3]=n1x; waterVerts[wvi+4]=n1y; waterVerts[wvi+5]=n1z; waterVerts[wvi+6]=1; waterVerts[wvi+7]=0; wvi+=8;
+                    waterVerts[wvi+0]=x0; waterVerts[wvi+1]=h01; waterVerts[wvi+2]=z1; waterVerts[wvi+3]=n1x; waterVerts[wvi+4]=n1y; waterVerts[wvi+5]=n1z; waterVerts[wvi+6]=0; waterVerts[wvi+7]=1; wvi+=8;
+
+                    F32 f1x = -stepX, f1y = h01-h10, f1z = stepZ;
+                    F32 f2y = h11-h10, f2z = stepZ;
+                    F32 n2x = f1y*f2z - f1z*f2y;
+                    F32 n2y = f1z*0   - f1x*f2z;
+                    F32 n2z = f1x*f2y - f1y*0;
+                    F32 n2l = sqrtf(n2x*n2x + n2y*n2y + n2z*n2z);
+                    n2x/=n2l; n2y/=n2l; n2z/=n2l;
+
+                    waterVerts[wvi+0]=x1; waterVerts[wvi+1]=h10; waterVerts[wvi+2]=z0; waterVerts[wvi+3]=n2x; waterVerts[wvi+4]=n2y; waterVerts[wvi+5]=n2z; waterVerts[wvi+6]=1; waterVerts[wvi+7]=0; wvi+=8;
+                    waterVerts[wvi+0]=x1; waterVerts[wvi+1]=h11; waterVerts[wvi+2]=z1; waterVerts[wvi+3]=n2x; waterVerts[wvi+4]=n2y; waterVerts[wvi+5]=n2z; waterVerts[wvi+6]=1; waterVerts[wvi+7]=1; wvi+=8;
+                    waterVerts[wvi+0]=x0; waterVerts[wvi+1]=h01; waterVerts[wvi+2]=z1; waterVerts[wvi+3]=n2x; waterVerts[wvi+4]=n2y; waterVerts[wvi+5]=n2z; waterVerts[wvi+6]=0; waterVerts[wvi+7]=1; wvi+=8;
+                }
+            }
+
+            UgBuffer.upload(ctx, waterVB, waterVerts, waterVertCount * 8 * sizeof(F32));
+
+            UgVertexArray.bind(waterVao, cmd);
+            UgUniformBuffer.reset(waterUbo);
+            UgUniformBuffer.setMat(waterUbo, model);
+            UgUniformBuffer.setMat(waterUbo, view);
+            UgUniformBuffer.setMat(waterUbo, projection);
+
+            VkBuffer wVBs[]       = { waterVB.handle };
+            VkDeviceSize wOffsets[] = { 0 };
+            vkCmdBindVertexBuffers(cmd.handle, 0, 1, wVBs, wOffsets);
+            vkCmdDraw(cmd.handle, waterVertCount, 1, 0, 0);
+        }
 
         UgRenderer.end(cmd);
         UgCommandBuffer.end(cmd);
@@ -147,20 +299,25 @@ I32 main() {
         if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) {
             UgRenderer.update(ctx, renderer);
             VkExtent2D ext = UgSwapchain.extend(ctx, renderer.swapchain);
-            Matrix.projection(projection, ext.width, ext.height, 90, 0.1, 1000);
+            Matrix.projection(projection, ext.width, ext.height, 60, 0.1, 1000);
         }
     }
     vkDeviceWaitIdle(ctx.device.handle);
 
-    // Cube
     UgBuffer.destroy(ctx, vertexBuffer);
     UgBuffer.destroy(ctx, indexBuffer);
     UgShaderProgram.destroy(ctx, shaderProgram);
     UgUniformBuffer.destroy(ctx, ubo);
-    UgTexture.destroy(ctx, texture);
     UgVertexArray.destroy(ctx, vao);
-    // End Cube
-    
+
+    UgBuffer.destroy(ctx, waterVB);
+    UgShaderProgram.destroy(ctx, waterShader);
+    UgUniformBuffer.destroy(ctx, waterUbo);
+    UgVertexArray.destroy(ctx, waterVao);
+    free(waterH);
+    free(waterPhase);
+    free(waterVerts);
+
     UgFence.destroy(ctx, fence);
     UgCommandBuffer.destroy(ctx, cmd);
     UgRenderer.destroy(ctx, renderer);
