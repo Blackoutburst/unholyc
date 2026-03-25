@@ -96,54 +96,60 @@ I32 main() {
         waterH[i] = 0.0f;
     }
 
-    U32 vertexCount = (U32)(hmWidth * hmHeight);
+    I32 terrainStep = 4; // sample every Nth heightmap pixel; increase for blockier low-poly
+    I32 cols = (hmWidth  - 1) / terrainStep;
+    I32 rows = (hmHeight - 1) / terrainStep;
+    U32 vertexCount = (U32)(cols * rows * 6);
     F32* vertices = (F32*)malloc(vertexCount * 8 * sizeof(F32));
 
-    for (I32 row = 0; row < hmHeight; row++) {
-        for (I32 col = 0; col < hmWidth; col++) {
-            F32 h = (F32)heightmap[row * hmWidth + col] / 255.0f;
-            U32 vi = (U32)(row * hmWidth + col) * 8;
+    U32 vi = 0;
+    for (I32 row = 0; row < rows; row++) {
+        for (I32 col = 0; col < cols; col++) {
+            I32 r0 = row * terrainStep;
+            I32 r1 = r0 + terrainStep;
+            I32 c0 = col * terrainStep;
+            I32 c1 = c0 + terrainStep;
 
-            vertices[vi + 0] = ((F32)col / (F32)(hmWidth - 1) - 0.5f) * terrainW;
-            vertices[vi + 1] = h * heightScale;
-            vertices[vi + 2] = ((F32)row / (F32)(hmHeight - 1) - 0.5f) * terrainD;
+            F32 h00 = (F32)heightmap[r0 * hmWidth + c0] / 255.0f * heightScale;
+            F32 h10 = (F32)heightmap[r0 * hmWidth + c1] / 255.0f * heightScale;
+            F32 h01 = (F32)heightmap[r1 * hmWidth + c0] / 255.0f * heightScale;
+            F32 h11 = (F32)heightmap[r1 * hmWidth + c1] / 255.0f * heightScale;
 
-            F32 hL = (col > 0)          ? (F32)heightmap[row * hmWidth + (col - 1)]     / 255.0f * heightScale : h * heightScale;
-            F32 hR = (col < hmWidth-1)  ? (F32)heightmap[row * hmWidth + (col + 1)]     / 255.0f * heightScale : h * heightScale;
-            F32 hU = (row > 0)          ? (F32)heightmap[(row - 1) * hmWidth + col]     / 255.0f * heightScale : h * heightScale;
-            F32 hD = (row < hmHeight-1) ? (F32)heightmap[(row + 1) * hmWidth + col]     / 255.0f * heightScale : h * heightScale;
-            F32 step = terrainW / (F32)(hmWidth - 1);
-            F32 nx = -(hR - hL);
-            F32 ny = 2.0f * step;
-            F32 nz = -(hD - hU);
-            F32 nlen = sqrtf(nx*nx + ny*ny + nz*nz);
-            vertices[vi + 3] = nx / nlen;
-            vertices[vi + 4] = ny / nlen;
-            vertices[vi + 5] = nz / nlen;
+            F32 x0 = ((F32)c0 / (F32)(hmWidth  - 1) - 0.5f) * terrainW;
+            F32 x1 = ((F32)c1 / (F32)(hmWidth  - 1) - 0.5f) * terrainW;
+            F32 z0 = ((F32)r0 / (F32)(hmHeight - 1) - 0.5f) * terrainD;
+            F32 z1 = ((F32)r1 / (F32)(hmHeight - 1) - 0.5f) * terrainD;
 
-            vertices[vi + 6] = (F32)col / (F32)(hmWidth - 1) * 4.0f;
-            vertices[vi + 7] = (F32)row / (F32)(hmHeight - 1) * 4.0f;
-        }
-    }
+            F32 u00 = (F32)c0 / (F32)(hmWidth  - 1) * 4.0f;
+            F32 u10 = (F32)c1 / (F32)(hmWidth  - 1) * 4.0f;
+            F32 v00 = (F32)r0 / (F32)(hmHeight - 1) * 4.0f;
+            F32 v01 = (F32)r1 / (F32)(hmHeight - 1) * 4.0f;
 
-    U32 indexCount = (U32)((hmWidth - 1) * (hmHeight - 1) * 6);
-    U32* indices = (U32*)malloc(indexCount * sizeof(U32));
+            // Triangle 1: tl, tr, bl
+            F32 e1x = x1-x0, e1y = h10-h00, e1z = 0.0f;
+            F32 e2x = 0.0f,  e2y = h01-h00, e2z = z1-z0;
+            F32 n1x = e2y*e1z - e2z*e1y;
+            F32 n1y = e2z*e1x - e2x*e1z;
+            F32 n1z = e2x*e1y - e2y*e1x;
+            F32 n1l = sqrtf(n1x*n1x + n1y*n1y + n1z*n1z);
+            n1x/=n1l; n1y/=n1l; n1z/=n1l;
 
-    U32 idx = 0;
-    for (I32 row = 0; row < hmHeight - 1; row++) {
-        for (I32 col = 0; col < hmWidth - 1; col++) {
-            U32 tl = (U32)(row * hmWidth + col);
-            U32 tr = (U32)(row * hmWidth + col + 1);
-            U32 bl = (U32)((row + 1) * hmWidth + col);
-            U32 br = (U32)((row + 1) * hmWidth + col + 1);
+            vertices[vi+0]=x0; vertices[vi+1]=h00; vertices[vi+2]=z0; vertices[vi+3]=n1x; vertices[vi+4]=n1y; vertices[vi+5]=n1z; vertices[vi+6]=u00; vertices[vi+7]=v00; vi+=8;
+            vertices[vi+0]=x1; vertices[vi+1]=h10; vertices[vi+2]=z0; vertices[vi+3]=n1x; vertices[vi+4]=n1y; vertices[vi+5]=n1z; vertices[vi+6]=u10; vertices[vi+7]=v00; vi+=8;
+            vertices[vi+0]=x0; vertices[vi+1]=h01; vertices[vi+2]=z1; vertices[vi+3]=n1x; vertices[vi+4]=n1y; vertices[vi+5]=n1z; vertices[vi+6]=u00; vertices[vi+7]=v01; vi+=8;
 
-            indices[idx++] = tl;
-            indices[idx++] = tr;
-            indices[idx++] = bl;
+            // Triangle 2: tr, br, bl
+            F32 f1x = 0.0f,  f1y = h11-h10, f1z = z1-z0;
+            F32 f2x = x0-x1, f2y = h01-h10, f2z = z1-z0;
+            F32 n2x = f2y*f1z - f2z*f1y;
+            F32 n2y = f2z*f1x - f2x*f1z;
+            F32 n2z = f2x*f1y - f2y*f1x;
+            F32 n2l = sqrtf(n2x*n2x + n2y*n2y + n2z*n2z);
+            n2x/=n2l; n2y/=n2l; n2z/=n2l;
 
-            indices[idx++] = tr;
-            indices[idx++] = br;
-            indices[idx++] = bl;
+            vertices[vi+0]=x1; vertices[vi+1]=h10; vertices[vi+2]=z0; vertices[vi+3]=n2x; vertices[vi+4]=n2y; vertices[vi+5]=n2z; vertices[vi+6]=u10; vertices[vi+7]=v00; vi+=8;
+            vertices[vi+0]=x1; vertices[vi+1]=h11; vertices[vi+2]=z1; vertices[vi+3]=n2x; vertices[vi+4]=n2y; vertices[vi+5]=n2z; vertices[vi+6]=u10; vertices[vi+7]=v01; vi+=8;
+            vertices[vi+0]=x0; vertices[vi+1]=h01; vertices[vi+2]=z1; vertices[vi+3]=n2x; vertices[vi+4]=n2y; vertices[vi+5]=n2z; vertices[vi+6]=u00; vertices[vi+7]=v01; vi+=8;
         }
     }
 
@@ -158,13 +164,10 @@ I32 main() {
     UgFence.It fence = UgFence.create(ctx);
 
     UgBuffer.It vertexBuffer = UgBuffer.create(ctx, vertexCount * 8 * sizeof(F32), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    UgBuffer.It indexBuffer = UgBuffer.create(ctx, indexCount * sizeof(U32), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
     UgBuffer.upload(ctx, vertexBuffer, vertices, vertexCount * 8 * sizeof(F32));
-    UgBuffer.upload(ctx, indexBuffer, indices, indexCount * sizeof(U32));
 
     free(vertices);
-    free(indices);
 
     UgVertexAttrib.It attrs[3] = {
         { 0, VK_FORMAT_R32G32B32_SFLOAT, 0  },
@@ -173,15 +176,13 @@ I32 main() {
     };
     UgVertexDesc.It desc = { 32, attrs, 3 };
 
-    VectorF.It lightDir =  { 1, 0.8, 1, 0 };
-
     // Shadow render target and pass
     UgRenderTarget.It shadowRT = UgRenderTarget.create(ctx, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
 
     // Terrain with shadow receiving
     UgShaderProgram.It terrainShader = UgShaderProgram.create(ctx, "./shader/terrainShadowVert.spv", "./shader/terrainShadowFrag.spv");
     UgUniformBuffer.It ubo = UgUniformBuffer.create(ctx, 0, 272);
-    UgVertexArray.It vao = UgVertexArray.create(ctx, renderer, desc, ubo, &shadowRT.texture, terrainShader, 0);
+    UgVertexArray.It vao = UgVertexArray.create(ctx,  renderer.swapchain, renderer.renderPass, desc, ubo, &shadowRT.texture, terrainShader, {});
 
     // Debug quad: 250x250 in top-left corner (CCW winding)
     F32 QUAD_VERTS[48] = {
@@ -195,14 +196,14 @@ I32 main() {
     UgShaderProgram.It debugShader = UgShaderProgram.create(ctx, "./shader/debugQuadVert.spv", "./shader/debugQuadFrag.spv");
     UgUniformBuffer.It debugUbo = UgUniformBuffer.create(ctx, 0, 192);
     UgBuffer.It debugVB = UgBuffer.create(ctx, sizeof(QUAD_VERTS), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    UgVertexArray.It debugVao = UgVertexArray.create(ctx, renderer, desc, debugUbo, &shadowRT.texture, debugShader, 0);
+    UgVertexArray.It debugVao = UgVertexArray.create(ctx, renderer.swapchain, renderer.renderPass, desc, debugUbo, &shadowRT.texture, debugShader, {});
     UgBuffer.upload(ctx, debugVB, QUAD_VERTS, sizeof(QUAD_VERTS));
 
     // Water
     UgBuffer.It waterVB          = UgBuffer.create(ctx, waterVertCount * 8 * sizeof(F32), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     UgShaderProgram.It waterShader = UgShaderProgram.create(ctx, "./shader/waterVert.spv", "./shader/waterFrag.spv");
     UgUniformBuffer.It waterUbo  = UgUniformBuffer.create(ctx, 0, 208);
-    UgVertexArray.It waterVao    = UgVertexArray.create(ctx, renderer, desc, waterUbo, NULL, waterShader, 1);
+    UgVertexArray.It waterVao    = UgVertexArray.create(ctx, renderer.swapchain, renderer.renderPass, desc, waterUbo, NULL, waterShader, {});
 
     Matrix.It model;
     Matrix.It view;
@@ -232,6 +233,7 @@ I32 main() {
     Matrix.rotate(lightView, Math.rad(-40), 1, 0, 0);
     Matrix.rotate(lightView, Math.rad(-45), 0, 1, 0);
     Matrix.translate(lightView, -10, 10, -10, 0.0f);
+    VectorF.It lightDir =  { 1, 0.8, 1, 0 };
 
     Matrix.ortho2DVk(lightProj, -10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 200.0f);
 
@@ -260,8 +262,11 @@ I32 main() {
     
     UgShaderProgram.It shadowShader = UgShaderProgram.create(ctx, "./shader/shadowVert.spv", "./shader/shadowFrag.spv");
     UgUniformBuffer.It shadowCubeUbo = UgUniformBuffer.create(ctx, 0, 192);
+
+    UgVertexSettings.It shadowVaoSettings = {};
+    shadowVaoSettings.depthVao = 1;
     
-    UgVertexArray.It shadowCubeVao = UgVertexArray.createShadow(ctx, renderer, shadowRT.renderPass, cubeDesc, shadowCubeUbo, shadowShader);
+    UgVertexArray.It shadowCubeVao = UgVertexArray.create(ctx, renderer.swapchain, shadowRT.renderPass, cubeDesc, shadowCubeUbo, NULL, shadowShader, shadowVaoSettings);
 
     
     UgBuffer.It cubeVertexBuffer = UgBuffer.create(ctx, sizeof(CUBE_VERTEX[0]) * CUBE_VERTEX_COUNT, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
@@ -274,7 +279,7 @@ I32 main() {
     UgUniformBuffer.It cubeUbo = UgUniformBuffer.create(ctx, 0, 192);
     UgTexture.It cubeTexture = UgTexture.create(ctx, "./texture.png");
 
-    UgVertexArray.It cubeVao = UgVertexArray.create(ctx, renderer, cubeDesc, cubeUbo, &cubeTexture, cubeShaderProgram, 0);
+    UgVertexArray.It cubeVao = UgVertexArray.create(ctx, renderer.swapchain, renderer.renderPass, cubeDesc, cubeUbo, &cubeTexture, cubeShaderProgram, {});
     Matrix.It cubeModel;
     Matrix.setIdentity(cubeModel);
     Matrix.translate(cubeModel, 0, 2, 0, 0);
@@ -386,8 +391,7 @@ I32 main() {
             VkDeviceSize offsets[] = { 0 };
             vkCmdBindVertexBuffers(cmd.handle, 0, 1, vertexBuffers, offsets);
         }
-        vkCmdBindIndexBuffer(cmd.handle, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cmd.handle, indexCount, 1, 0, 0, 0);
+        vkCmdDraw(cmd.handle, vertexCount, 1, 0, 0);
 
         // cube
         {
@@ -489,7 +493,7 @@ I32 main() {
             VkDeviceSize dOffsets[] = { 0 };
             vkCmdBindVertexBuffers(cmd.handle, 0, 1, dVBs, dOffsets);
         }
-        vkCmdDraw(cmd.handle, 6, 1, 0, 0);
+        //vkCmdDraw(cmd.handle, 6, 1, 0, 0);
 
         UgRenderer.end(cmd);
         UgCommandBuffer.end(cmd);
@@ -519,7 +523,6 @@ I32 main() {
     // End Cube
 
     UgBuffer.destroy(ctx, vertexBuffer);
-    UgBuffer.destroy(ctx, indexBuffer);
 
     UgRenderTarget.destroy(ctx, shadowRT);
 

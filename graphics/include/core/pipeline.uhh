@@ -5,6 +5,7 @@
 #include "core/context.uhh"
 #include "core/shader.uhh"
 #include "core/swapchain.uhh"
+#include "core/vao.uhh"
 
 namespace UgPipeline {
     VkPipelineDynamicStateCreateInfo createDynamicState();
@@ -12,12 +13,12 @@ namespace UgPipeline {
     VkViewport createViewport(UgContext.It& ctx, UgSwapchain.It& swapchain);
     VkRect2D createScissor(UgContext.It& ctx, UgSwapchain.It& swapchain);
     VkPipelineViewportStateCreateInfo createViewportState(VkViewport* viewport, VkRect2D* scissor);
-    VkPipelineRasterizationStateCreateInfo createRasterizerState();
+    VkPipelineRasterizationStateCreateInfo createRasterizerState(const UgVertexSettings.It& settings);
     VkPipelineMultisampleStateCreateInfo createMultisamplingState();
-    VkPipelineColorBlendAttachmentState createColorBlendAttachmentState(U8 alphaBlend);
+    VkPipelineColorBlendAttachmentState createColorBlendAttachmentState(const UgVertexSettings.It& settings);
     VkPipelineColorBlendStateCreateInfo createColorBlendState(VkPipelineColorBlendAttachmentState* colorBlendAttachment);
     U0 destroy(UgContext.It& ctx, VkPipeline graphicsPipeline);
-    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, U8 alphaBlend, U8 depthOnly);
+    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, const UgVertexSettings.It& settings);
     VkPipelineDepthStencilStateCreateInfo createDepthStencil();
 }
 

@@ -65,21 +65,21 @@ namespace UgPipeline {
         return createInfo;
     }
 
-    VkPipelineRasterizationStateCreateInfo createRasterizerState() {
+    VkPipelineRasterizationStateCreateInfo createRasterizerState(const UgVertexSettings.It& settings) {
         VkPipelineRasterizationStateCreateInfo createInfo;
         createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         createInfo.pNext = NULL;
         createInfo.flags = 0;
-        createInfo.depthClampEnable = VK_FALSE;
-        createInfo.rasterizerDiscardEnable = VK_FALSE;
-        createInfo.polygonMode = VK_POLYGON_MODE_FILL;
-        createInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-        createInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
-        createInfo.depthBiasEnable = VK_FALSE;
-        createInfo.depthBiasConstantFactor = 0.0f;
-        createInfo.depthBiasClamp = 0.0f;
-        createInfo.depthBiasSlopeFactor = 0.0f;
-        createInfo.lineWidth = 1.0f;
+        createInfo.depthClampEnable = settings.depthClampEnable;
+        createInfo.rasterizerDiscardEnable = settings.rasterizerDiscardEnable;
+        createInfo.polygonMode = settings.polygonMode;
+        createInfo.cullMode = settings.cullMode;
+        createInfo.frontFace = settings.frontFace;
+        createInfo.depthBiasEnable = settings.depthBiasEnable;
+        createInfo.depthBiasConstantFactor = settings.depthBiasConstantFactor;
+        createInfo.depthBiasClamp = settings.depthBiasClamp;
+        createInfo.depthBiasSlopeFactor = settings.depthBiasSlopeFactor;
+        createInfo.lineWidth = settings.lineWidth;
 
         return createInfo;
     }
@@ -99,16 +99,16 @@ namespace UgPipeline {
         return createInfo;
     }
 
-    VkPipelineColorBlendAttachmentState createColorBlendAttachmentState(U8 alphaBlend) {
+    VkPipelineColorBlendAttachmentState createColorBlendAttachmentState(const UgVertexSettings.It& settings) {
         VkPipelineColorBlendAttachmentState createInfo;
-        createInfo.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        createInfo.blendEnable = alphaBlend ? VK_TRUE : VK_FALSE;
-        createInfo.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        createInfo.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        createInfo.colorBlendOp = VK_BLEND_OP_ADD;
-        createInfo.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        createInfo.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        createInfo.alphaBlendOp = VK_BLEND_OP_ADD;
+        createInfo.colorWriteMask = settings.colorWriteMask;
+        createInfo.blendEnable = settings.blendEnable;
+        createInfo.srcColorBlendFactor = settings.srcColorBlendFactor;
+        createInfo.dstColorBlendFactor = settings.dstColorBlendFactor;
+        createInfo.colorBlendOp = settings.colorBlendOp;
+        createInfo.srcAlphaBlendFactor = settings.srcAlphaBlendFactor;
+        createInfo.dstAlphaBlendFactor = settings.dstAlphaBlendFactor;
+        createInfo.alphaBlendOp = settings.alphaBlendOp;
 
         return createInfo;
     }
@@ -161,16 +161,16 @@ namespace UgPipeline {
         vkDestroyPipeline(ctx.device.handle, graphicsPipeline, NULL);
     }
 
-    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, U8 alphaBlend, U8 depthOnly) {
+    VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, const UgVertexSettings.It& settings) {
         VkPipelineInputAssemblyStateCreateInfo inputAssembly = createInputAssembly();
         VkViewport viewPort = createViewport(ctx, swapchain);
         VkRect2D scissor = createScissor(ctx, swapchain);
         VkPipelineViewportStateCreateInfo viewport = createViewportState(&viewPort, &scissor);
-        VkPipelineRasterizationStateCreateInfo rasterizer = createRasterizerState();
+        VkPipelineRasterizationStateCreateInfo rasterizer = createRasterizerState(settings);
         VkPipelineMultisampleStateCreateInfo multiSampling = createMultisamplingState();
-        VkPipelineColorBlendAttachmentState colorBlendAttachmentState = createColorBlendAttachmentState(alphaBlend);
+        VkPipelineColorBlendAttachmentState colorBlendAttachmentState = createColorBlendAttachmentState(settings);
         VkPipelineColorBlendStateCreateInfo colorBlend = createColorBlendState(&colorBlendAttachmentState);
-        if (depthOnly) {
+        if (settings.depthVao) {
             colorBlend.attachmentCount = 0;
             colorBlend.pAttachments = NULL;
             rasterizer.depthBiasEnable = VK_TRUE;

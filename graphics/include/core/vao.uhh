@@ -25,6 +25,31 @@ namespace UgVertexDesc {
     };
 }
 
+namespace UgVertexSettings {
+    struct It {
+        U8 depthVao = 0;
+        I32 colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        VkBool32 blendEnable = VK_TRUE;
+        VkBlendFactor srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        VkBlendFactor dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        VkBlendOp colorBlendOp = VK_BLEND_OP_ADD;
+        VkBlendFactor srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        VkBlendFactor dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        VkBlendOp alphaBlendOp = VK_BLEND_OP_ADD;
+        
+        VkBool32 depthClampEnable = VK_FALSE;
+        VkBool32 rasterizerDiscardEnable = VK_FALSE;
+        VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
+        VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT;
+        VkFrontFace frontFace = VK_FRONT_FACE_CLOCKWISE;
+        VkBool32 depthBiasEnable = VK_FALSE;
+        F32 depthBiasConstantFactor = 0.0f;
+        F32 depthBiasClamp = 0.0f;
+        F32 depthBiasSlopeFactor = 0.0f;
+        F32 lineWidth = 1.0f;
+    };
+}
+
 namespace UgVertexArray {
     struct It {
         VkPipelineLayout layout;
@@ -32,8 +57,7 @@ namespace UgVertexArray {
         UgUniformBuffer.It uniformBuffer;
     };
 
-    UgVertexArray.It create(UgContext.It& ctx, UgRenderer.It& renderer, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram, U8 alphaBlend);
-    UgVertexArray.It createShadow(UgContext.It& ctx, UgRenderer.It& renderer, VkRenderPass shadowRenderPass, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgShaderProgram.It& shaderProgram);
+    UgVertexArray.It create(UgContext.It& ctx, UgSwapchain.It& swapchain, VkRenderPass renderPass, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram, const UgVertexSettings.It& settings);
     U0 bind(UgVertexArray.It& vao, UgCommandBuffer.It& cmd);
     U0 destroy(UgContext.It& ctx, UgVertexArray.It& vao);
 }
