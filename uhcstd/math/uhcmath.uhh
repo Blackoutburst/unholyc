@@ -27,6 +27,9 @@ namespace VectorF {
     U0 normalize(VectorF.It& vec);
     F32 length(VectorF.It& vec);
     U0 zero(VectorF.It& vec);
+    F32 dot(VectorF.It& a, VectorF.It& b);
+    U0 cross(VectorF.It& result, VectorF.It& a, VectorF.It& b);
+    U0 sub(VectorF.It& result, VectorF.It& a, VectorF.It& b);
 }
 
 namespace VectorI {
@@ -42,6 +45,9 @@ namespace VectorI {
     U0 normalize(VectorI.It& vec);
     F32 length(VectorI.It& vec);
     U0 zero(VectorI.It& vec);
+    I32 dot(VectorI.It& a, VectorI.It& b);
+    U0 cross(VectorI.It& result, VectorI.It& a, VectorI.It& b);
+    U0 sub(VectorI.It& result, VectorI.It& a, VectorI.It& b);
 }
 
 #define M00 0x00
@@ -78,4 +84,5 @@ namespace Matrix {
     U0 scale(Matrix.It& mat, F32 x, F32 y, F32 z, F32 w);
     U0 translate(Matrix.It& mat, F32 x, F32 y, F32 z, F32 w);
     U0 rotate(Matrix.It& mat, F32 angle, F32 x, F32 y, F32 z);
+    U0 lookAt(Matrix.It& mat, VectorF.It& eye, VectorF.It& center, VectorF.It& up);
 }

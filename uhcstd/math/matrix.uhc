@@ -175,6 +175,39 @@ namespace Matrix {
         mat.values[M33] += cpy.values[M03] * x + cpy.values[M13] * y + cpy.values[M23] * z + cpy.values[M33] * w;
     }
 
+    U0 lookAt(Matrix.It& mat, VectorF.It& eye, VectorF.It& center, VectorF.It& up) {
+        VectorF.It f;
+        VectorF.sub(f, center, eye);
+        VectorF.normalize(f);
+
+        VectorF.It s;
+        VectorF.cross(s, f, up);
+        VectorF.normalize(s);
+
+        VectorF.It u;
+        VectorF.cross(u, s, f);
+
+        mat.values[M00] = s.x;
+        mat.values[M01] = u.x;
+        mat.values[M02] = -f.x;
+        mat.values[M03] = 0.0f;
+
+        mat.values[M10] = s.y;
+        mat.values[M11] = u.y;
+        mat.values[M12] = -f.y;
+        mat.values[M13] = 0.0f;
+
+        mat.values[M20] = s.z;
+        mat.values[M21] = u.z;
+        mat.values[M22] = -f.z;
+        mat.values[M23] = 0.0f;
+
+        mat.values[M30] = -VectorF.dot(s, eye);
+        mat.values[M31] = -VectorF.dot(u, eye);
+        mat.values[M32] =  VectorF.dot(f, eye);
+        mat.values[M33] = 1.0f;
+    }
+
     U0 rotate(Matrix.It& mat, F32 angle, F32 x, F32 y, F32 z) {
         Matrix.It cpy;
         Matrix.copy(mat, cpy);

@@ -29,4 +29,22 @@ namespace VectorF {
     U0 zero(VectorF.It& vec) {
         set(vec, 0, 0, 0, 0);
     }
+
+    F32 dot(VectorF.It& a, VectorF.It& b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    U0 cross(VectorF.It& result, VectorF.It& a, VectorF.It& b) {
+        result.x = a.y * b.z - a.z * b.y;
+        result.y = a.z * b.x - a.x * b.z;
+        result.z = a.x * b.y - a.y * b.x;
+        result.w = 0.0f;
+    }
+
+    U0 sub(VectorF.It& result, VectorF.It& a, VectorF.It& b) {
+        result.x = a.x - b.x;
+        result.y = a.y - b.y;
+        result.z = a.z - b.z;
+        result.w = a.w - b.w;
+    }
 }
