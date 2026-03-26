@@ -33,27 +33,34 @@ namespace Mutex {
 #define UHC_BIG_ENDIAN 1
 
 namespace Buffer {
-    U0 setOrder(I8 order);
-    I8 getI8(U8** buffer);
-    U8 getU8(U8** buffer);
-    I16 getI16(U8** buffer);
-    U16 getU16(U8** buffer);
-    I32 getI32(U8** buffer);
-    U32 getU32(U8** buffer);
-    I64 getI64(U8** buffer);
-    U64 getU64(U8** buffer);
-    F32 getF32(U8** buffer);
-    F64 getF64(U8** buffer);
-    U0 putI8(U32* index, I8 value, U8* buffer);
-    U0 putU8(U32* index, U8 value, U8* buffer);
-    U0 putI16(U32* index, I16 value, U8* buffer);
-    U0 putU16(U32* index, U16 value, U8* buffer);
-    U0 putI32(U32* index, I32 value, U8* buffer);
-    U0 putU32(U32* index, U32 value, U8* buffer);
-    U0 putI64(U32* index, I64 value, U8* buffer);
-    U0 putU64(U32* index, U64 value, U8* buffer);
-    U0 putF32(U32* index, F32 value, U8* buffer);
-    U0 putF64(U32* index, F64 value, U8* buffer);
+    struct It {
+        U0* handle;
+        U8 order;
+        U32 cursor;
+    };
+    
+    U0 setOrder(Buffer.It& buffer, U8 order);
+    U0 reset(Buffer.It& buffer);
+    I8 getI8(Buffer.It& buffer);
+    U8 getU8(Buffer.It& buffer);
+    I16 getI16(Buffer.It& buffer);
+    U16 getU16(Buffer.It& buffer);
+    I32 getI32(Buffer.It& buffer);
+    U32 getU32(Buffer.It& buffer);
+    I64 getI64(Buffer.It& buffer);
+    U64 getU64(Buffer.It& buffer);
+    F32 getF32(Buffer.It& buffer);
+    F64 getF64(Buffer.It& buffer);
+    U0 putI8(Buffer.It& buffer, I8 value);
+    U0 putU8(Buffer.It& buffer, U8 value);
+    U0 putI16(Buffer.It& buffer, I16 value);
+    U0 putU16(Buffer.It& buffer, U16 value);
+    U0 putI32(Buffer.It& buffer, I32 value);
+    U0 putU32(Buffer.It& buffer, U32 value);
+    U0 putI64(Buffer.It& buffer, I64 value);
+    U0 putU64(Buffer.It& buffer, U64 value);
+    U0 putF32(Buffer.It& buffer, F32 value);
+    U0 putF64(Buffer.It& buffer, F64 value);
 }
 
 namespace Thread {
