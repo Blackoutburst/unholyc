@@ -16,7 +16,8 @@ namespace UgTexture {
     };
 
     UgTexture.It create(UgContext.It& ctx, const I8* path);
-    U0 bind(UgTexture.It& texture, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout);
+    VkDescriptorSetLayout createSetLayout(UgContext.It& ctx);
+    U0 bind(UgTexture.It& texture, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout, U32 slot);
     U0 destroy(UgContext.It& ctx, UgTexture.It& texture);
 }
 

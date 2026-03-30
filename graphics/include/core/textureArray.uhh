@@ -1,0 +1,22 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+#include "core/buffer.uhh"
+
+namespace UgTextureArray {
+    struct It {
+        VkImage image;
+        VkDeviceMemory memory;
+        VkImageView view;
+        VkSampler sampler;
+        VkDescriptorSetLayout setLayout;
+        VkDescriptorSet descriptorSet;
+        U32 layerCount;
+    };
+
+    UgTextureArray.It create(UgContext.It& ctx, const I8** paths, U32 count);
+    U0 bind(UgTextureArray.It& arr, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout, U32 slot);
+    U0 destroy(UgContext.It& ctx, UgTextureArray.It& arr);
+}

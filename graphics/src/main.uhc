@@ -180,10 +180,8 @@ I32 main() {
     UgRenderTarget.It shadowRT = UgRenderTarget.create(ctx, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
 
     // Terrain with shadow receiving
-    UgShaderProgram.It terrainShader = UgShaderProgram.create(ctx, "./shader/terrainShadowVert.spv", "./shader/terrainShadowFrag.spv");
     UgUniformBuffer.It ubo = UgUniformBuffer.create(ctx, 0, 272);
-    
-    UgVertexArray.It vao = UgVertexArray.create(ctx,  renderer.swapchain, renderer.renderPass, desc, ubo, &shadowRT.texture, terrainShader, {});
+    UgMaterial.It terrainMat = UgMaterial.create(ctx, renderer.swapchain, "./shader/terrainShadowVert.spv", "./shader/terrainShadowFrag.spv", desc, 1, ubo, {});
 
     // Debug quad: 250x250 in top-left corner (CCW winding)
     F32 QUAD_VERTS[48] = {
@@ -194,17 +192,15 @@ I32 main() {
         260, 260, 0,  0,0,0,  1, 1,
         10, 260, 0,   0,0,0,  0, 1,
     };
-    UgShaderProgram.It debugShader = UgShaderProgram.create(ctx, "./shader/debugQuadVert.spv", "./shader/debugQuadFrag.spv");
     UgUniformBuffer.It debugUbo = UgUniformBuffer.create(ctx, 0, 192);
     UgBuffer.It debugVB = UgBuffer.create(ctx, sizeof(QUAD_VERTS), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    UgVertexArray.It debugVao = UgVertexArray.create(ctx, renderer.swapchain, renderer.renderPass, desc, debugUbo, &shadowRT.texture, debugShader, {});
+    UgMaterial.It debugMat = UgMaterial.create(ctx, renderer.swapchain, "./shader/debugQuadVert.spv", "./shader/debugQuadFrag.spv", desc, 1, debugUbo, {});
     UgBuffer.upload(ctx, debugVB, QUAD_VERTS, sizeof(QUAD_VERTS));
 
     // Water
-    UgBuffer.It waterVB          = UgBuffer.create(ctx, waterVertCount * 8 * sizeof(F32), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    UgShaderProgram.It waterShader = UgShaderProgram.create(ctx, "./shader/waterVert.spv", "./shader/waterFrag.spv");
-    UgUniformBuffer.It waterUbo  = UgUniformBuffer.create(ctx, 0, 208);
-    UgVertexArray.It waterVao    = UgVertexArray.create(ctx, renderer.swapchain, renderer.renderPass, desc, waterUbo, NULL, waterShader, {});
+    UgBuffer.It waterVB     = UgBuffer.create(ctx, waterVertCount * 8 * sizeof(F32), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    UgUniformBuffer.It waterUbo = UgUniformBuffer.create(ctx, 0, 208);
+    UgMaterial.It waterMat  = UgMaterial.create(ctx, renderer.swapchain, "./shader/waterVert.spv", "./shader/waterFrag.spv", desc, 0, waterUbo, {});
 
     Matrix.It model;
     Matrix.It view;
@@ -261,29 +257,34 @@ I32 main() {
     };
     UgVertexDesc.It cubeDesc = { 32, cubeAttrs, 3 };
     
-    UgShaderProgram.It shadowShader = UgShaderProgram.create(ctx, "./shader/shadowVert.spv", "./shader/shadowFrag.spv");
-    UgUniformBuffer.It shadowCubeUbo = UgUniformBuffer.create(ctx, 0, 192);
+    // 3 UBOs for main pass (200 bytes: 3 matrices + float layerIndex)
+    UgUniformBuffer.It cubeUbo0 = UgUniformBuffer.create(ctx, 0, 200);
+    UgUniformBuffer.It cubeUbo1 = UgUniformBuffer.create(ctx, 0, 200);
+    UgUniformBuffer.It cubeUbo2 = UgUniformBuffer.create(ctx, 0, 200);
+    // 3 UBOs for shadow pass (192 bytes: 3 matrices, shadow shader has no layerIndex)
+    UgUniformBuffer.It shadowCubeUbo0 = UgUniformBuffer.create(ctx, 0, 192);
+    UgUniformBuffer.It shadowCubeUbo1 = UgUniformBuffer.create(ctx, 0, 192);
+    UgUniformBuffer.It shadowCubeUbo2 = UgUniformBuffer.create(ctx, 0, 192);
 
-    UgVertexSettings.It shadowVaoSettings = {};
-    shadowVaoSettings.depthVao = 1;
-    
-    UgVertexArray.It shadowCubeVao = UgVertexArray.create(ctx, renderer.swapchain, shadowRT.renderPass, cubeDesc, shadowCubeUbo, NULL, shadowShader, shadowVaoSettings);
+    // Texture array: swap these paths for visually distinct layers
+    const I8* cubeLayers[3] = { "./glass.png", "./dirt.png", "./stone.png" };
+    UgTextureArray.It cubeTileArray = UgTextureArray.create(ctx, cubeLayers, 3);
 
-    
+    UgVertexSettings.It shadowCubeSettings = {};
+    shadowCubeSettings.depthVao = 1;
+
+    UgMaterial.It shadowCubeMat = UgMaterial.create(ctx, renderer.swapchain, "./shader/shadowVert.spv", "./shader/shadowFrag.spv", cubeDesc, 0, shadowCubeUbo0, shadowCubeSettings);
+    UgMaterial.It cubeMat       = UgMaterial.create(ctx, renderer.swapchain, "./shader/cubeVert.spv", "./shader/cubeFrag.spv", cubeDesc, 1, cubeUbo0, {});
+
     UgBuffer.It cubeVertexBuffer = UgBuffer.create(ctx, sizeof(CUBE_VERTEX[0]) * CUBE_VERTEX_COUNT, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    UgBuffer.It cubeIndexBuffer = UgBuffer.create(ctx, sizeof(CUBE_INDEX[0]) * CUBE_INDEX_COUNT, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-    UgShaderProgram.It cubeShaderProgram = UgShaderProgram.create(ctx, "./shader/cubeVert.spv", "./shader/cubeFrag.spv");
+    UgBuffer.It cubeIndexBuffer  = UgBuffer.create(ctx, sizeof(CUBE_INDEX[0]) * CUBE_INDEX_COUNT, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
     UgBuffer.upload(ctx, cubeVertexBuffer, CUBE_VERTEX, sizeof(CUBE_VERTEX[0]) * CUBE_VERTEX_COUNT);
     UgBuffer.upload(ctx, cubeIndexBuffer, CUBE_INDEX, sizeof(CUBE_INDEX[0]) * CUBE_INDEX_COUNT);
 
-    UgUniformBuffer.It cubeUbo = UgUniformBuffer.create(ctx, 0, 192);
-    UgTexture.It cubeTexture = UgTexture.create(ctx, "./texture.png");
-
-    UgVertexArray.It cubeVao = UgVertexArray.create(ctx, renderer.swapchain, renderer.renderPass, cubeDesc, cubeUbo, &cubeTexture, cubeShaderProgram, {});
-    Matrix.It cubeModel;
-    Matrix.setIdentity(cubeModel);
-    Matrix.translate(cubeModel, 0, 2, 0, 0);
+    Matrix.It cubeModel0; Matrix.setIdentity(cubeModel0); Matrix.translate(cubeModel0, -3, 2, 0, 0);
+    Matrix.It cubeModel1; Matrix.setIdentity(cubeModel1); Matrix.translate(cubeModel1,  0, 2, 0, 0);
+    Matrix.It cubeModel2; Matrix.setIdentity(cubeModel2); Matrix.translate(cubeModel2,  3, 2, 0, 0);
     //End cube
 
     while (UgWindow.isOpen(window)) {
@@ -355,19 +356,32 @@ I32 main() {
         UgRenderTarget.begin(shadowRT, cmd);
         UgRenderTarget.setViewport(shadowRT, cmd);
 
-        // Cube
+        // Cubes — shadow pass
         {
-            UgVertexArray.bind(shadowCubeVao, cmd);
-            UgUniformBuffer.reset(shadowCubeUbo);
-            UgUniformBuffer.setMat(shadowCubeUbo, cubeModel);
-            UgUniformBuffer.setMat(shadowCubeUbo, lightView);
-            UgUniformBuffer.setMat(shadowCubeUbo, lightProj);
-
             VkBuffer vertexBuffers[] = { cubeVertexBuffer.handle };
             VkDeviceSize offsets[] = { 0 };
-
             vkCmdBindVertexBuffers(cmd.handle, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(cmd.handle, cubeIndexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
+
+            UgMaterial.bind(shadowCubeMat, shadowRT.renderPass, cmd, shadowCubeUbo0);
+            UgUniformBuffer.reset(shadowCubeUbo0);
+            UgUniformBuffer.setMat(shadowCubeUbo0, cubeModel0);
+            UgUniformBuffer.setMat(shadowCubeUbo0, lightView);
+            UgUniformBuffer.setMat(shadowCubeUbo0, lightProj);
+            vkCmdDrawIndexed(cmd.handle, CUBE_INDEX_COUNT, 1, 0, 0, 0);
+
+            UgUniformBuffer.bind(shadowCubeUbo1, cmd.handle, shadowCubeMat.layout);
+            UgUniformBuffer.reset(shadowCubeUbo1);
+            UgUniformBuffer.setMat(shadowCubeUbo1, cubeModel1);
+            UgUniformBuffer.setMat(shadowCubeUbo1, lightView);
+            UgUniformBuffer.setMat(shadowCubeUbo1, lightProj);
+            vkCmdDrawIndexed(cmd.handle, CUBE_INDEX_COUNT, 1, 0, 0, 0);
+
+            UgUniformBuffer.bind(shadowCubeUbo2, cmd.handle, shadowCubeMat.layout);
+            UgUniformBuffer.reset(shadowCubeUbo2);
+            UgUniformBuffer.setMat(shadowCubeUbo2, cubeModel2);
+            UgUniformBuffer.setMat(shadowCubeUbo2, lightView);
+            UgUniformBuffer.setMat(shadowCubeUbo2, lightProj);
             vkCmdDrawIndexed(cmd.handle, CUBE_INDEX_COUNT, 1, 0, 0, 0);
         }
         UgRenderTarget.end(cmd);
@@ -377,8 +391,8 @@ I32 main() {
         UgRenderer.setViewport(ctx, renderer, cmd);
 
         // Terrain with shadow
-        UgVertexArray.bind(vao, cmd);
-        UgTexture.bind(shadowRT.texture, cmd, vao.layout);
+        UgMaterial.bind(terrainMat, renderer.renderPass, cmd, ubo);
+        UgTexture.bind(shadowRT.texture, cmd, terrainMat.layout, 0);
 
         UgUniformBuffer.reset(ubo);
         UgUniformBuffer.setMat(ubo, model);
@@ -394,21 +408,37 @@ I32 main() {
         }
         vkCmdDraw(cmd.handle, vertexCount, 1, 0, 0);
 
-        // cube
+        // Cubes — main pass (texture array, one bind for all three)
         {
-            UgVertexArray.bind(cubeVao, cmd);
-            UgTexture.bind(cubeTexture, cmd, vao.layout);
-            
-            UgUniformBuffer.reset(cubeUbo);
-            UgUniformBuffer.setMat(cubeUbo, cubeModel);
-            UgUniformBuffer.setMat(cubeUbo, view);
-            UgUniformBuffer.setMat(cubeUbo, projection);
-
             VkBuffer vertexBuffers[] = { cubeVertexBuffer.handle };
             VkDeviceSize offsets[] = { 0 };
-
             vkCmdBindVertexBuffers(cmd.handle, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(cmd.handle, cubeIndexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
+
+            UgMaterial.bind(cubeMat, renderer.renderPass, cmd, cubeUbo0);
+            UgTextureArray.bind(cubeTileArray, cmd, cubeMat.layout, 0);
+
+            UgUniformBuffer.reset(cubeUbo0);
+            UgUniformBuffer.setMat(cubeUbo0, cubeModel0);
+            UgUniformBuffer.setMat(cubeUbo0, view);
+            UgUniformBuffer.setMat(cubeUbo0, projection);
+            UgUniformBuffer.setFloat(cubeUbo0, 0.0f);
+            vkCmdDrawIndexed(cmd.handle, CUBE_INDEX_COUNT, 1, 0, 0, 0);
+
+            UgUniformBuffer.bind(cubeUbo1, cmd.handle, cubeMat.layout);
+            UgUniformBuffer.reset(cubeUbo1);
+            UgUniformBuffer.setMat(cubeUbo1, cubeModel1);
+            UgUniformBuffer.setMat(cubeUbo1, view);
+            UgUniformBuffer.setMat(cubeUbo1, projection);
+            UgUniformBuffer.setFloat(cubeUbo1, 1.0f);
+            vkCmdDrawIndexed(cmd.handle, CUBE_INDEX_COUNT, 1, 0, 0, 0);
+
+            UgUniformBuffer.bind(cubeUbo2, cmd.handle, cubeMat.layout);
+            UgUniformBuffer.reset(cubeUbo2);
+            UgUniformBuffer.setMat(cubeUbo2, cubeModel2);
+            UgUniformBuffer.setMat(cubeUbo2, view);
+            UgUniformBuffer.setMat(cubeUbo2, projection);
+            UgUniformBuffer.setFloat(cubeUbo2, 2.0f);
             vkCmdDrawIndexed(cmd.handle, CUBE_INDEX_COUNT, 1, 0, 0, 0);
         }
 
@@ -469,7 +499,7 @@ I32 main() {
 
             UgBuffer.upload(ctx, waterVB, waterVerts, waterVertCount * 8 * sizeof(F32));
 
-            UgVertexArray.bind(waterVao, cmd);
+            UgMaterial.bind(waterMat, renderer.renderPass, cmd, waterUbo);
             UgUniformBuffer.reset(waterUbo);
             UgUniformBuffer.setMat(waterUbo, model);
             UgUniformBuffer.setMat(waterUbo, view);
@@ -483,8 +513,8 @@ I32 main() {
         }
 
         // Debug: shadow map in top-left corner
-        UgVertexArray.bind(debugVao, cmd);
-        UgTexture.bind(shadowRT.texture, cmd, debugVao.layout);
+        UgMaterial.bind(debugMat, renderer.renderPass, cmd, debugUbo);
+        UgTexture.bind(shadowRT.texture, cmd, debugMat.layout, 0);
         UgUniformBuffer.reset(debugUbo);
         UgUniformBuffer.setMat(debugUbo, debug2DModel);
         UgUniformBuffer.setMat(debugUbo, debug2DView);
@@ -511,35 +541,30 @@ I32 main() {
     vkDeviceWaitIdle(ctx.device.handle);
 
     // Cube
-    UgShaderProgram.destroy(ctx, shadowShader);
-    UgUniformBuffer.destroy(ctx, shadowCubeUbo);
-    UgVertexArray.destroy(ctx, shadowCubeVao);
-    
+    UgMaterial.destroy(ctx, shadowCubeMat);
+    UgMaterial.destroy(ctx, cubeMat);
     UgBuffer.destroy(ctx, cubeVertexBuffer);
     UgBuffer.destroy(ctx, cubeIndexBuffer);
-    UgShaderProgram.destroy(ctx, cubeShaderProgram);
-    UgUniformBuffer.destroy(ctx, cubeUbo);
-    UgTexture.destroy(ctx, cubeTexture);
-    UgVertexArray.destroy(ctx, cubeVao);
-    // End Cube
+    UgUniformBuffer.destroy(ctx, shadowCubeUbo0);
+    UgUniformBuffer.destroy(ctx, shadowCubeUbo1);
+    UgUniformBuffer.destroy(ctx, shadowCubeUbo2);
+    UgUniformBuffer.destroy(ctx, cubeUbo0);
+    UgUniformBuffer.destroy(ctx, cubeUbo1);
+    UgUniformBuffer.destroy(ctx, cubeUbo2);
+    UgTextureArray.destroy(ctx, cubeTileArray);
 
     UgBuffer.destroy(ctx, vertexBuffer);
-
     UgRenderTarget.destroy(ctx, shadowRT);
-
-    UgShaderProgram.destroy(ctx, terrainShader);
     UgUniformBuffer.destroy(ctx, ubo);
-    UgVertexArray.destroy(ctx, vao);
+    UgMaterial.destroy(ctx, terrainMat);
 
-    UgShaderProgram.destroy(ctx, debugShader);
     UgUniformBuffer.destroy(ctx, debugUbo);
     UgBuffer.destroy(ctx, debugVB);
-    UgVertexArray.destroy(ctx, debugVao);
+    UgMaterial.destroy(ctx, debugMat);
 
     UgBuffer.destroy(ctx, waterVB);
-    UgShaderProgram.destroy(ctx, waterShader);
     UgUniformBuffer.destroy(ctx, waterUbo);
-    UgVertexArray.destroy(ctx, waterVao);
+    UgMaterial.destroy(ctx, waterMat);
     free(waterH);
     free(waterPhase);
     free(waterVerts);

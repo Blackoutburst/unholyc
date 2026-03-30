@@ -1,0 +1,54 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+#include "core/shader.uhh"
+#include "core/buffer.uhh"
+#include "core/pipeline.uhh"
+#include "core/vertexdesc.uhh"
+
+#define UG_MATERIAL_MAX_RENDER_PASSES 4
+#define UG_MATERIAL_MAX_TEXTURES      4
+
+namespace UgMaterialPipelineEntry {
+    struct It {
+        VkRenderPass renderPass;
+        VkPipeline   pipeline;
+    };
+}
+
+namespace UgMaterial {
+    struct It {
+        VkPipelineLayout layout;
+        VkDescriptorSetLayout textureSetLayouts[UG_MATERIAL_MAX_TEXTURES];
+        UgShaderProgram.It shaderProgram;
+        UgVertexDesc.It    vertexDesc;
+        UgVertexSettings.It settings;
+        U32 textureCount;
+        UgMaterialPipelineEntry.It pipelineCache[UG_MATERIAL_MAX_RENDER_PASSES];
+        U32 pipelineCacheCount;
+        UgContext.It*   ctx;
+        UgSwapchain.It* swapchain;
+    };
+
+    UgMaterial.It create(
+        UgContext.It& ctx,
+        UgSwapchain.It& swapchain,
+        const I8* vertSpv,
+        const I8* fragSpv,
+        UgVertexDesc.It& desc,
+        U32 textureCount,
+        UgUniformBuffer.It& ubo,
+        const UgVertexSettings.It& settings
+    );
+
+    U0 bind(
+        UgMaterial.It& mat,
+        VkRenderPass renderPass,
+        UgCommandBuffer.It& cmd,
+        UgUniformBuffer.It& ubo
+    );
+
+    U0 destroy(UgContext.It& ctx, UgMaterial.It& mat);
+}

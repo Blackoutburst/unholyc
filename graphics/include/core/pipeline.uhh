@@ -5,7 +5,7 @@
 #include "core/context.uhh"
 #include "core/shader.uhh"
 #include "core/swapchain.uhh"
-#include "core/vao.uhh"
+#include "core/vertexdesc.uhh"
 
 namespace UgPipeline {
     VkPipelineDynamicStateCreateInfo createDynamicState();

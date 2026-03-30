@@ -8,9 +8,10 @@ struct UniformBuffer {
     float4x4 model;
     float4x4 view;
     float4x4 projection;
+    float layerIndex;
 };
 [[vk::binding(0, 0)]] ConstantBuffer<UniformBuffer> ubo;
-[[vk::binding(0, 1)]] Sampler2D texSampler;
+[[vk::binding(0, 1)]] Sampler2DArray texSampler;
 
 struct VSOutput {
     float4 pos : SV_Position;
@@ -29,5 +30,9 @@ VSOutput vertMain(VSInput input) {
 
 [shader("fragment")]
 float4 fragMain(VSOutput vertIn) : SV_TARGET {
-    return texSampler.Sample(vertIn.texCoord);
+    float4 tex = texSampler.Sample(float3(vertIn.texCoord, ubo.layerIndex));
+    if (tex.a < 0.5)
+        discard;
+    
+    return float4(tex.rgb * float3(1.0, 1.0, 1.0), tex.a);
 }

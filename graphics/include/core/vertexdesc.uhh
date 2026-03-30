@@ -2,19 +2,12 @@
 
 #include <vulkan/vulkan.h>
 
-#include "core/context.uhh"
-#include "core/shader.uhh"
-#include "core/texture.uhh"
-#include "core/buffer.uhh"
-#include "core/renderer.uhh"
-
 namespace UgVertexAttrib {
     struct It {
         U32 location;
         VkFormat format;
         U32 offset;
     };
-
 }
 
 namespace UgVertexDesc {
@@ -36,7 +29,7 @@ namespace UgVertexSettings {
         VkBlendFactor srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         VkBlendFactor dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
         VkBlendOp alphaBlendOp = VK_BLEND_OP_ADD;
-        
+
         VkBool32 depthClampEnable = VK_FALSE;
         VkBool32 rasterizerDiscardEnable = VK_FALSE;
         VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
@@ -49,16 +42,3 @@ namespace UgVertexSettings {
         F32 lineWidth = 1.0f;
     };
 }
-
-namespace UgVertexArray {
-    struct It {
-        VkPipelineLayout layout;
-        VkPipeline pipeline;
-        UgUniformBuffer.It uniformBuffer;
-    };
-
-    UgVertexArray.It create(UgContext.It& ctx, UgSwapchain.It& swapchain, VkRenderPass renderPass, UgVertexDesc.It& desc, UgUniformBuffer.It& uniformBuffer, UgTexture.It* texture, UgShaderProgram.It& shaderProgram, const UgVertexSettings.It& settings);
-    U0 bind(UgVertexArray.It& vao, UgCommandBuffer.It& cmd);
-    U0 destroy(UgContext.It& ctx, UgVertexArray.It& vao);
-}
-

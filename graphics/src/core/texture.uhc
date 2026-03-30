@@ -95,22 +95,7 @@ namespace UgTexture {
         VkImageView view = UgImageView.makeView(ctx, image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
         VkSampler sampler = UgSampler.create(ctx);
 
-        VkDescriptorSetLayoutBinding samplerBinding;
-        samplerBinding.binding = 0;
-        samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        samplerBinding.descriptorCount = 1;
-        samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        samplerBinding.pImmutableSamplers = NULL;
-
-        VkDescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.pNext = NULL;
-        layoutInfo.flags = 0;
-        layoutInfo.bindingCount = 1;
-        layoutInfo.pBindings = &samplerBinding;
-
-        VkDescriptorSetLayout setLayout;
-        vkCreateDescriptorSetLayout(ctx.device.handle, &layoutInfo, NULL, &setLayout);
+        VkDescriptorSetLayout setLayout = UgTexture.createSetLayout(ctx);
 
         VkDescriptorSetAllocateInfo descAllocInfo;
         descAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -151,8 +136,28 @@ namespace UgTexture {
         return texture;
     }
 
-    U0 bind(UgTexture.It& texture, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout) {
-        vkCmdBindDescriptorSets(cmd.handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texture.descriptorSet, 0, NULL);
+    VkDescriptorSetLayout createSetLayout(UgContext.It& ctx) {
+        VkDescriptorSetLayoutBinding samplerBinding;
+        samplerBinding.binding = 0;
+        samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        samplerBinding.descriptorCount = 1;
+        samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        samplerBinding.pImmutableSamplers = NULL;
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo;
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.pNext = NULL;
+        layoutInfo.flags = 0;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &samplerBinding;
+
+        VkDescriptorSetLayout setLayout;
+        vkCreateDescriptorSetLayout(ctx.device.handle, &layoutInfo, NULL, &setLayout);
+        return setLayout;
+    }
+
+    U0 bind(UgTexture.It& texture, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout, U32 slot) {
+        vkCmdBindDescriptorSets(cmd.handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1 + slot, 1, &texture.descriptorSet, 0, NULL);
     }
 
     U0 destroy(UgContext.It& ctx, UgTexture.It& texture) {

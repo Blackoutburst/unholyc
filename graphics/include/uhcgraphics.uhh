@@ -19,7 +19,9 @@
 #include "core/surface.uhh"
 #include "core/swapchain.uhh"
 #include "core/texture.uhh"
-#include "core/vao.uhh"
+#include "core/textureArray.uhh"
+#include "core/vertexdesc.uhh"
+#include "core/material.uhh"
 
 // Debug
 #include "debug/logCallback.uhh"
