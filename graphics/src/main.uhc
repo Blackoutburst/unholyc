@@ -524,7 +524,7 @@ I32 main() {
             VkDeviceSize dOffsets[] = { 0 };
             vkCmdBindVertexBuffers(cmd.handle, 0, 1, dVBs, dOffsets);
         }
-        //vkCmdDraw(cmd.handle, 6, 1, 0, 0);
+        vkCmdDraw(cmd.handle, 6, 1, 0, 0);
 
         UgRenderer.end(cmd);
         UgCommandBuffer.end(cmd);
