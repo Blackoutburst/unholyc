@@ -16,10 +16,10 @@ namespace Math {
 
 namespace VectorF {
     struct It {
-        F32 x;
-        F32 y;
-        F32 z;
-        F32 w;
+        F32 x = 0.0f;
+        F32 y = 0.0f;
+        F32 z = 0.0f;
+        F32 w = 0.0f;
     };
 
     U8 equals(VectorF.It& a, VectorF.It& b);
@@ -34,10 +34,10 @@ namespace VectorF {
 
 namespace VectorI {
     struct It {
-        I32 x;
-        I32 y;
-        I32 z;
-        I32 w;
+        I32 x = 0;
+        I32 y = 0;
+        I32 z = 0;
+        I32 w = 0;
     };
 
     U8 equals(VectorI.It& a, VectorI.It& b);
@@ -72,7 +72,7 @@ namespace VectorI {
 
 namespace Matrix {
     struct It {
-        F32 values[16];
+        F32 values[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
     };
 
     U0 setIdentity(Matrix.It& mat);
