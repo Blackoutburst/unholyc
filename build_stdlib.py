@@ -79,15 +79,24 @@ def main() -> None:
         src_dir     = os.path.join(tmp, uhcstd_name)
         inc_tmp     = os.path.join(tmp, 'include')          # types.hh lives here
 
-        # Copy plain .h files (ignored by transpiler) into the temp tree so
-        # relative includes like  #include "cc.h"  resolve correctly.
-        for h in glob.glob(os.path.join(args.std, '**', '*.h'), recursive=True):
-            rel = os.path.relpath(h, args.std)
-            dest_h = os.path.join(src_dir, rel)
-            os.makedirs(os.path.dirname(dest_h), exist_ok=True)
-            shutil.copy2(h, dest_h)
+        # Flatten all transpiled output into src_dir (no subdirectories) so
+        # relative includes like  #include "uhcstd.hh"  resolve correctly.
+        for f in glob.glob(os.path.join(src_dir, '**', '*'), recursive=True):
+            if os.path.isfile(f) and os.path.dirname(f) != src_dir:
+                shutil.move(f, src_dir)
+        # Remove now-empty subdirectories
+        for dirpath, dirnames, _ in os.walk(src_dir, topdown=False):
+            if dirpath != src_dir:
+                try:
+                    os.rmdir(dirpath)
+                except OSError:
+                    pass
 
-        cc_files = glob.glob(os.path.join(src_dir, '**', '*.cc'), recursive=True)
+        # Copy plain .h files (ignored by transpiler) into the flat src_dir.
+        for h in glob.glob(os.path.join(args.std, '**', '*.h'), recursive=True):
+            shutil.copy2(h, src_dir)
+
+        cc_files = glob.glob(os.path.join(src_dir, '*.cc'))
         if not cc_files:
             sys.exit('Error: no .cc files produced by transpiler')
 

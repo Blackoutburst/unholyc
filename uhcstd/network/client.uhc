@@ -1,5 +1,5 @@
 #include "uhcnet.uhh"
-#include "io/uhcio.uhh"
+#include "uhcio.uhh"
 
 namespace TcpClient {
 #if defined(_WIN32) || defined(_WIN64)

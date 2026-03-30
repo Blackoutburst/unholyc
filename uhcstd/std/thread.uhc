@@ -1,5 +1,5 @@
 #include "uhcstd.uhh"
-#include "io/uhcio.uhh"
+#include "uhcio.uhh"
 #include <stdlib.h>
 
 namespace Thread {

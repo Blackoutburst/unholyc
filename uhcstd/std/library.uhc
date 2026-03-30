@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "io/uhcio.uhh"
+#include "uhcio.uhh"
 #include "uhcstd.uhh"
 
 namespace DynamicLibrary {
