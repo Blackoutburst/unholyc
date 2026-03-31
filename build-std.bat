@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 set OUT=out_std
 set DIST=dist
 
-dist/bin/unholyc uhcstd %OUT%
+dist\bin\unholyc uhcstd %OUT%
 
 set INCLUDES=-I"%OUT%"
 for /d /r "%OUT%" %%d in (*) do set INCLUDES=!INCLUDES! -I"%%d"

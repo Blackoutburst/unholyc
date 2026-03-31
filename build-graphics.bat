@@ -8,7 +8,7 @@ set I_UHC=%DIST%\include
 set I_VK=C:\VulkanSDK\1.4.341.1\Include
 set I_GLFW=C:\GLFW\include
 
-dist/bin/unholyc -I"%I_UHC%" graphics %OUT%
+dist\bin\unholyc -I"%I_UHC%" graphics %OUT%
 
 mkdir "%OUT%\obj" 2>nul
 for /r "%OUT%\src" %%f in (*.cc) do (

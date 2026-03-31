@@ -224,41 +224,36 @@ std::unordered_set<std::string> collectNamespaces(const std::vector<Token>& toke
     return ns;
 }
 
-// ─── Data structures ───────────────────────────────────────────────────────
-
 struct ScopeVar {
     std::string name;
     std::string cType;
 };
 
 struct LambdaReg {
-    std::string              lambdaParamName; // the param name (e.g. "block")
-    std::string              calleeName;      // the function that accepts this lambda
-    std::vector<std::string> argCTypes;       // C types of lambda parameters
-    std::string              retCType;        // C return type
+    std::string              lambdaParamName;
+    std::string              calleeName;
+    std::vector<std::string> argCTypes;
+    std::string              retCType;
 };
 
 struct PatchSite {
-    size_t      outputByteOffset; // byte offset in out buffer of the closing ')' of callee param list
+    size_t      outputByteOffset;
     std::string calleeName;
-    // Also patch the lambda function-pointer for captures:
-    // offset of the closing ')' of the inner func-ptr param list
-    size_t      fptrInnerCloseOffset; // offset of ')' that closes the lambda's arg type list
-    std::string lambdaParamName;      // which lambda param to patch
+    size_t      fptrInnerCloseOffset;
+    std::string lambdaParamName;
 };
 
 struct CallSiteCapture {
     std::string calleeName;
     int         sourceLine;
-    std::vector<std::pair<std::string,std::string>> captures; // (name, cType)
+    std::vector<std::pair<std::string,std::string>> captures;
 };
 
 struct CallFrame {
     std::string calleeName;
-    int         parenDepthAtOpen; // parenDepth when '(' was seen
+    int         parenDepthAtOpen;
+    size_t      outLenAtArgStart;
 };
-
-// ─── FNV-1a hash helper ────────────────────────────────────────────────────
 
 static uint32_t fnv1a32(const std::string& s) {
     uint32_t h = 2166136261u;
@@ -269,8 +264,6 @@ static uint32_t fnv1a32(const std::string& s) {
     return h;
 }
 
-// ─── Transpiler class ──────────────────────────────────────────────────────
-
 class Transpiler {
     const std::vector<Token>&            tokens;
     const std::unordered_set<std::string>& namespaces;
@@ -278,32 +271,25 @@ class Transpiler {
     std::ostringstream out;
     std::ostringstream preamble;
 
-    // Lambda registry: maps lambdaParamName -> LambdaReg (keyed by callee+param for uniqueness)
-    // We key by callee::paramName
     std::unordered_map<std::string, LambdaReg> lambdaRegistry;
 
-    // Patch sites recorded during lambda declaration parsing
     std::vector<PatchSite> patchSites;
 
-    // Call site captures recorded when call sites are processed
     std::vector<CallSiteCapture> callSiteCaptures;
 
-    // Scope tracking
     std::vector<ScopeVar> scopeVars;
     bool inFunctionBody    = false;
-    int  braceDepth        = 0;  // depth inside top-level function body (1 = inside it)
-    int  globalBraceDepth  = 0;  // absolute brace depth for detecting function entry
+    int  braceDepth        = 0;
+    int  globalBraceDepth  = 0;
 
-    // Call stack for trailing lambda detection
     std::vector<CallFrame> callStack;
 
-    // Hash collision tracking: hash -> count of times seen
     std::unordered_map<std::string, int> lambdaNameCount;
 
-    // paren depth for general tracking
     int parenDepth = 0;
 
-    // ── helpers ──────────────────────────────────────────────────────────
+    std::string pendingFuncForBrace;
+    size_t      pendingFuncParamIdx = 0;
 
     size_t nextNonWS(size_t i) const {
         while (i < tokens.size() && tokens[i].type == TK::OTHER &&
@@ -312,22 +298,17 @@ class Transpiler {
         return i;
     }
 
-    // Resolve a single identifier through TYPE_MAP; return original if not found
     std::string resolveType(const std::string& v) const {
         auto it = TYPE_MAP.find(v);
         return (it != TYPE_MAP.end()) ? it->second : v;
     }
 
-    // parseCType: parse one C type from tokens starting at i, advance i.
-    // Returns resolved C type string. Handles namespace.Type and pointer/ref suffixes.
     std::string parseCType(size_t& i) {
-        // skip whitespace
         i = nextNonWS(i);
         if (i >= tokens.size() || tokens[i].type == TK::END) return "";
 
         std::string result;
 
-        // Handle namespace-qualified type: NS DOT IDENT
         if (tokens[i].type == TK::IDENT) {
             std::string base = tokens[i].value;
             size_t j = nextNonWS(i + 1);
@@ -345,17 +326,14 @@ class Transpiler {
                 i++;
             }
         } else {
-            // unexpected - just take whatever token is there
             result = tokens[i].value;
             i++;
         }
 
-        // Consume pointer/ref suffixes
         while (true) {
             size_t j = nextNonWS(i);
             if (j < tokens.size() && tokens[j].type == TK::OTHER &&
                 (tokens[j].value == "*" || tokens[j].value == "&")) {
-                // emit whitespace between result and suffix
                 result += tokens[j].value;
                 i = j + 1;
             } else {
@@ -366,18 +344,9 @@ class Transpiler {
         return result;
     }
 
-    // parseLambdaDecl: called when we're at IDENT("lambda") inside a param list.
-    // Consumes: lambda NAME ( types... ) -> rettype
-    // Emits to out: retCType (*NAME)(argCTypes...)
-    // Side-effect: registers in lambdaRegistry, records PatchSite for callee param list close.
-    // Returns the emitted string.
-    // i is at the token AFTER "lambda"
-    // calleeName: the function whose param list we're inside
     void parseLambdaDecl(size_t& i, const std::string& calleeName) {
-        // skip whitespace
         i = nextNonWS(i);
 
-        // parse NAME
         std::string lambdaParamName;
         if (i < tokens.size() && tokens[i].type == TK::IDENT) {
             lambdaParamName = tokens[i].value;
@@ -389,14 +358,12 @@ class Transpiler {
 
         i = nextNonWS(i);
 
-        // expect '('
         if (i >= tokens.size() || tokens[i].type != TK::LPAREN) {
             std::cerr << "Error: expected '(' after lambda name '" << lambdaParamName << "'\n";
             return;
         }
-        i++; // consume '('
+        i++;
 
-        // parse arg types
         std::vector<std::string> argCTypes;
         while (true) {
             i = nextNonWS(i);
@@ -410,7 +377,6 @@ class Transpiler {
 
         i = nextNonWS(i);
 
-        // expect '-' '>'
         std::string retCType = "void";
         if (i < tokens.size() && tokens[i].type == TK::OTHER && tokens[i].value == "-") {
             i++;
@@ -421,7 +387,6 @@ class Transpiler {
             }
         }
 
-        // Register this lambda
         std::string regKey = calleeName + "::" + lambdaParamName;
         LambdaReg reg;
         reg.lambdaParamName = lambdaParamName;
@@ -429,35 +394,24 @@ class Transpiler {
         reg.argCTypes       = argCTypes;
         reg.retCType        = retCType;
         lambdaRegistry[regKey] = reg;
-        // Also register by just lambdaParamName for quick lookup at call sites
         lambdaRegistry[lambdaParamName] = reg;
 
-        // Emit the function pointer: retCType (*NAME)(argCTypes...)
-        // First we need to record where the inner ')' is so we can patch captures later.
-        // Emit: retCType (*NAME)(
         out << retCType << " (*" << lambdaParamName << ")(";
-        // Record offset just before we emit arg types - we need offset of the closing ')'
-        // We'll emit args, then record where ')' is.
         for (size_t k = 0; k < argCTypes.size(); k++) {
             if (k > 0) out << ", ";
             out << argCTypes[k];
         }
-        // Record offset of the closing ')' of the inner arg list
         size_t fptrInnerClose = out.str().size();
         out << ")";
 
-        // We'll record PatchSite after the caller emits the outer ')' of the callee param list.
-        // Store temporarily - the caller (run()) will set outputByteOffset after seeing callee close paren.
-        // We push a sentinel PatchSite with fptrInnerCloseOffset set now.
         PatchSite ps;
         ps.calleeName            = calleeName;
         ps.lambdaParamName       = lambdaParamName;
         ps.fptrInnerCloseOffset  = fptrInnerClose;
-        ps.outputByteOffset      = SIZE_MAX; // will be filled in when outer ')' is seen
+        ps.outputByteOffset      = SIZE_MAX;
         patchSites.push_back(ps);
     }
 
-    // generateLambdaName: FNV-1a hash of body token values → __lambda_XXXXXXXX
     std::string generateLambdaName(const std::vector<Token>& bodyTokens) {
         std::string concat;
         for (auto& t : bodyTokens) concat += t.value;
@@ -476,7 +430,6 @@ class Transpiler {
         }
     }
 
-    // detectCaptures: find identifiers used in body that are in scopeVars but not in headerParams
     std::vector<std::pair<std::string,std::string>> detectCaptures(
         const std::vector<std::string>& headerParams,
         const std::vector<Token>& bodyTokens)
@@ -494,7 +447,6 @@ class Transpiler {
             if (CONTROL_FLOW_KW.count(name)) continue;
             if (namespaces.count(name)) continue;
 
-            // Check scopeVars
             for (auto& sv : scopeVars) {
                 if (sv.name == name) {
                     seen.insert(name);
@@ -506,10 +458,6 @@ class Transpiler {
         return captures;
     }
 
-    // extractBody: called when we're at LBRACE that is a trailing lambda body.
-    // Parses optional (param, ...) -> header, then body tokens.
-    // Returns {headerParamNames, bodyTokens}
-    // i should be pointing at LBRACE; on return, i is after the closing RBRACE.
     struct ExtractedBody {
         std::vector<std::string> headerParams;
         std::vector<Token>       bodyTokens;
@@ -518,18 +466,13 @@ class Transpiler {
     ExtractedBody extractBody(size_t& i) {
         ExtractedBody result;
 
-        // consume LBRACE
-        i++; // skip '{'
+        i++;
 
-        // skip whitespace
         size_t j = nextNonWS(i);
 
-        // Check for optional header: ( params... ) ->
         if (j < tokens.size() && tokens[j].type == TK::LPAREN) {
-            // Try to parse header: ( name, name, ... ) ->
-            // We need to look ahead to confirm there's a '->' after the ')'
             size_t save_j = j;
-            j++; // skip '('
+            j++;
             std::vector<std::string> params;
             bool valid = true;
             while (true) {
@@ -549,28 +492,21 @@ class Transpiler {
                 if (j2 < tokens.size() && tokens[j2].type == TK::OTHER && tokens[j2].value == "-") {
                     size_t j3 = nextNonWS(j2 + 1);
                     if (j3 < tokens.size() && tokens[j3].type == TK::OTHER && tokens[j3].value == ">") {
-                        // confirmed header
                         result.headerParams = params;
                         i = j3 + 1;
                     } else {
-                        // not a valid header, treat as body
-                        i = save_j + 1; // rewind to after '{'  (j was at '(')
-                        // actually rewind to the position after '{'
+                        i = save_j + 1;
                         i = nextNonWS(i);
-                        // We already incremented past '{' at start, i is at next token
-                        // Reset: we need to re-set i to the position right after '{'
-                        // Let's just not consume the header tokens
-                        i = save_j; // point to '('
+                        i = save_j;
                     }
                 } else {
-                    i = save_j; // not a header, leave '(' to be part of body
+                    i = save_j;
                 }
             } else {
                 i = save_j;
             }
         }
 
-        // Collect body tokens until matching RBRACE (depth 0)
         int depth = 1;
         while (i < tokens.size()) {
             const Token& t = tokens[i];
@@ -578,7 +514,7 @@ class Transpiler {
             if (t.type == TK::LBRACE) { depth++; result.bodyTokens.push_back(t); i++; continue; }
             if (t.type == TK::RBRACE) {
                 depth--;
-                if (depth == 0) { i++; break; } // consume closing brace, don't include in body
+                if (depth == 0) { i++; break; }
                 result.bodyTokens.push_back(t); i++; continue;
             }
             result.bodyTokens.push_back(t);
@@ -588,7 +524,6 @@ class Transpiler {
         return result;
     }
 
-    // emitLambdaFunction: writes the lambda function to preamble
     void emitLambdaFunction(
         const std::string& name,
         const std::string& retCType,
@@ -599,7 +534,6 @@ class Transpiler {
     {
         preamble << retCType << " " << name << "(";
 
-        // params: zip argCTypes with headerParams
         bool first = true;
         for (size_t k = 0; k < argCTypes.size(); k++) {
             if (!first) preamble << ", ";
@@ -608,7 +542,6 @@ class Transpiler {
             if (k < headerParams.size()) preamble << " " << headerParams[k];
         }
 
-        // captures as extra params
         for (auto& [capName, capType] : captures) {
             if (!first) preamble << ", ";
             first = false;
@@ -617,21 +550,14 @@ class Transpiler {
 
         preamble << ") {\n";
 
-        // Emit body tokens through transpile logic
-        // We do a mini-transpile of the body tokens
         preamble << transpileTokensToString(bodyTokens);
 
         preamble << "}\n\n";
     }
 
-    // transpileTokensToString: runs the same transpile logic on a token slice, returns string
-    // This handles TYPE_MAP substitution, namespace dot-notation, etc.
-    // It does NOT handle lambda declarations or trailing lambda call sites (those are top-level concerns)
-    // but for lambda bodies that have nested calls, we'd need to be recursive -
-    // for simplicity, we handle the same transforms as the main loop.
     std::string transpileTokensToString(const std::vector<Token>& toks) {
         std::ostringstream buf;
-        int pd = 0; // local paren depth
+        //int pd = 0;
 
         auto nextNonWSLocal = [&](size_t i) -> size_t {
             while (i < toks.size() && toks[i].type == TK::OTHER &&
@@ -645,8 +571,8 @@ class Transpiler {
             const Token& tok = toks[i];
             if (tok.type == TK::END) break;
 
-            if (tok.type == TK::LPAREN)  { pd++; buf << tok.value; i++; continue; }
-            if (tok.type == TK::RPAREN)  { pd--; buf << tok.value; i++; continue; }
+            //if (tok.type == TK::LPAREN)  { pd++; buf << tok.value; i++; continue; }
+            //if (tok.type == TK::RPAREN)  { pd--; buf << tok.value; i++; continue; }
 
             if (tok.type == TK::OTHER        ||
                 tok.type == TK::LINE_COMMENT ||
@@ -688,7 +614,6 @@ class Transpiler {
                     buf << typeIt->second; i++; continue;
                 }
 
-                // namespace dot-notation
                 if (namespaces.count(v)) {
                     size_t j = nextNonWSLocal(i + 1);
                     if (j < toks.size() && toks[j].type == TK::DOT) {
@@ -730,12 +655,9 @@ class Transpiler {
         return buf.str();
     }
 
-    // applyPatches: apply callee signature patches to the output string
     std::string applyPatches(std::string outStr) {
         if (callSiteCaptures.empty()) return outStr;
 
-        // Build a map from calleeName -> canonical capture set
-        // All call sites for the same callee must have the same capture variable names
         std::unordered_map<std::string, std::vector<std::pair<std::string,std::string>>> calleeCaps;
 
         for (auto& csc : callSiteCaptures) {
@@ -743,7 +665,6 @@ class Transpiler {
             if (it == calleeCaps.end()) {
                 calleeCaps[csc.calleeName] = csc.captures;
             } else {
-                // Validate consistency: same names
                 auto& existing = it->second;
                 if (existing.size() != csc.captures.size()) {
                     std::cerr << "Error: Incompatible capture sets across call sites for '"
@@ -760,8 +681,6 @@ class Transpiler {
             }
         }
 
-        // Collect patches: for each callee with captures, find its patch sites
-        // Sort patch sites by offset descending so we can insert without invalidating earlier offsets
         struct Patch {
             size_t offset;
             std::string insertion;
@@ -771,27 +690,19 @@ class Transpiler {
         for (auto& [calleeName, caps] : calleeCaps) {
             if (caps.empty()) continue;
 
-            // Check if callee has patch sites
             bool found = false;
             for (auto& ps : patchSites) {
                 if (ps.calleeName != calleeName) continue;
                 if (ps.outputByteOffset == SIZE_MAX) continue;
                 found = true;
 
-                // Build insertion for outer param list (the callee's params)
                 std::string outerInsert;
                 for (auto& [capName, capType] : caps) {
-                    // Check if already present (idempotency): look backwards from offset
-                    // Simple check: search for capName in the callee param region
-                    // For robustness, just always insert (the spec says check, but in practice
-                    // we control generation so it won't already be there on first run)
                     outerInsert += ", " + capType + " " + capName;
                 }
 
-                // Patch outer closing ')'
                 patches.push_back({ps.outputByteOffset, outerInsert});
 
-                // Patch inner function pointer arg list closing ')'
                 if (ps.fptrInnerCloseOffset != SIZE_MAX) {
                     std::string innerInsert;
                     for (auto& [capName, capType] : caps) {
@@ -807,12 +718,10 @@ class Transpiler {
             }
         }
 
-        // Sort descending by offset
         std::sort(patches.begin(), patches.end(), [](const Patch& a, const Patch& b) {
             return a.offset > b.offset;
         });
 
-        // Apply patches
         for (auto& p : patches) {
             if (p.offset <= outStr.size()) {
                 outStr.insert(p.offset, p.insertion);
@@ -822,11 +731,7 @@ class Transpiler {
         return outStr;
     }
 
-    // ── Scope tracking helpers ────────────────────────────────────────────
-
     void recordFunctionParams(size_t funcParamStart) {
-        // funcParamStart: index right after '(' of function parameter list
-        // Parse params to record them in scopeVars
         size_t i = funcParamStart;
         while (i < tokens.size()) {
             i = nextNonWS(i);
@@ -834,9 +739,7 @@ class Transpiler {
             if (tokens[i].type == TK::RPAREN) break;
             if (tokens[i].type == TK::OTHER && tokens[i].value == ",") { i++; continue; }
 
-            // skip "lambda" params - already handled
             if (tokens[i].type == TK::IDENT && tokens[i].value == "lambda") {
-                // skip until next comma or )
                 while (i < tokens.size() && tokens[i].type != TK::END) {
                     if (tokens[i].type == TK::RPAREN) break;
                     if (tokens[i].type == TK::OTHER && tokens[i].value == ",") break;
@@ -845,15 +748,10 @@ class Transpiler {
                 continue;
             }
 
-            // Try to parse: type name (possibly namespace-qualified type)
-            // Type tokens: IDENT (possibly NS DOT IDENT) followed by IDENT param name
-            // We do a simple 2-token lookahead
             if (tokens[i].type != TK::IDENT) { i++; continue; }
 
             std::string typePart;
-            size_t typeStart = i;
 
-            // Check for namespace-qualified: IDENT DOT IDENT
             size_t j = nextNonWS(i + 1);
             if (j < tokens.size() && tokens[j].type == TK::DOT) {
                 size_t k = nextNonWS(j + 1);
@@ -869,7 +767,6 @@ class Transpiler {
                 i++;
             }
 
-            // Consume pointer/ref suffixes
             while (true) {
                 size_t jj = nextNonWS(i);
                 if (jj < tokens.size() && tokens[jj].type == TK::OTHER &&
@@ -879,20 +776,14 @@ class Transpiler {
                 } else break;
             }
 
-            // Next should be IDENT = param name, or comma/rparen (unnamed param)
             i = nextNonWS(i);
             if (i < tokens.size() && tokens[i].type == TK::IDENT) {
                 scopeVars.push_back({tokens[i].value, typePart});
                 i++;
             }
-            // skip to next comma or end
-            // actually just let the outer loop handle it
         }
     }
 
-    // Try to detect variable declarations inside function body
-    // Pattern: TYPE IDENT (= or ; or ,)
-    // Called when we see a potential type token at statement position
     void tryRecordVarDecl(size_t i) {
         if (!inFunctionBody) return;
         if (i >= tokens.size() || tokens[i].type != TK::IDENT) return;
@@ -901,8 +792,7 @@ class Transpiler {
         if (CONTROL_FLOW_KW.count(v)) return;
         if (v == "return" || v == "lambda") return;
 
-        // Must be a type (in TYPE_MAP) or a known type-ish identifier
-        if (!TYPE_MAP.count(v)) return; // only track known type keywords for simplicity
+        if (!TYPE_MAP.count(v)) return;
 
         size_t j = nextNonWS(i + 1);
         if (j >= tokens.size() || tokens[j].type != TK::IDENT) return;
@@ -913,7 +803,6 @@ class Transpiler {
         if (k >= tokens.size()) return;
         auto& nextTok = tokens[k];
         if (nextTok.type == TK::OTHER && (nextTok.value == "=" || nextTok.value == ",")) {
-            // record it
             scopeVars.push_back({paramName, resolveType(v)});
         } else if (nextTok.type == TK::SEMICOLON) {
             scopeVars.push_back({paramName, resolveType(v)});
@@ -925,22 +814,11 @@ public:
         : tokens(toks), namespaces(ns) {}
 
     std::string run() {
-        // We need to track:
-        // - callee name for lambda declarations
-        // - function param list boundaries for param recording
-        // - call sites for trailing lambda detection
-
-        // State for detecting function definitions: IDENT LPAREN...RPAREN LBRACE
-        // We track the current top-level function name
         std::string currentFuncName;
-        // When we see IDENT at depth 0, record it as a candidate function name
         std::string lastIdentAtDepth0;
 
-        // Track pending patch sites that need their outer close-paren offset filled in
-        // (keyed by calleeName, we fill in patchSites.back() when we see the outer RPAREN)
-        // We track: when we're inside a param list at parenDepth==1, the function name
-        std::string paramListCallee; // set when we open '(' at parenDepth 0->1 for a function
-        size_t paramListOpenIdx = 0; // token index of '(' that opened the param list
+        std::string paramListCallee;
+        size_t paramListOpenIdx = 0;
 
         size_t i = 0;
         while (i < tokens.size()) {
@@ -948,44 +826,23 @@ public:
 
             if (tok.type == TK::END) break;
 
-            // ── LBRACE ──────────────────────────────────────────────────
             if (tok.type == TK::LBRACE) {
-                // Check if this is a trailing lambda call site
-                bool isTrailingLambda = false;
-
-                if (!callStack.empty()) {
-                    CallFrame& frame = callStack.back();
-                    // parenDepth was decremented when we saw RPAREN, so now it equals frame.parenDepthAtOpen - 1
-                    // The call's ')' was seen, now we see '{' - this is trailing lambda
-                    // But we need to check: this LBRACE comes right after the call's closing RPAREN
-                    // We track this via a flag set when RPAREN closes a call frame
-                    // Actually let's handle it differently - see RPAREN section
-                    // This path handles: IDENT LBRACE (no-arg lambda)
-                }
-
-                // No-paren trailing lambda: IDENT LBRACE
-                // This was handled by setting a flag in the IDENT section below
-
                 globalBraceDepth++;
                 if (inFunctionBody) braceDepth++;
 
-                // If at globalBraceDepth 1: entering a top-level function body
-                if (globalBraceDepth == 1 && !paramListCallee.empty()) {
-                    currentFuncName = paramListCallee;
+                if (globalBraceDepth == 1 && !pendingFuncForBrace.empty()) {
+                    currentFuncName = pendingFuncForBrace;
                     inFunctionBody  = true;
                     braceDepth      = 1;
-                    // Record function params into scopeVars
                     scopeVars.clear();
-                    // Find the parameter list: from paramListOpenIdx+1 to the matching RPAREN
-                    size_t pi = paramListOpenIdx + 1;
+                    size_t pi = pendingFuncParamIdx + 1;
                     recordFunctionParams(pi);
-                    paramListCallee.clear();
+                    pendingFuncForBrace.clear();
                 }
 
                 out << tok.value; i++; continue;
             }
 
-            // ── RBRACE ──────────────────────────────────────────────────
             if (tok.type == TK::RBRACE) {
                 if (inFunctionBody) {
                     braceDepth--;
@@ -998,82 +855,69 @@ public:
                 out << tok.value; i++; continue;
             }
 
-            // ── LPAREN ──────────────────────────────────────────────────
             if (tok.type == TK::LPAREN) {
                 parenDepth++;
                 if (parenDepth == 1 && !lastIdentAtDepth0.empty() &&
                     !CONTROL_FLOW_KW.count(lastIdentAtDepth0)) {
-                    // Opening paren of a function call or declaration
                     paramListCallee   = lastIdentAtDepth0;
                     paramListOpenIdx  = i;
-                    // Push call frame for trailing lambda detection
                     CallFrame cf;
-                    cf.calleeName      = lastIdentAtDepth0;
-                    cf.parenDepthAtOpen = parenDepth; // = 1
+                    cf.calleeName       = lastIdentAtDepth0;
+                    cf.parenDepthAtOpen = parenDepth;
+                    cf.outLenAtArgStart = out.str().size();
                     callStack.push_back(cf);
                 }
                 lastIdentAtDepth0.clear();
                 out << tok.value; i++; continue;
             }
 
-            // ── RPAREN ──────────────────────────────────────────────────
             if (tok.type == TK::RPAREN) {
                 parenDepth--;
 
-                // Check if this closes a lambda declaration's outer param list
-                // i.e., parenDepth goes from 1 to 0 with a pending patch site
                 if (parenDepth == 0) {
-                    // Check for pending patch sites (outputByteOffset == SIZE_MAX)
-                    // These need the byte offset of the position BEFORE the closing ')'
-                    // Actually we insert capture params BEFORE the ')', so offset is current out.str().size()
                     for (auto& ps : patchSites) {
                         if (ps.outputByteOffset == SIZE_MAX && ps.calleeName == paramListCallee) {
                             ps.outputByteOffset = out.str().size();
                         }
                     }
+                    if (globalBraceDepth == 0) {
+                        pendingFuncForBrace = paramListCallee;
+                        pendingFuncParamIdx = paramListOpenIdx;
+                    }
                     paramListCallee.clear();
                 }
 
-                // Check if this closes a call frame
                 if (!callStack.empty()) {
                     CallFrame& frame = callStack.back();
                     if (parenDepth == frame.parenDepthAtOpen - 1) {
-                        // This RPAREN closes the call's argument list
-                        // Peek ahead for LBRACE (trailing lambda)
                         size_t peek = nextNonWS(i + 1);
-                        if (peek < tokens.size() && tokens[peek].type == TK::LBRACE) {
-                            // Trailing lambda call site!
-                            std::string calleeName = frame.calleeName;
+                        if (peek < tokens.size() && tokens[peek].type == TK::LBRACE &&
+                            globalBraceDepth > 0) {
+                            std::string calleeName      = frame.calleeName;
+                            size_t      outLenAtArgStart = frame.outLenAtArgStart;
                             callStack.pop_back();
 
-                            // Find the LambdaReg for this callee
                             LambdaReg* reg = nullptr;
                             for (auto& [key, lr] : lambdaRegistry) {
                                 if (lr.calleeName == calleeName) { reg = &lr; break; }
                             }
 
                             if (!reg) {
-                                // Not a lambda callee - just emit RPAREN normally
                                 out << tok.value; i++;
                                 continue;
                             }
 
-                            // Extract the lambda body
                             size_t bodyStart = peek;
                             ExtractedBody eb = extractBody(bodyStart);
-                            i = bodyStart; // advance past the body
+                            i = bodyStart;
 
-                            // Generate lambda function name
                             std::string lambdaName = generateLambdaName(eb.bodyTokens);
 
-                            // Detect captures
                             auto captures = detectCaptures(eb.headerParams, eb.bodyTokens);
 
-                            // Emit the lambda function to preamble
                             emitLambdaFunction(lambdaName, reg->retCType, reg->argCTypes,
                                                eb.headerParams, eb.bodyTokens, captures);
 
-                            // Record call site captures for patching
                             if (!captures.empty()) {
                                 CallSiteCapture csc;
                                 csc.calleeName = calleeName;
@@ -1082,12 +926,16 @@ public:
                                 callSiteCaptures.push_back(csc);
                             }
 
-                            // Emit: , lambdaName [, capName...])
-                            out << ", " << lambdaName;
+                            {
+                                std::string argsSoFar = out.str().substr(outLenAtArgStart + 1);
+                                bool hasArgs = argsSoFar.find_first_not_of(" \t\r\n") != std::string::npos;
+                                if (hasArgs) out << ", ";
+                            }
+                            out << lambdaName;
                             for (auto& [capName, capType] : captures) {
                                 out << ", " << capName;
                             }
-                            out << tok.value; // the closing ')'
+                            out << tok.value;
                             continue;
                         } else {
                             callStack.pop_back();
@@ -1098,7 +946,6 @@ public:
                 out << tok.value; i++; continue;
             }
 
-            // ── Passthrough tokens ───────────────────────────────────────
             if (tok.type == TK::OTHER        ||
                 tok.type == TK::LINE_COMMENT ||
                 tok.type == TK::BLOCK_COMMENT||
@@ -1107,7 +954,7 @@ public:
                 tok.type == TK::CHAR_LIT     ||
                 tok.type == TK::SEMICOLON)
             {
-                if (parenDepth == 0 && globalBraceDepth == 0 &&
+                if (parenDepth == 0 &&
                     !tok.value.empty() && !std::isspace((unsigned char)tok.value[0])) {
                     lastIdentAtDepth0.clear();
                 }
@@ -1144,25 +991,15 @@ public:
             if (tok.type == TK::IDENT) {
                 const std::string& v = tok.value;
 
-                // Track last ident at depth 0 for function name detection
-                if (parenDepth == 0 && globalBraceDepth == 0) {
+                if (parenDepth == 0) {
                     if (!CONTROL_FLOW_KW.count(v) && v != "lambda") {
                         lastIdentAtDepth0 = v;
                     } else {
                         lastIdentAtDepth0.clear();
                     }
-                } else if (parenDepth == 0 && globalBraceDepth > 0) {
-                    // Inside function body, track ident for no-paren lambda call detection
-                    // but don't update lastIdentAtDepth0 which is for global scope
                 }
 
-                // ── lambda keyword ──────────────────────────────────────
                 if (v == "lambda" && parenDepth > 0) {
-                    // Determine callee name: the function whose param list we're currently in
-                    // That's paramListCallee (set when we opened the '(' at depth 0->1)
-                    // But we might be deeper. For top-level function decl, the callee is
-                    // the last ident seen before the outer '('.
-                    // We stored paramListCallee when parenDepth went 0->1.
                     std::string callee = paramListCallee;
                     if (callee.empty() && !callStack.empty()) {
                         callee = callStack[0].calleeName;
@@ -1172,7 +1009,6 @@ public:
                     continue;
                 }
 
-                // ── unused keyword ──────────────────────────────────────
                 if (v == "unused") {
                     if (parenDepth > 0) {
                         i++;
@@ -1251,15 +1087,12 @@ public:
                     continue;
                 }
 
-                // ── type mapping ────────────────────────────────────────
                 auto typeIt = TYPE_MAP.find(v);
                 if (typeIt != TYPE_MAP.end()) {
-                    // Try to detect variable declaration: TYPE IDENT (= or ; or ,)
                     tryRecordVarDecl(i);
                     out << typeIt->second; i++; continue;
                 }
 
-                // ── namespace dot-notation ──────────────────────────────
                 if (namespaces.count(v)) {
                     size_t j = nextNonWS(i + 1);
                     if (j < tokens.size() && tokens[j].type == TK::DOT) {
@@ -1293,13 +1126,10 @@ public:
                     }
                 }
 
-                // ── no-paren trailing lambda: IDENT LBRACE ──────────────
-                // Check if next non-WS is LBRACE and this ident is a registered no-arg lambda callee
                 {
                     size_t peek = nextNonWS(i + 1);
                     if (peek < tokens.size() && tokens[peek].type == TK::LBRACE &&
                         !CONTROL_FLOW_KW.count(v)) {
-                        // Check if this function takes a no-arg lambda
                         LambdaReg* reg = nullptr;
                         for (auto& [key, lr] : lambdaRegistry) {
                             if (lr.calleeName == v && lr.argCTypes.empty()) {
@@ -1342,10 +1172,8 @@ public:
             out << tok.value; i++;
         }
 
-        // Apply patches
         std::string outStr = applyPatches(out.str());
 
-        // Return preamble + patched output
         return preamble.str() + outStr;
     }
 };
