@@ -315,8 +315,6 @@ std::string transpile(const std::vector<Token>& tokens, const std::unordered_set
                 } else {
                     i++;
 
-                    // Detect bare `unused varName;` (no type — just suppressing an existing var)
-                    // → emit only `(void)varName;`
                     size_t n1 = nextNonWS(i);
                     if (n1 < tokens.size() && tokens[n1].type == TK::IDENT) {
                         size_t n2 = nextNonWS(n1 + 1);
@@ -435,7 +433,6 @@ static fs::path relativeOutputPath(const fs::path& file, const fs::path& inRoot,
 }
 
 int main(int argc, char* argv[]) {
-    // Parse args: -I flags may appear anywhere among positional arguments
     std::vector<fs::path> includeDirs;
     std::vector<std::string> positional;
 
@@ -467,7 +464,7 @@ int main(int argc, char* argv[]) {
     }
 
     inRoot  = fs::canonical(inRoot);
-    outRoot = fs::absolute(outRoot);  // absolute but not canonical — may not exist yet
+    outRoot = fs::absolute(outRoot);
 
     std::unordered_set<std::string> globalNS;
 
