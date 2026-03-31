@@ -38,10 +38,7 @@ namespace UgLogCallback {
         return logger;
     }
 
-    VKAPI_ATTR VkBool32 VKAPI_CALL logCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, U0* pUserData) {
-        unused messageType;
-        unused pUserData;
-
+    VKAPI_ATTR VkBool32 VKAPI_CALL logCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, unused VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, unused U0* pUserData) {
         switch (messageSeverity) {
             case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: Log.trace("%s", pCallbackData->pMessage); break;
             case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: Log.info("%s", pCallbackData->pMessage); break;
