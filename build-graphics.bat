@@ -13,7 +13,7 @@ dist/bin/unholyc -I"%I_UHC%" graphics %OUT%
 mkdir "%OUT%\obj" 2>nul
 for /r "%OUT%\src" %%f in (*.cc) do (
     if /i not "%%~nf"=="main" (
-        clang++ -std=c++17 -c ^
+        c++ -std=c++17 -c ^
             -I"%OUT%\include" ^
             -I"%I_UHC%" ^
             -I"%I_VK%" ^

@@ -11,7 +11,7 @@ for /d /r "%OUT%" %%d in (*) do set INCLUDES=!INCLUDES! -I"%%d"
 
 mkdir "%OUT%\obj" 2>nul
 for /r "%OUT%" %%f in (*.cc) do (
-    clang++ -std=c++17 -c !INCLUDES! "%%f" -o "%OUT%\obj\%%~nf.o"
+    c++ -std=c++17 -c !INCLUDES! "%%f" -o "%OUT%\obj\%%~nf.o"
 )
 
 mkdir "%DIST%\lib" 2>nul

@@ -12,7 +12,7 @@ INCLUDES=$(find "$OUT" -type d | sed 's|^|-I|' | tr '\n' ' ')
 
 mkdir -p "$OUT/obj"
 for f in $(find "$OUT" -name "*.cc"); do
-    clang++ -std=c++17 -c $INCLUDES "$f" -o "$OUT/obj/$(basename "${f%.cc}").o"
+    c++ -std=c++17 -c $INCLUDES "$f" -o "$OUT/obj/$(basename "${f%.cc}").o"
 done
 
 mkdir -p "$DIST/lib"
