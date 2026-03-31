@@ -20,5 +20,5 @@ unholyc <input_dir> <output_dir> [-I<include_dir> ...]
 ```
 
 ```
-unholyc ./ /out -Iuchstd
+unholyc ./ out/ -Iuchstd
 ```
