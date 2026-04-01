@@ -1009,6 +1009,24 @@ public:
                     continue;
                 }
 
+                if (v == "deprecated") {
+                    i++;
+                    size_t n = nextNonWS(i);
+                    if (n < tokens.size() && tokens[n].type == TK::LPAREN) {
+                        size_t m = nextNonWS(n + 1);
+                        if (m < tokens.size() && tokens[m].type == TK::STRING) {
+                            size_t r = nextNonWS(m + 1);
+                            if (r < tokens.size() && tokens[r].type == TK::RPAREN) {
+                                out << "[[deprecated(" << tokens[m].value << ")]]";
+                                i = r + 1;
+                                continue;
+                            }
+                        }
+                    }
+                    out << "[[deprecated]]";
+                    continue;
+                }
+
                 if (v == "unused") {
                     if (parenDepth > 0) {
                         i++;
