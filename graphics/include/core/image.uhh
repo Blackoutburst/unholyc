@@ -4,17 +4,40 @@
 
 #include "core/context.uhh"
 
+/// Vulkan image view creation and management
 namespace UgImageView {
+    /// Vulkan image together with its default image view
     struct It {
         VkImage image;
         VkImageView view;
     };
 
+    /// Create an image view for a given image and format
+    /// @param ctx Vulkan context
+    /// @param image Image to create the view for
+    /// @param format Pixel format of the image
+    /// @returns Initialized image view object
     UgImageView.It create(UgContext.It& ctx, VkImage image, VkFormat format);
+    /// Destroy an image view
+    /// @param ctx Vulkan context
+    /// @param imageView Image view to destroy
     U0 destroy(UgContext.It& ctx, UgImageView.It& imageView);
+    /// Create a raw VkImageView with a custom aspect mask
+    /// @param ctx Vulkan context
+    /// @param image Image to create the view for
+    /// @param format Pixel format of the image
+    /// @param aspectMask Aspect flags for the view (color, depth, stencil)
+    /// @returns Raw image view handle
     VkImageView makeView(UgContext.It& ctx, VkImage image, VkFormat format, VkImageAspectFlags aspectMask);
 }
 
+/// Image layout transition utilities
 namespace UgImageLayout {
+    /// Record a pipeline barrier to transition an image between layouts
+    /// @param cmdBuffer Command buffer to record the barrier into
+    /// @param image Image whose layout is being transitioned
+    /// @param format Pixel format of the image
+    /// @param oldLayout Current image layout
+    /// @param newLayout Target image layout
     U0 transition(VkCommandBuffer cmdBuffer, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 }

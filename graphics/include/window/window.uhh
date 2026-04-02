@@ -3,16 +3,29 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 
+/// GLFW window creation and management
 namespace UgWindow {
+    /// Window object
     struct It {
         GLFWwindow* handle;
         const I8* name;
     };
 
+    /// Poll GLFW events — call once per frame
     U0 update();
+    /// Destroy the window and free GLFW resources
+    /// @param window The window to destroy
     U0 destroy(UgWindow.It& window);
+    /// Check if the window is currently minimized
+    /// @param window The window to check
+    /// @returns Non-zero if the window is minimized
     U8 isMinimized(UgWindow.It& window);
+    /// Check if the window is still open
+    /// @param window The window to check
+    /// @returns Non-zero if the window has not been closed
     U8 isOpen(UgWindow.It& window);
+    /// Create and open a new window
+    /// @param name Window title
+    /// @returns Initialized window object
     UgWindow.It create(const I8* name);
 }
-

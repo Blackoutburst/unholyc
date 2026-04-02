@@ -4,19 +4,41 @@
 
 #include "core/context.uhh"
 
+/// SPIR-V shader module loading
 namespace UgShader {
+    /// Destroy a shader module
+    /// @param ctx Vulkan context
+    /// @param shader Shader module to destroy
     U0 destroy(UgContext.It& ctx, VkShaderModule shader);
+    /// Load a SPIR-V shader module from a file path
+    /// @param ctx Vulkan context
+    /// @param filePath Path to the compiled SPIR-V binary
+    /// @returns Loaded shader module handle
     VkShaderModule create(UgContext.It& ctx, const I8* filePath);
 }
 
+/// Linked vertex and fragment shader program
 namespace UgShaderProgram {
+    /// Vertex and fragment shader pair with their pipeline stage info
     struct It {
         VkPipelineShaderStageCreateInfo handle[2];
         VkShaderModule vertexShader;
         VkShaderModule fragmentShader;
     };
 
+    /// Build the pipeline shader stage create info for a single stage
+    /// @param stage Shader stage flag (vertex or fragment)
+    /// @param shader Shader module to attach
+    /// @returns Populated pipeline shader stage create info
     VkPipelineShaderStageCreateInfo createShaderInfo(VkShaderStageFlagBits stage, VkShaderModule shader);
+    /// Create a shader program from vertex and fragment SPIR-V files
+    /// @param ctx Vulkan context
+    /// @param vertexSource Path to the compiled vertex SPIR-V binary
+    /// @param fragmentSource Path to the compiled fragment SPIR-V binary
+    /// @returns Initialized shader program object
     UgShaderProgram.It create(UgContext.It& ctx, const I8* vertexSource, const I8* fragmentSource);
+    /// Destroy a shader program and both its shader modules
+    /// @param ctx Vulkan context
+    /// @param shaderProgram Shader program to destroy
     U0 destroy(UgContext.It& ctx, UgShaderProgram.It& shaderProgram);
 }

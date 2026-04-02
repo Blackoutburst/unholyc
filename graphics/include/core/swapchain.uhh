@@ -7,7 +7,9 @@
 #include "core/semaphore.uhh"
 #include "window/window.uhh"
 
+/// Vulkan swapchain creation and frame management
 namespace UgSwapchain {
+    /// Swapchain with image views, semaphores, and depth buffer
     struct It {
         VkSwapchainKHR handle;
         UgImageView.It* imageViews;
@@ -24,8 +26,22 @@ namespace UgSwapchain {
         VkImageView depthImageView;
     };
 
+    /// Get the current render extent of the swapchain
+    /// @param ctx Vulkan context
+    /// @param swapchain Swapchain to query
+    /// @returns Current VkExtent2D for the swapchain images
     VkExtent2D extend(UgContext.It& ctx, UgSwapchain.It& swapchain);
+    /// Recreate the swapchain after a resize or out-of-date error
+    /// @param ctx Vulkan context
+    /// @param swapchain Swapchain to update
+    /// @param cmdBuffer Command buffer used for image layout transitions
     U0 update(UgContext.It& ctx, UgSwapchain.It& swapchain, VkCommandBuffer cmdBuffer);
+    /// Destroy the swapchain and all associated image views
+    /// @param ctx Vulkan context
+    /// @param swapchain Swapchain to destroy
     U0 destroy(UgContext.It& ctx, UgSwapchain.It& swapchain);
+    /// Create a swapchain for the context's surface
+    /// @param ctx Vulkan context
+    /// @returns Initialized swapchain object
     UgSwapchain.It create(UgContext.It& ctx);
 }

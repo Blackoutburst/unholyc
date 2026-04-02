@@ -2,7 +2,9 @@
 
 #include <vulkan/vulkan.h>
 
+/// Single vertex attribute binding description
 namespace UgVertexAttrib {
+    /// Location, format, and byte offset of one vertex attribute
     struct It {
         U32 location;
         VkFormat format;
@@ -10,7 +12,9 @@ namespace UgVertexAttrib {
     };
 }
 
+/// Vertex buffer layout description
 namespace UgVertexDesc {
+    /// Stride and attribute array describing the vertex buffer layout
     struct It {
         U32 stride;
         UgVertexAttrib.It* attributes;
@@ -18,7 +22,9 @@ namespace UgVertexDesc {
     };
 }
 
+/// Rasterizer, blending, and depth settings for a pipeline
 namespace UgVertexSettings {
+    /// Full set of configurable pipeline rasterizer and blend state options
     struct It {
         U8 depthVao = 0;
         I32 colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;

@@ -4,9 +4,23 @@
 
 #include "core/context.uhh"
 
+/// Vulkan validation layer debug message callback
 namespace UgLogCallback {
+    /// Destroy the debug messenger
+    /// @param ctx Vulkan context
     U0 destroy(UgContext.It& ctx);
+    /// Build the debug messenger create info struct
+    /// @returns Debug messenger create info populated with logCallback
     VkDebugUtilsMessengerCreateInfoEXT getCreateInfo();
+    /// Create and register the debug messenger
+    /// @param ctx Vulkan context
+    /// @returns Debug messenger handle
     VkDebugUtilsMessengerEXT create(UgContext.It& ctx);
+    /// Vulkan debug message callback — invoked directly by validation layers
+    /// @param messageSeverity Severity level of the message
+    /// @param messageType Category of the message
+    /// @param pCallbackData Struct containing the message and related objects
+    /// @param pUserData User-supplied data pointer (unused)
+    /// @returns Always VK_FALSE
     VKAPI_ATTR VkBool32 VKAPI_CALL logCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, U0* pUserData);
 }

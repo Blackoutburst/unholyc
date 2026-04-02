@@ -6,7 +6,9 @@
 #include "window/window.uhh"
 #include "core/device.uhh"
 
+/// Top-level Vulkan context holding all core rendering state
 namespace UgContext {
+    /// Aggregate of all core Vulkan handles needed for rendering
     struct It {
         UgWindow.It window;
         VkInstance instance;
@@ -18,6 +20,12 @@ namespace UgContext {
         VkCommandPool cmdPool;
     };
 
+    /// Create and initialize the full Vulkan context
+    /// @param window GLFW window to attach the surface to
+    /// @param debug Non-zero to enable validation layers
+    /// @returns Fully initialized Vulkan context
     UgContext.It create(UgWindow.It& window, U8 debug);
+    /// Destroy the Vulkan context and free all associated resources
+    /// @param ctx Vulkan context to destroy
     U0 destroy(UgContext.It& ctx);
 }

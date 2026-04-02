@@ -1,0 +1,68 @@
+{
+  "outputBase": "../../uhclang/src/app/stdlib",
+  "navFile": "../../uhclang/src/lib/stdlib-nav.jsx",
+  "navExport": "stdlibNav",
+  "sections": [
+    {
+      "id": "io",
+      "title": "IO",
+      "description": "File, logging and other I/O operation",
+      "header": {
+        "uhc": "#include <uhcio.uhh>",
+        "cpp": "#include <uhcio.hh>"
+      },
+      "sourceFile": "uhcstd/io/uhcio.uhh",
+      "namespaces": [
+        { "name": "File", "slug": "file" },
+        { "name": "Log",  "slug": "log"  }
+      ]
+    },
+    {
+      "id": "math",
+      "title": "Math",
+      "description": "Math helper and structure (Matrix, Vector)",
+      "header": {
+        "uhc": "#include <uhcmath.uhh>",
+        "cpp": "#include <uhcmath.hh>"
+      },
+      "sourceFile": "uhcstd/math/uhcmath.uhh",
+      "namespaces": [
+        { "name": "Math",    "slug": "math"    },
+        { "name": "Matrix",  "slug": "matrix"  },
+        { "name": "VectorF", "slug": "vectorf" },
+        { "name": "VectorI", "slug": "vectori" }
+      ]
+    },
+    {
+      "id": "network",
+      "title": "Network",
+      "description": "TCP networking",
+      "header": {
+        "uhc": "#include <uhcnet.uhh>",
+        "cpp": "#include <uhcnet.hh>"
+      },
+      "sourceFile": "uhcstd/network/uhcnet.uhh",
+      "namespaces": [
+        { "name": "TcpClient", "slug": "tcpclient" },
+        { "name": "TcpServer", "slug": "tcpserver"  }
+      ]
+    },
+    {
+      "id": "std",
+      "title": "STD",
+      "description": "Various utilities such as mutex, thread, ...",
+      "header": {
+        "uhc": "#include <uhcstd.uhh>",
+        "cpp": "#include <uhcstd.hh>"
+      },
+      "sourceFile": "uhcstd/std/uhcstd.uhh",
+      "namespaces": [
+        { "name": "Buffer",         "slug": "buffer"         },
+        { "name": "DynamicLibrary", "slug": "dynamiclibrary" },
+        { "name": "List",           "slug": "list"           },
+        { "name": "Mutex",          "slug": "mutex"          },
+        { "name": "Thread",         "slug": "thread"         }
+      ]
+    }
+  ]
+}

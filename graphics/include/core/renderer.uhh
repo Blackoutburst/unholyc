@@ -8,20 +8,53 @@
 #include "core/fence.uhh"
 #include "core/buffer.uhh"
 
+/// High-level swapchain renderer managing per-frame synchronization
 namespace UgRenderer {
+    /// Renderer state: swapchain, framebuffers, and render pass
     struct It {
         UgSwapchain.It swapchain;
         UgFrameBuffer.It framebuffers;
         VkRenderPass renderPass;
     };
 
+    /// Create a renderer for the given context
+    /// @param ctx Vulkan context
+    /// @returns Initialized renderer object
     UgRenderer.It create(UgContext.It& ctx);
+    /// Destroy the renderer and free all swapchain resources
+    /// @param ctx Vulkan context
+    /// @param renderer Renderer to destroy
     U0 destroy(UgContext.It& ctx, UgRenderer.It& renderer);
+    /// Recreate the swapchain and framebuffers after a resize
+    /// @param ctx Vulkan context
+    /// @param renderer Renderer to update
     U0 update(UgContext.It& ctx, UgRenderer.It& renderer);
+    /// Begin the render pass for the current frame
+    /// @param renderer Active renderer
+    /// @param cmd Command buffer to record into
     U0 begin(UgRenderer.It& renderer, UgCommandBuffer.It& cmd);
+    /// End the render pass
+    /// @param cmd Command buffer to record into
     U0 end(UgCommandBuffer.It& cmd);
+    /// Set the viewport and scissor to the current swapchain extent
+    /// @param ctx Vulkan context
+    /// @param renderer Active renderer
+    /// @param cmd Command buffer to record into
     U0 setViewport(UgContext.It& ctx, UgRenderer.It& renderer, UgCommandBuffer.It& cmd);
+    /// Submit the recorded command buffer to the graphics queue
+    /// @param ctx Vulkan context
+    /// @param renderer Active renderer
+    /// @param cmd Command buffer to submit
+    /// @param fence Fence to signal when the submission completes
     U0 submit(UgContext.It& ctx, UgRenderer.It& renderer, UgCommandBuffer.It& cmd, UgFence.It& fence);
+    /// Present the current swapchain image
+    /// @param ctx Vulkan context
+    /// @param renderer Active renderer
+    /// @returns VkResult — VK_SUCCESS or an out-of-date/suboptimal code
     VkResult present(UgContext.It& ctx, UgRenderer.It& renderer);
+    /// Acquire the next swapchain image for rendering
+    /// @param ctx Vulkan context
+    /// @param renderer Active renderer
+    /// @returns VkResult — VK_SUCCESS or an out-of-date code
     VkResult aquire(UgContext.It& ctx, UgRenderer.It& renderer);
 }

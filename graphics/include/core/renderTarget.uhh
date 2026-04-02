@@ -6,7 +6,9 @@
 #include "core/texture.uhh"
 #include "core/buffer.uhh"
 
+/// Off-screen render target backed by a texture
 namespace UgRenderTarget {
+    /// Off-screen framebuffer with its render pass and color texture
     struct It {
         VkRenderPass renderPass;
         VkFramebuffer framebuffer;
@@ -15,9 +17,25 @@ namespace UgRenderTarget {
         U32 height;
     };
 
+    /// Create an off-screen render target of the given dimensions
+    /// @param ctx Vulkan context
+    /// @param width Width in pixels
+    /// @param height Height in pixels
+    /// @returns Initialized render target object
     UgRenderTarget.It create(UgContext.It& ctx, U32 width, U32 height);
+    /// Begin rendering into the render target
+    /// @param rt Render target to render into
+    /// @param cmd Active command buffer
     U0 begin(UgRenderTarget.It& rt, UgCommandBuffer.It& cmd);
+    /// End rendering into the render target
+    /// @param cmd Active command buffer
     U0 end(UgCommandBuffer.It& cmd);
+    /// Set the viewport to match the render target dimensions
+    /// @param rt Render target whose dimensions define the viewport
+    /// @param cmd Active command buffer
     U0 setViewport(UgRenderTarget.It& rt, UgCommandBuffer.It& cmd);
+    /// Destroy the render target and free all associated resources
+    /// @param ctx Vulkan context
+    /// @param rt Render target to destroy
     U0 destroy(UgContext.It& ctx, UgRenderTarget.It& rt);
 }

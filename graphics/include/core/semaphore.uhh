@@ -4,11 +4,19 @@
 
 #include "core/context.uhh"
 
+/// GPU–GPU synchronization semaphore
 namespace UgSemaphore {
+    /// Thin wrapper around a Vulkan semaphore handle
     struct It {
         VkSemaphore handle;
     };
-    
+
+    /// Create a semaphore
+    /// @param ctx Vulkan context
+    /// @returns Initialized semaphore object
     UgSemaphore.It create(UgContext.It& ctx);
+    /// Destroy a semaphore
+    /// @param ctx Vulkan context
+    /// @param semaphore Semaphore to destroy
     U0 destroy(UgContext.It& ctx, UgSemaphore.It& semaphore);
 }

@@ -5,7 +5,9 @@
 #include "core/context.uhh"
 #include "core/buffer.uhh"
 
+/// 2D texture loading and descriptor management
 namespace UgTexture {
+    /// GPU texture with its image, memory, view, sampler, and descriptor set
     struct It {
         VkImage image;
         VkDeviceMemory memory;
@@ -15,13 +17,35 @@ namespace UgTexture {
         VkDescriptorSet descriptorSet;
     };
 
+    /// Load a texture from a file and upload it to the GPU
+    /// @param ctx Vulkan context
+    /// @param path Path to the image file
+    /// @returns Initialized texture object
     UgTexture.It create(UgContext.It& ctx, const I8* path);
+    /// Create the descriptor set layout for a single combined image sampler
+    /// @param ctx Vulkan context
+    /// @returns Descriptor set layout handle
     VkDescriptorSetLayout createSetLayout(UgContext.It& ctx);
+    /// Bind the texture's descriptor set to a pipeline slot
+    /// @param texture Texture to bind
+    /// @param cmd Active command buffer
+    /// @param pipelineLayout Pipeline layout the descriptor set is compatible with
+    /// @param slot Descriptor set index (texture slot)
     U0 bind(UgTexture.It& texture, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout, U32 slot);
+    /// Destroy the texture and free all GPU resources
+    /// @param ctx Vulkan context
+    /// @param texture Texture to destroy
     U0 destroy(UgContext.It& ctx, UgTexture.It& texture);
 }
 
+/// Vulkan sampler creation and destruction
 namespace UgSampler {
+    /// Create a sampler with linear filtering and repeat wrap mode
+    /// @param ctx Vulkan context
+    /// @returns Newly created sampler handle
     VkSampler create(UgContext.It& ctx);
+    /// Destroy a sampler
+    /// @param ctx Vulkan context
+    /// @param sampler Sampler to destroy
     U0 destroy(UgContext.It& ctx, VkSampler sampler);
 }

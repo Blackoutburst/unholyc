@@ -2,7 +2,12 @@
 
 #include <vulkan/vulkan.h>
 
-namespace UgValidationLayer { 
+/// Khronos validation layer list
+namespace UgValidationLayer {
+    /// Get the number of required validation layers
+    /// @returns Validation layer count
     I32 count();
+    /// Get the array of required validation layer name strings
+    /// @returns Pointer to the array of layer name strings
     const I8** get();
 }

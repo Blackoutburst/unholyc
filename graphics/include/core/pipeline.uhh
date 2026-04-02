@@ -7,23 +7,77 @@
 #include "core/swapchain.uhh"
 #include "core/vertexdesc.uhh"
 
+/// Vulkan graphics pipeline creation helpers
 namespace UgPipeline {
+    /// Build the dynamic state create info enabling viewport and scissor
+    /// @returns Populated dynamic state create info
     VkPipelineDynamicStateCreateInfo createDynamicState();
+    /// Build the input assembly create info for triangle list topology
+    /// @returns Populated input assembly create info
     VkPipelineInputAssemblyStateCreateInfo createInputAssembly();
+    /// Build a viewport covering the full swapchain extent
+    /// @param ctx Vulkan context
+    /// @param swapchain Swapchain whose extent defines the viewport
+    /// @returns Populated VkViewport
     VkViewport createViewport(UgContext.It& ctx, UgSwapchain.It& swapchain);
+    /// Build a scissor rect covering the full swapchain extent
+    /// @param ctx Vulkan context
+    /// @param swapchain Swapchain whose extent defines the scissor
+    /// @returns Populated VkRect2D
     VkRect2D createScissor(UgContext.It& ctx, UgSwapchain.It& swapchain);
+    /// Build the viewport state create info from a viewport and scissor pair
+    /// @param viewport Pointer to the viewport
+    /// @param scissor Pointer to the scissor rect
+    /// @returns Populated viewport state create info
     VkPipelineViewportStateCreateInfo createViewportState(VkViewport* viewport, VkRect2D* scissor);
+    /// Build the rasterizer state create info from vertex settings
+    /// @param settings Vertex and rasterizer settings
+    /// @returns Populated rasterization state create info
     VkPipelineRasterizationStateCreateInfo createRasterizerState(const UgVertexSettings.It& settings);
+    /// Build the multisampling state create info with MSAA disabled
+    /// @returns Populated multisample state create info
     VkPipelineMultisampleStateCreateInfo createMultisamplingState();
+    /// Build the color blend attachment state from vertex settings
+    /// @param settings Vertex and blending settings
+    /// @returns Populated color blend attachment state
     VkPipelineColorBlendAttachmentState createColorBlendAttachmentState(const UgVertexSettings.It& settings);
+    /// Build the color blend state create info referencing an attachment state
+    /// @param colorBlendAttachment Pointer to the color blend attachment state
+    /// @returns Populated color blend state create info
     VkPipelineColorBlendStateCreateInfo createColorBlendState(VkPipelineColorBlendAttachmentState* colorBlendAttachment);
+    /// Destroy a graphics pipeline
+    /// @param ctx Vulkan context
+    /// @param graphicsPipeline Pipeline to destroy
     U0 destroy(UgContext.It& ctx, VkPipeline graphicsPipeline);
+    /// Create a graphics pipeline from all required components
+    /// @param ctx Vulkan context
+    /// @param layout Pipeline layout with descriptor set layouts and push constants
+    /// @param swapchain Swapchain whose extent defines the viewport
+    /// @param shaderProgram Vertex and fragment shader program
+    /// @param renderPass Render pass the pipeline is compatible with
+    /// @param vertexInput Vertex input state describing attribute bindings
+    /// @param settings Rasterizer and blending settings
+    /// @returns Newly created graphics pipeline handle
     VkPipeline create(UgContext.It& ctx, VkPipelineLayout layout, UgSwapchain.It& swapchain, UgShaderProgram.It& shaderProgram, VkRenderPass renderPass, VkPipelineVertexInputStateCreateInfo* vertexInput, const UgVertexSettings.It& settings);
+    /// Build the depth/stencil state create info with depth test enabled
+    /// @returns Populated depth stencil state create info
     VkPipelineDepthStencilStateCreateInfo createDepthStencil();
 }
 
+/// Vulkan pipeline layout management
 namespace UgPipelineLayout {
+    /// Destroy a pipeline layout (alias for destroy)
+    /// @param ctx Vulkan context
+    /// @param layout Pipeline layout to destroy
     U0 remove(UgContext.It& ctx, VkPipelineLayout layout);
+    /// Destroy a pipeline layout
+    /// @param ctx Vulkan context
+    /// @param pipelineLayout Pipeline layout to destroy
     U0 destroy(UgContext.It& ctx, VkPipelineLayout pipelineLayout);
+    /// Create a pipeline layout from an array of descriptor set layouts
+    /// @param ctx Vulkan context
+    /// @param count Number of descriptor set layouts
+    /// @param setLayouts Array of descriptor set layout handles
+    /// @returns Newly created pipeline layout handle
     VkPipelineLayout create(UgContext.It& ctx, U32 count, VkDescriptorSetLayout* setLayouts);
 }

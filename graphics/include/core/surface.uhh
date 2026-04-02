@@ -4,7 +4,15 @@
 
 #include "window/window.uhh"
 
+/// Vulkan window surface creation and destruction
 namespace UgWindowSurface {
+    /// Destroy a Vulkan window surface
+    /// @param instance Vulkan instance the surface belongs to
+    /// @param surface Surface to destroy
     U0 destroy(VkInstance instance, VkSurfaceKHR surface);
+    /// Create a Vulkan surface for a GLFW window
+    /// @param instance Vulkan instance to create the surface on
+    /// @param window GLFW window to attach the surface to
+    /// @returns Newly created surface handle
     VkSurfaceKHR create(VkInstance instance, UgWindow.It& window);
 }

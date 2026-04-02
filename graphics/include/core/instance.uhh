@@ -4,7 +4,13 @@
 
 #include "core/context.uhh"
 
+/// Vulkan instance creation and destruction
 namespace UgInstance {
+    /// Create a Vulkan instance
+    /// @param debug Non-zero to enable validation layer support
+    /// @returns Newly created VkInstance handle
     VkInstance create(U8 debug);
+    /// Destroy the Vulkan instance stored in the context
+    /// @param ctx Vulkan context whose instance will be destroyed
     U0 destroy(UgContext.It& ctx);
 }

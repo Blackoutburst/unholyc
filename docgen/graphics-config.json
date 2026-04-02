@@ -1,0 +1,123 @@
+{
+  "outputBase": "../../uhclang/src/app/graphicslib",
+  "navFile": "../../uhclang/src/lib/graphicslib-nav.jsx",
+  "navExport": "graphicslibNav",
+  "sections": [
+    {
+      "id": "window",
+      "title": "Window",
+      "description": "GLFW window creation and management",
+      "basePath": "/graphicslib",
+      "header": {
+        "uhc": "#include <uhcgraphics.uhh>",
+        "cpp": "#include <uhcgraphics.hh>"
+      },
+      "sourceFiles": [
+        "graphics/include/window/window.uhh"
+      ],
+      "namespaces": [
+        { "name": "UgWindow", "slug": "ugwindow" }
+      ]
+    },
+    {
+      "id": "core",
+      "title": "Core",
+      "description": "Vulkan core rendering primitives",
+      "basePath": "/graphicslib",
+      "header": {
+        "uhc": "#include <uhcgraphics.uhh>",
+        "cpp": "#include <uhcgraphics.hh>"
+      },
+      "sourceFiles": [
+        "graphics/include/core/context.uhh",
+        "graphics/include/core/instance.uhh",
+        "graphics/include/core/device.uhh",
+        "graphics/include/core/buffer.uhh",
+        "graphics/include/core/commandPool.uhh",
+        "graphics/include/core/descriptorPool.uhh",
+        "graphics/include/core/fence.uhh",
+        "graphics/include/core/semaphore.uhh",
+        "graphics/include/core/image.uhh",
+        "graphics/include/core/surface.uhh",
+        "graphics/include/core/swapchain.uhh",
+        "graphics/include/core/shader.uhh",
+        "graphics/include/core/renderPass.uhh",
+        "graphics/include/core/renderTarget.uhh",
+        "graphics/include/core/renderer.uhh",
+        "graphics/include/core/pipeline.uhh",
+        "graphics/include/core/material.uhh",
+        "graphics/include/core/texture.uhh",
+        "graphics/include/core/textureArray.uhh",
+        "graphics/include/core/vertexdesc.uhh"
+      ],
+      "namespaces": [
+        { "name": "UgContext",              "slug": "context"              },
+        { "name": "UgInstance",             "slug": "instance"             },
+        { "name": "UgPhysicalDevice",       "slug": "ugphysicaldevice"     },
+        { "name": "UgQueueFamilies",        "slug": "ugqueuefamilies"      },
+        { "name": "UgDevice",               "slug": "ugdevice"             },
+        { "name": "UgBuffer",               "slug": "ugbuffer"             },
+        { "name": "UgFrameBuffer",          "slug": "ugframebuffer"        },
+        { "name": "UgUniformBuffer",        "slug": "uguniformbuffer"      },
+        { "name": "UgCommandBuffer",        "slug": "ugcommandbuffer"      },
+        { "name": "UgCommandPool",          "slug": "commandpool"          },
+        { "name": "UgDescriptorPool",       "slug": "descriptorpool"       },
+        { "name": "UgFence",                "slug": "fence"                },
+        { "name": "UgSemaphore",            "slug": "semaphore"            },
+        { "name": "UgImageView",            "slug": "ugimageview"          },
+        { "name": "UgImageLayout",          "slug": "ugimagelayout"        },
+        { "name": "UgWindowSurface",        "slug": "surface"              },
+        { "name": "UgSwapchain",            "slug": "swapchain"            },
+        { "name": "UgShader",               "slug": "ugshader"             },
+        { "name": "UgShaderProgram",        "slug": "ugshaderprogram"      },
+        { "name": "UgRenderPass",           "slug": "renderpass"           },
+        { "name": "UgRenderTarget",         "slug": "rendertarget"         },
+        { "name": "UgRenderer",             "slug": "renderer"             },
+        { "name": "UgPipeline",             "slug": "ugpipeline"           },
+        { "name": "UgPipelineLayout",       "slug": "ugpipelinelayout"     },
+        { "name": "UgMaterialPipelineEntry","slug": "ugmaterialpipelineentry"},
+        { "name": "UgMaterial",             "slug": "ugmaterial"           },
+        { "name": "UgTexture",              "slug": "ugtexture"            },
+        { "name": "UgSampler",              "slug": "ugsampler"            },
+        { "name": "UgTextureArray",         "slug": "ugtexturearray"       },
+        { "name": "UgVertexAttrib",         "slug": "ugvertexattrib"       },
+        { "name": "UgVertexDesc",           "slug": "ugvertexdesc"         },
+        { "name": "UgVertexSettings",       "slug": "ugvertexsettings"     }
+      ]
+    },
+    {
+      "id": "debug",
+      "title": "Debug",
+      "description": "Vulkan validation layer setup and debug messaging",
+      "basePath": "/graphicslib",
+      "header": {
+        "uhc": "#include <uhcgraphics.uhh>",
+        "cpp": "#include <uhcgraphics.hh>"
+      },
+      "sourceFiles": [
+        "graphics/include/debug/logCallback.uhh",
+        "graphics/include/debug/validationLayers.uhh"
+      ],
+      "namespaces": [
+        { "name": "UgLogCallback",      "slug": "logcallback"      },
+        { "name": "UgValidationLayer",  "slug": "validationlayers" }
+      ]
+    },
+    {
+      "id": "utils",
+      "title": "Utils",
+      "description": "Miscellaneous Vulkan rendering utilities",
+      "basePath": "/graphicslib",
+      "header": {
+        "uhc": "#include <uhcgraphics.uhh>",
+        "cpp": "#include <uhcgraphics.hh>"
+      },
+      "sourceFiles": [
+        "graphics/include/utils/utils.uhh"
+      ],
+      "namespaces": [
+        { "name": "UgUtils", "slug": "ugutils" }
+      ]
+    }
+  ]
+}

@@ -6,9 +6,24 @@
 #include "core/swapchain.uhh"
 #include "core/buffer.uhh"
 
+/// Vulkan render pass management
 namespace UgRenderPass {
+    /// End the current render pass
+    /// @param cmdBuffer Active command buffer
     U0 end(VkCommandBuffer cmdBuffer);
+    /// Begin a render pass using the framebuffer for the current image index
+    /// @param renderPass Render pass to begin
+    /// @param framebuffers Framebuffer array to source the target from
+    /// @param cmdBuffer Active command buffer
+    /// @param imageIndex Index of the current swapchain image
     U0 begin(VkRenderPass renderPass, UgFrameBuffer.It& framebuffers, VkCommandBuffer cmdBuffer, U32 imageIndex);
+    /// Destroy a render pass
+    /// @param ctx Vulkan context
+    /// @param renderPass Render pass to destroy
     U0 destroy(UgContext.It& ctx, VkRenderPass renderPass);
+    /// Create a render pass compatible with the swapchain's format and depth buffer
+    /// @param ctx Vulkan context
+    /// @param swapchain Swapchain whose format is used for the color attachment
+    /// @returns Newly created render pass handle
     VkRenderPass create(UgContext.It& ctx, UgSwapchain.It& swapchain);
 }

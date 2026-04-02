@@ -4,7 +4,14 @@
 
 #include "core/context.uhh"
 
+/// Vulkan command pool creation and destruction
 namespace UgCommandPool {
+    /// Destroy a command pool and free all buffers allocated from it
+    /// @param ctx Vulkan context
+    /// @param cmdPool Command pool to destroy
     U0 destroy(UgContext.It& ctx, VkCommandPool cmdPool);
+    /// Create a command pool for the graphics queue family
+    /// @param ctx Vulkan context
+    /// @returns Newly created command pool handle
     VkCommandPool create(UgContext.It& ctx);
 }

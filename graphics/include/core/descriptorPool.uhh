@@ -4,7 +4,14 @@
 
 #include "core/context.uhh"
 
+/// Vulkan descriptor pool creation and destruction
 namespace UgDescriptorPool {
+    /// Create a descriptor pool sized for uniform buffers and combined image samplers
+    /// @param ctx Vulkan context
+    /// @returns Newly created descriptor pool handle
     VkDescriptorPool create(UgContext.It& ctx);
+    /// Destroy a descriptor pool and free all sets allocated from it
+    /// @param ctx Vulkan context
+    /// @param descriptorPool Descriptor pool to destroy
     U0 destroy(UgContext.It& ctx, VkDescriptorPool descriptorPool);
 }

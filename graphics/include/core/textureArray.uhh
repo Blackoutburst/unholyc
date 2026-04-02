@@ -5,7 +5,9 @@
 #include "core/context.uhh"
 #include "core/buffer.uhh"
 
+/// Layered texture array for batch rendering
 namespace UgTextureArray {
+    /// GPU texture array with its image, memory, view, sampler, and descriptor set
     struct It {
         VkImage image;
         VkDeviceMemory memory;
@@ -16,7 +18,20 @@ namespace UgTextureArray {
         U32 layerCount;
     };
 
+    /// Load multiple images as layers and upload them as a texture array
+    /// @param ctx Vulkan context
+    /// @param paths Array of file paths, one per layer
+    /// @param count Number of layers
+    /// @returns Initialized texture array object
     UgTextureArray.It create(UgContext.It& ctx, const I8** paths, U32 count);
+    /// Bind the texture array's descriptor set to a pipeline slot
+    /// @param arr Texture array to bind
+    /// @param cmd Active command buffer
+    /// @param pipelineLayout Pipeline layout the descriptor set is compatible with
+    /// @param slot Descriptor set index (texture slot)
     U0 bind(UgTextureArray.It& arr, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout, U32 slot);
+    /// Destroy the texture array and free all GPU resources
+    /// @param ctx Vulkan context
+    /// @param arr Texture array to destroy
     U0 destroy(UgContext.It& ctx, UgTextureArray.It& arr);
 }
