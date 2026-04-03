@@ -79,9 +79,6 @@ I32 main() {
     Matrix.It view;
     Matrix.It projection;
     VectorF.It lightDir = { -1, 0.8f, -1, 0 };
-    Matrix.translate(model, 0, 0, -5, 0);
-    Matrix.rotate(model, Math.rad(45), 1, 0, 0);
-    Matrix.rotate(model, Math.rad(45), 0, 1, 0);
 
     I32 r = 0;
     while (UgWindow.isOpen(window)) {
