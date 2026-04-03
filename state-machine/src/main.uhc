@@ -62,9 +62,9 @@ I32 main() {
     UgTexture.It texture = UgTexture.create("./gold_block.png");
     
     UgBuffer.It vertexBuffer = UgBuffer.create(sizeof(CUBE_VERTS), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    UgBuffer.It indexBuffer = UgBuffer.create(sizeof(CUBE_IDX),   VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    UgBuffer.It indexBuffer = UgBuffer.create(sizeof(CUBE_IDX), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     UgBuffer.upload(vertexBuffer, CUBE_VERTS, sizeof(CUBE_VERTS));
-    UgBuffer.upload(indexBuffer, CUBE_IDX,   sizeof(CUBE_IDX));
+    UgBuffer.upload(indexBuffer, CUBE_IDX, sizeof(CUBE_IDX));
 
     UgVertexAttrib.It attrs[3] = {
         { 0, VK_FORMAT_R32G32B32_SFLOAT, 0  },
@@ -82,12 +82,19 @@ I32 main() {
     Matrix.translate(model, 0, 0, -5, 0);
     Matrix.rotate(model, Math.rad(45), 1, 0, 0);
     Matrix.rotate(model, Math.rad(45), 0, 1, 0);
-    
+
+    I32 r = 0;
     while (UgWindow.isOpen(window)) {
         if (!UgWindow.update(window)) continue;
         
         VkExtent2D ext = UgSwapchain.extend();
         Matrix.projection(projection, ext.width, ext.height, 90, 0.1, 1000);
+
+        Matrix.setIdentity(model);
+        Matrix.translate(model, 0, 0, -5, 0);
+        Matrix.rotate(model, Math.rad(r), 1, 0, 0);
+        Matrix.rotate(model, Math.rad(r), 0, 1, 0);
+        r++;
 
         UgMaterial.bind(material, ubo);
         UgTexture.bind(texture, material, 0);
