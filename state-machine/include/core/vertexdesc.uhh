@@ -1,0 +1,50 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+/// Single vertex attribute binding description
+namespace UgVertexAttrib {
+    /// Location, format, and byte offset of one vertex attribute
+    struct It {
+        U32 location;
+        VkFormat format;
+        U32 offset;
+    };
+}
+
+/// Vertex buffer layout description
+namespace UgVertexDesc {
+    /// Stride and attribute array describing the vertex buffer layout
+    struct It {
+        U32 stride;
+        UgVertexAttrib.It* attributes;
+        U32 attributeCount;
+    };
+}
+
+/// Rasterizer, blending, and depth settings for a pipeline
+namespace UgVertexSettings {
+    /// Full set of configurable pipeline rasterizer and blend state options
+    struct It {
+        U8 depthVao = 0;
+        I32 colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        VkBool32 blendEnable = VK_TRUE;
+        VkBlendFactor srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        VkBlendFactor dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        VkBlendOp colorBlendOp = VK_BLEND_OP_ADD;
+        VkBlendFactor srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        VkBlendFactor dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        VkBlendOp alphaBlendOp = VK_BLEND_OP_ADD;
+
+        VkBool32 depthClampEnable = VK_FALSE;
+        VkBool32 rasterizerDiscardEnable = VK_FALSE;
+        VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
+        VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT;
+        VkFrontFace frontFace = VK_FRONT_FACE_CLOCKWISE;
+        VkBool32 depthBiasEnable = VK_FALSE;
+        F32 depthBiasConstantFactor = 0.0f;
+        F32 depthBiasClamp = 0.0f;
+        F32 depthBiasSlopeFactor = 0.0f;
+        F32 lineWidth = 1.0f;
+    };
+}

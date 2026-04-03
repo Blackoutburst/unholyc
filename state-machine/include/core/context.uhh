@@ -1,0 +1,32 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
+
+#include "window/window.uhh"
+#include "core/device.uhh"
+
+/// Top-level Vulkan context holding all core rendering state
+namespace UgContext {
+    /// Aggregate of all core Vulkan handles needed for rendering
+    struct It {
+        UgWindow.It window;
+        VkInstance instance;
+        VkDebugUtilsMessengerEXT logger;
+        VkSurfaceKHR surface;
+        VkPhysicalDevice physicalDevice;
+        UgDevice.It device;
+        VkDescriptorPool descriptorPool;
+        VkCommandPool cmdPool;
+    };
+
+    /// Create and initialize the full Vulkan context
+    /// @param window GLFW window to attach the surface to
+    /// @param debug Non-zero to enable validation layers
+    /// @returns Fully initialized Vulkan context
+    UgContext.It create(UgWindow.It& window, U8 debug);
+    /// Destroy the Vulkan context and free all associated resources
+    U0 destroy();
+
+    UgContext.It __get();
+}

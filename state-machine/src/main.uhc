@@ -1,0 +1,116 @@
+#include "uhcgraphics.uhh"
+
+static U32 CUBE_IDX_COUNT = 36;
+
+static F32 CUBE_VERTS[192] = {
+    // Front
+    -1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f,
+     1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  1.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f,  1.0f,  1.0f, 0.0f, 0.0f,  0.0f, 0.0f,
+
+    // Back
+    -1.0f, -1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f, 1.0f,
+     1.0f, -1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 1.0f,
+     1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f, 0.0f,
+
+    // Left
+    -1.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f,  0.0f, 1.0f,
+    -1.0f, -1.0f,  1.0f,  0.0f, 0.0f, 1.0f,  1.0f, 1.0f,
+    -1.0f,  1.0f,  1.0f,  0.0f, 0.0f, 1.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f,
+
+    // Right
+     1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  1.0f, 1.0f,
+     1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 0.0f,  0.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 0.0f,  0.0f, 0.0f,
+     1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  1.0f, 0.0f,
+
+    // Top
+    -1.0f,  1.0f,  1.0f,  0.0f, 1.0f, 1.0f,  0.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,  0.0f, 1.0f, 1.0f,  1.0f, 1.0f,
+     1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 1.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 1.0f,  0.0f, 0.0f,
+
+    // Bottom
+    -1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f, 0.0f,
+     1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  1.0f, 0.0f,
+     1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  1.0f, 1.0f,
+    -1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  0.0f, 1.0f,
+};
+
+static U32 CUBE_IDX[36] = {
+    // Front
+    0,  1,  2,   2,  3,  0,
+    // Back
+    5,  4,  7,   7,  6,  5,
+    // Left
+    8,  9,  10,  10, 11, 8,
+    // Right
+    13, 12, 15,  15, 14, 13,
+    // Top
+    16, 17, 18,  18, 19, 16,
+    // Bottom
+    20, 23, 22,  22, 21, 20,
+};
+
+I32 main() {
+    UgWindow.It window = UgWindow.create("State Machine");
+    UgUtils.setClearColor(0.1, 0.1, 0.1, 1);
+
+    UgTexture.It texture = UgTexture.create("./gold_block.png");
+    
+    UgBuffer.It vertexBuffer = UgBuffer.create(sizeof(CUBE_VERTS), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    UgBuffer.It indexBuffer = UgBuffer.create(sizeof(CUBE_IDX),   VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    UgBuffer.upload(vertexBuffer, CUBE_VERTS, sizeof(CUBE_VERTS));
+    UgBuffer.upload(indexBuffer, CUBE_IDX,   sizeof(CUBE_IDX));
+
+    UgVertexAttrib.It attrs[3] = {
+        { 0, VK_FORMAT_R32G32B32_SFLOAT, 0  },
+        { 1, VK_FORMAT_R32G32B32_SFLOAT, 12 },
+        { 2, VK_FORMAT_R32G32_SFLOAT,    24 },
+    };
+    UgVertexDesc.It desc = { 32, attrs, 3 };
+    UgUniformBuffer.It ubo = UgUniformBuffer.create(204);
+    UgMaterial.It material = UgMaterial.create("./shader/cubeVert.spv", "./shader/cubeFrag.spv", desc, 1, ubo, {});
+
+    Matrix.It model;
+    Matrix.It view;
+    Matrix.It projection;
+    VectorF.It lightDir = { -1, 0.8f, -1, 0 };
+    Matrix.translate(model, 0, 0, -5, 0);
+    Matrix.rotate(model, Math.rad(45), 1, 0, 0);
+    Matrix.rotate(model, Math.rad(45), 0, 1, 0);
+    
+    while (UgWindow.isOpen(window)) {
+        if (!UgWindow.update(window)) continue;
+        
+        VkExtent2D ext = UgSwapchain.extend();
+        Matrix.projection(projection, ext.width, ext.height, 90, 0.1, 1000);
+
+        UgMaterial.bind(material, ubo);
+        UgTexture.bind(texture, material, 0);
+
+        UgUniformBuffer.reset(ubo);
+        UgUniformBuffer.setMat(ubo, model);
+        UgUniformBuffer.setMat(ubo, view);
+        UgUniformBuffer.setMat(ubo, projection);
+        UgUniformBuffer.setVec3f(ubo, lightDir);
+
+        UgUtils.drawIndexed(vertexBuffer, indexBuffer, CUBE_IDX_COUNT);
+
+        UgWindow.swap();
+    }
+
+    UgUniformBuffer.destroy(ubo);
+    UgMaterial.destroy(material);
+    UgBuffer.destroy(vertexBuffer);
+    UgBuffer.destroy(indexBuffer);
+
+    UgTexture.destroy(texture);
+    
+    UgWindow.destroy(window);
+    
+    return 0;
+}

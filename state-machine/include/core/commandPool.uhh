@@ -1,0 +1,15 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+/// Vulkan command pool creation and destruction
+namespace UgCommandPool {
+    /// Destroy a command pool and free all buffers allocated from it
+    /// @param cmdPool Command pool to destroy
+    U0 destroy(VkCommandPool cmdPool);
+    /// Create a command pool for the graphics queue family
+    /// @returns Newly created command pool handle
+    VkCommandPool create();
+}

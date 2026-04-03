@@ -1,0 +1,25 @@
+#include "core/semaphore.uhh"
+
+namespace UgSemaphore {
+    UgSemaphore.It create() {
+        UgContext.It ctx = UgContext.__get();
+        
+        UgSemaphore.It semaphore;
+        VkSemaphore handle;
+        VkSemaphoreCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+
+        vkCreateSemaphore(ctx.device.handle, &createInfo, NULL, &handle);
+        semaphore.handle = handle;
+
+        return semaphore;
+    }
+
+    U0 destroy(UgSemaphore.It& semaphore) {
+        UgContext.It ctx = UgContext.__get();
+        
+        vkDestroySemaphore(ctx.device.handle, semaphore.handle, NULL);
+    }
+}

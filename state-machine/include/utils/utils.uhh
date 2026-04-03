@@ -1,0 +1,23 @@
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+/// Miscellaneous Vulkan rendering utilities
+namespace UgUtils {
+    /// Set the global clear color used at the start of each render pass
+    /// @param r Red component (0.0–1.0)
+    /// @param g Green component (0.0–1.0)
+    /// @param b Blue component (0.0–1.0)
+    /// @param a Alpha component (0.0–1.0)
+    U0 setClearColor(F32 r, F32 g, F32 b, F32 a);
+    /// Get the currently set global clear color
+    /// @returns VkClearColorValue with the stored RGBA values
+    VkClearColorValue getClearColor();
+    /// Find a device memory type index satisfying the given requirements
+    /// @param typeFilter Bitmask of acceptable memory type indices
+    /// @param properties Required memory property flags
+    /// @returns Index of a suitable memory type
+    U32 findMemoryType(U32 typeFilter, VkMemoryPropertyFlags properties);
+
+    U0 drawIndexed(UgBuffer.It vertexBuffer, UgBuffer.It indexBuffer, U32 indexCount);
+}

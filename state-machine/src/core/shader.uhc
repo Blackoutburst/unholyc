@@ -1,0 +1,68 @@
+#include <uhcio.uhh>
+
+#include "core/shader.uhh"
+
+namespace UgShader {
+    U0 destroy(VkShaderModule shader) {
+        UgContext.It ctx = UgContext.__get();
+        
+        vkDestroyShaderModule(ctx.device.handle, shader, NULL);
+    }
+
+    VkShaderModule create(const I8* filePath) {
+        UgContext.It ctx = UgContext.__get();
+        
+        FILE* file = File.open(filePath);
+        U32 codeSize = File.getSize(file);
+        U32* code = (U32*)File.read(file);
+
+        VkShaderModuleCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.codeSize = codeSize;
+        createInfo.pCode = code;
+
+        VkShaderModule shaderModule;
+        vkCreateShaderModule(ctx.device.handle, &createInfo, NULL, &shaderModule);
+
+        return shaderModule;
+    }
+}
+
+namespace UgShaderProgram {
+
+    VkPipelineShaderStageCreateInfo createShaderInfo(VkShaderStageFlagBits stage, VkShaderModule shader) {
+        VkPipelineShaderStageCreateInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        createInfo.pNext = NULL;
+        createInfo.flags = 0;
+        createInfo.stage = stage;
+        createInfo.module = shader;
+        createInfo.pName = "main";
+        createInfo.pSpecializationInfo = NULL;
+
+        return createInfo;
+    }
+
+    UgShaderProgram.It create(const I8* vertexSource, const I8* fragmentSource) {
+        VkShaderModule vertexShader = UgShader.create(vertexSource);
+        VkShaderModule fragmentShader = UgShader.create(fragmentSource);
+
+        VkPipelineShaderStageCreateInfo vertexInfo = createShaderInfo(VK_SHADER_STAGE_VERTEX_BIT, vertexShader);
+        VkPipelineShaderStageCreateInfo fragmentInfo = createShaderInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShader);
+
+        UgShaderProgram.It shaderProgram;
+        shaderProgram.handle[0] = vertexInfo;
+        shaderProgram.handle[1] = fragmentInfo;
+        shaderProgram.vertexShader = vertexShader;
+        shaderProgram.fragmentShader = fragmentShader;
+
+        return shaderProgram;
+    }
+
+    U0 destroy(UgShaderProgram.It& shaderProgram) {
+        UgShader.destroy(shaderProgram.vertexShader);
+        UgShader.destroy(shaderProgram.fragmentShader);
+    }
+}

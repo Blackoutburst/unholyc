@@ -1,0 +1,36 @@
+#include "core/descriptorPool.uhh"
+
+#define UNIFORM_BUFFER_COUNT 64
+#define SAMPLER_COUNT 64
+
+namespace UgDescriptorPool {
+
+    VkDescriptorPool create() {
+        UgContext.It ctx = UgContext.__get();
+    
+        VkDescriptorPoolSize poolSizes[2];
+        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSizes[0].descriptorCount = UNIFORM_BUFFER_COUNT;
+        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        poolSizes[1].descriptorCount = SAMPLER_COUNT;
+
+        VkDescriptorPoolCreateInfo poolInfo;
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.pNext = NULL;
+        poolInfo.flags = 0;
+        poolInfo.maxSets = UNIFORM_BUFFER_COUNT + SAMPLER_COUNT;
+        poolInfo.poolSizeCount = 2;
+        poolInfo.pPoolSizes = poolSizes;
+
+        VkDescriptorPool descriptorPool;
+        vkCreateDescriptorPool(ctx.device.handle, &poolInfo, NULL, &descriptorPool);
+
+        return descriptorPool;
+    }
+    
+    U0 destroy(VkDescriptorPool descriptorPool) {
+        UgContext.It ctx = UgContext.__get();
+        
+        vkDestroyDescriptorPool(ctx.device.handle, descriptorPool, NULL);
+    }
+}

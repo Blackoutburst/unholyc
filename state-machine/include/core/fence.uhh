@@ -1,0 +1,26 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+/// CPU–GPU synchronization fence
+namespace UgFence {
+    /// Thin wrapper around a Vulkan fence handle
+    struct It {
+        VkFence handle;
+    };
+
+    /// Create a fence in the signaled state
+    /// @returns Initialized fence object
+    UgFence.It create();
+    /// Destroy a fence
+    /// @param fence Fence to destroy
+    U0 destroy(UgFence.It& fence);
+    /// Block the CPU until the fence is signaled
+    /// @param fence Fence to wait on
+    U0 wait(UgFence.It& fence);
+    /// Reset a fence back to the unsignaled state
+    /// @param fence Fence to reset
+    U0 reset(UgFence.It& fence);
+}

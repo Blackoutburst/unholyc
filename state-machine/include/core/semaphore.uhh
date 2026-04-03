@@ -1,0 +1,20 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+/// GPU–GPU synchronization semaphore
+namespace UgSemaphore {
+    /// Thin wrapper around a Vulkan semaphore handle
+    struct It {
+        VkSemaphore handle;
+    };
+
+    /// Create a semaphore
+    /// @returns Initialized semaphore object
+    UgSemaphore.It create();
+    /// Destroy a semaphore
+    /// @param semaphore Semaphore to destroy
+    U0 destroy(UgSemaphore.It& semaphore);
+}

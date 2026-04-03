@@ -1,0 +1,97 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+/// Physical device enumeration and selection utilities
+namespace UgPhysicalDevice {
+    /// Get the properties of a physical device
+    /// @param device Physical device to query
+    /// @returns Device properties struct
+    VkPhysicalDeviceProperties getProperties(VkPhysicalDevice device);
+    /// Get a human-readable name for a physical device type
+    /// @param type Vulkan device type enum value
+    /// @returns Null-terminated string name for the type
+    const I8* typeName(VkPhysicalDeviceType type);
+    /// Check whether a physical device supports the required extensions
+    /// @param device Physical device to check
+    /// @returns Non-zero if all required extensions are supported
+    U8 hasExtensions(VkPhysicalDevice device);
+    /// Get the number of physical devices available in the instance
+    /// @param instance Vulkan instance to query
+    /// @returns Number of available physical devices
+    U32 count(VkInstance instance);
+    /// Print a list of all available physical devices to the log
+    /// @param instance Vulkan instance to query
+    U0 list(VkInstance instance);
+    /// Get a physical device by desired type, falling back if unavailable
+    /// @param instance Vulkan instance to query
+    /// @param surface Surface used for presentation support checks
+    /// @param desiredType Preferred VkPhysicalDeviceType
+    /// @returns Selected physical device handle
+    VkPhysicalDevice get(VkInstance instance, VkSurfaceKHR surface, U8 desiredType);
+    /// Select and create the best physical device for rendering
+    /// @param instance Vulkan instance to query
+    /// @param surface Surface used for presentation support checks
+    /// @returns Selected physical device handle
+    VkPhysicalDevice create(VkInstance instance, VkSurfaceKHR surface);
+}
+
+/// Queue family query utilities
+namespace UgQueueFamilies {
+    /// Get the number of queue families available on a physical device
+    /// @param device Physical device to query
+    /// @returns Number of queue families
+    U32 count(VkPhysicalDevice device);
+    /// Check whether the device has a queue family supporting a given type
+    /// @param device Physical device to check
+    /// @param type Queue capability flag to look for
+    /// @returns Non-zero if a matching queue family exists
+    U8 hasType(VkPhysicalDevice device, VkQueueFlagBits type);
+    /// Get the index of the first queue family supporting a given type
+    /// @param device Physical device to query
+    /// @param type Queue capability flag to find
+    /// @returns Queue family index
+    U32 getType(VkPhysicalDevice device, VkQueueFlagBits type);
+}
+
+/// Logical device creation and queue access
+namespace UgDevice {
+    /// Logical device handle together with its queues and properties
+    struct It {
+        VkDevice handle;
+        VkPhysicalDeviceProperties properties;
+        VkQueue graphicQueue;
+        VkQueue presentQueue;
+    };
+
+    /// Retrieve a queue of a specific type from the logical device
+    /// @param device Physical device used during queue family lookup
+    /// @param logicalDevice Logical device to retrieve the queue from
+    /// @param queueType Queue capability flag identifying the desired queue
+    /// @returns Queue handle
+    VkQueue getQueue(VkPhysicalDevice device, VkDevice logicalDevice, VkQueueFlagBits queueType);
+    /// Retrieve the presentation queue from the logical device
+    /// @param device Physical device used for surface support checks
+    /// @param surface Surface to present to
+    /// @param logicalDevice Logical device to retrieve the queue from
+    /// @returns Presentation queue handle
+    VkQueue getPresentationQueue(VkPhysicalDevice device, VkSurfaceKHR surface, VkDevice logicalDevice);
+    /// Check whether a physical device supports presentation to a surface
+    /// @param device Physical device to check
+    /// @param surface Surface to check presentation support for
+    /// @returns Non-zero queue family index if supported
+    U32 getSurfaceSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
+    /// Destroy the logical device
+    /// @param device Logical device to destroy
+    U0 destroy(UgDevice.It& device);
+    /// Create the raw VkDevice without wrapping it
+    /// @param device Physical device to create from
+    /// @param surface Surface used for presentation queue selection
+    /// @returns Raw logical device handle
+    VkDevice make(VkPhysicalDevice device, VkSurfaceKHR surface);
+    /// Create the logical device and populate queue handles
+    /// @param device Physical device to create from
+    /// @param surface Surface used for presentation queue selection
+    /// @returns Initialized logical device object
+    UgDevice.It create(VkPhysicalDevice device, VkSurfaceKHR surface);
+}

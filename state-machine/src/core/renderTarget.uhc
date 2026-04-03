@@ -1,0 +1,249 @@
+#include <stdlib.h>
+
+#include "core/renderTarget.uhh"
+#include "core/image.uhh"
+#include "utils/utils.uhh"
+
+namespace UgRenderTarget {
+
+    UgRenderTarget.It create(U32 width, U32 height) {
+        UgContext.It ctx = UgContext.__get();
+        
+        UgRenderTarget.It rt;
+        rt.width = width;
+        rt.height = height;
+
+        VkImage depthImage;
+        VkDeviceMemory depthMemory;
+
+        VkImageCreateInfo imageInfo;
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.pNext = NULL;
+        imageInfo.flags = 0;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.format = VK_FORMAT_D32_SFLOAT;
+        imageInfo.extent = { width, height, 1 };
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.queueFamilyIndexCount = 0;
+        imageInfo.pQueueFamilyIndices = NULL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        vkCreateImage(ctx.device.handle, &imageInfo, NULL, &depthImage);
+
+        VkMemoryRequirements memReqs;
+        vkGetImageMemoryRequirements(ctx.device.handle, depthImage, &memReqs);
+
+        VkMemoryAllocateInfo allocInfo;
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.pNext = NULL;
+        allocInfo.allocationSize = memReqs.size;
+        allocInfo.memoryTypeIndex = UgUtils.findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        vkAllocateMemory(ctx.device.handle, &allocInfo, NULL, &depthMemory);
+        vkBindImageMemory(ctx.device.handle, depthImage, depthMemory, 0);
+
+        VkImageView depthView = UgImageView.makeView(depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+        VkSampler shadowSampler;
+        VkSamplerCreateInfo samplerInfo;
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.pNext = NULL;
+        samplerInfo.flags = 0;
+        samplerInfo.magFilter = VK_FILTER_NEAREST;
+        samplerInfo.minFilter = VK_FILTER_NEAREST;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.maxAnisotropy = 1.0f;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = 0.0f;
+        samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        vkCreateSampler(ctx.device.handle, &samplerInfo, NULL, &shadowSampler);
+
+        VkDescriptorSetLayoutBinding samplerBinding;
+        samplerBinding.binding = 0;
+        samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        samplerBinding.descriptorCount = 1;
+        samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        samplerBinding.pImmutableSamplers = NULL;
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo;
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.pNext = NULL;
+        layoutInfo.flags = 0;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &samplerBinding;
+
+        VkDescriptorSetLayout setLayout;
+        vkCreateDescriptorSetLayout(ctx.device.handle, &layoutInfo, NULL, &setLayout);
+
+        VkDescriptorSetAllocateInfo descAllocInfo;
+        descAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        descAllocInfo.pNext = NULL;
+        descAllocInfo.descriptorPool = ctx.descriptorPool;
+        descAllocInfo.descriptorSetCount = 1;
+        descAllocInfo.pSetLayouts = &setLayout;
+
+        VkDescriptorSet descriptorSet;
+        vkAllocateDescriptorSets(ctx.device.handle, &descAllocInfo, &descriptorSet);
+
+        VkDescriptorImageInfo imageDescInfo;
+        imageDescInfo.sampler = shadowSampler;
+        imageDescInfo.imageView = depthView;
+        imageDescInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet write;
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext = NULL;
+        write.dstSet = descriptorSet;
+        write.dstBinding = 0;
+        write.dstArrayElement = 0;
+        write.descriptorCount = 1;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write.pImageInfo = &imageDescInfo;
+        write.pBufferInfo = NULL;
+        write.pTexelBufferView = NULL;
+        vkUpdateDescriptorSets(ctx.device.handle, 1, &write, 0, NULL);
+
+        VkAttachmentDescription depthAttachment;
+        depthAttachment.flags = 0;
+        depthAttachment.format = VK_FORMAT_D32_SFLOAT;
+        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+        VkAttachmentReference depthRef;
+        depthRef.attachment = 0;
+        depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass;
+        subpass.flags = 0;
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.inputAttachmentCount = 0;
+        subpass.pInputAttachments = NULL;
+        subpass.colorAttachmentCount = 0;
+        subpass.pColorAttachments = NULL;
+        subpass.pResolveAttachments = NULL;
+        subpass.pDepthStencilAttachment = &depthRef;
+        subpass.preserveAttachmentCount = 0;
+        subpass.pPreserveAttachments = NULL;
+
+        VkSubpassDependency deps[2];
+
+        deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+        deps[0].dstSubpass = 0;
+        deps[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        deps[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        deps[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        deps[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+        deps[0].dependencyFlags = 0;
+
+        deps[1].srcSubpass = 0;
+        deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+        deps[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        deps[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        deps[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        deps[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        deps[1].dependencyFlags = 0;
+
+        VkRenderPassCreateInfo renderPassInfo;
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.flags = 0;
+        renderPassInfo.pNext = NULL;
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &depthAttachment;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 2;
+        renderPassInfo.pDependencies = deps;
+
+        VkRenderPass renderPass;
+        vkCreateRenderPass(ctx.device.handle, &renderPassInfo, NULL, &renderPass);
+
+        VkFramebufferCreateInfo fbInfo;
+        fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fbInfo.pNext = NULL;
+        fbInfo.flags = 0;
+        fbInfo.renderPass = renderPass;
+        fbInfo.attachmentCount = 1;
+        fbInfo.pAttachments = &depthView;
+        fbInfo.width = width;
+        fbInfo.height = height;
+        fbInfo.layers = 1;
+
+        VkFramebuffer framebuffer;
+        vkCreateFramebuffer(ctx.device.handle, &fbInfo, NULL, &framebuffer);
+
+        rt.renderPass = renderPass;
+        rt.framebuffer = framebuffer;
+        rt.texture.image = depthImage;
+        rt.texture.memory = depthMemory;
+        rt.texture.view = depthView;
+        rt.texture.sampler = shadowSampler;
+        rt.texture.setLayout = setLayout;
+        rt.texture.descriptorSet = descriptorSet;
+
+        return rt;
+    }
+
+    U0 begin(UgRenderTarget.It& rt, UgCommandBuffer.It& cmd) {
+        VkClearValue clearValue;
+        clearValue.depthStencil = { 1.0f, 0 };
+
+        VkRenderPassBeginInfo beginInfo;
+        beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        beginInfo.pNext = NULL;
+        beginInfo.renderPass = rt.renderPass;
+        beginInfo.framebuffer = rt.framebuffer;
+        beginInfo.renderArea.offset = { 0, 0 };
+        beginInfo.renderArea.extent = { rt.width, rt.height };
+        beginInfo.clearValueCount = 1;
+        beginInfo.pClearValues = &clearValue;
+
+        vkCmdBeginRenderPass(cmd.handle, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    }
+
+    U0 end(UgCommandBuffer.It& cmd) {
+        vkCmdEndRenderPass(cmd.handle);
+    }
+
+    U0 setViewport(UgRenderTarget.It& rt, UgCommandBuffer.It& cmd) {
+        VkViewport viewport;
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = (F32)rt.width;
+        viewport.height = (F32)rt.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(cmd.handle, 0, 1, &viewport);
+
+        VkRect2D scissor;
+        scissor.offset = { 0, 0 };
+        scissor.extent = { rt.width, rt.height };
+        vkCmdSetScissor(cmd.handle, 0, 1, &scissor);
+    }
+
+    U0 destroy(UgRenderTarget.It& rt) {
+        UgContext.It ctx = UgContext.__get();
+        vkDestroyFramebuffer(ctx.device.handle, rt.framebuffer, NULL);
+        vkDestroyRenderPass(ctx.device.handle, rt.renderPass, NULL);
+        vkDestroyDescriptorSetLayout(ctx.device.handle, rt.texture.setLayout, NULL);
+        vkDestroySampler(ctx.device.handle, rt.texture.sampler, NULL);
+        vkDestroyImageView(ctx.device.handle, rt.texture.view, NULL);
+        vkDestroyImage(ctx.device.handle, rt.texture.image, NULL);
+        vkFreeMemory(ctx.device.handle, rt.texture.memory, NULL);
+    }
+}

@@ -1,0 +1,96 @@
+#define GLFW_INCLUDE_VULKAN
+
+#include "window/window.uhh"
+#include "core/context.uhh"
+#include "core/renderer.uhh"
+#include "core/fence.uhh"
+
+static UgFence.It fence;
+static UgCommandBuffer.It cmd;
+static VkResult acquireResult;
+static VkResult presentResult;
+
+namespace UgWindow {
+    UgCommandBuffer.It __getCmd() {
+        return cmd;
+    }
+
+    U8 update(UgWindow.It& window) {
+        glfwPollEvents();
+
+        if (UgWindow.isMinimized(window)) return 0;
+
+        UgFence.wait(fence);
+        
+        acquireResult = UgRenderer.aquire();
+        if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
+            UgRenderer.update();
+            return 1;
+        }
+
+        UgFence.reset(fence);
+
+        UgCommandBuffer.begin(cmd);
+        UgRenderer.begin(cmd);
+        UgRenderer.setViewport(cmd);
+
+        return 1;
+    }
+
+    U0 swap() {
+        UgRenderer.end(cmd);
+        UgCommandBuffer.end(cmd);
+    
+        UgRenderer.submit(cmd, fence);
+        
+        presentResult = UgRenderer.present();
+        if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) {
+            UgRenderer.update();
+        }
+    }
+
+    U0 destroy(UgWindow.It& window) {
+        UgContext.It ctx = UgContext.__get();
+        vkDeviceWaitIdle(ctx.device.handle);
+    
+        UgCommandBuffer.destroy(cmd);
+        UgFence.destroy(fence);
+        UgRenderer.destroy();
+        UgContext.destroy();
+        
+        glfwDestroyWindow(window.handle);
+
+        glfwTerminate();
+    }
+
+    U8 isMinimized(UgWindow.It& window) {                                                                                                                                                                                                                                        
+        I32 w = 0;                                                                                                                                                                                                                                                               
+        I32 h = 0;                                                                                                                                                                                                                                                               
+        glfwGetFramebufferSize(window.handle, &w, &h);                                                                                                                                                                                                                           
+        return w == 0 || h == 0;                                                                                                                                                                                                                                                 
+    }
+
+    U8 isOpen(UgWindow.It& window) {
+        return glfwWindowShouldClose(window.handle) ? 0 : 1;
+    }
+
+    UgWindow.It create(const I8* name) {
+        UgWindow.It window;
+        
+        glfwInit();
+
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        
+        GLFWwindow* handle = glfwCreateWindow(1280, 720, name, NULL, NULL);
+
+        window.name = name;
+        window.handle = handle;
+
+        UgContext.create(window, 1);
+        UgRenderer.create();
+        fence = UgFence.create();
+        cmd = UgCommandBuffer.create();
+
+        return window;
+    }
+}

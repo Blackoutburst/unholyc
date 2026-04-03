@@ -1,0 +1,219 @@
+#include <stdlib.h>
+#include <string.h>
+
+#include "utils/stb_image.h"
+#include "utils/utils.uhh"
+
+#include "core/textureArray.hh"
+#include "core/texture.hh"
+#include "core/buffer.hh"
+#include "core/image.hh"
+
+static U0 submitOnce(UgCommandBuffer.It cmd) {
+    UgContext.It ctx = UgContext.__get();
+    
+    VkSubmitInfo submitInfo;
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = NULL;
+    submitInfo.waitSemaphoreCount = 0;
+    submitInfo.pWaitSemaphores = NULL;
+    submitInfo.pWaitDstStageMask = NULL;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd.handle;
+    submitInfo.signalSemaphoreCount = 0;
+    submitInfo.pSignalSemaphores = NULL;
+
+    vkQueueSubmit(ctx.device.graphicQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(ctx.device.graphicQueue);
+}
+
+static U0 transitionArrayLayout(VkCommandBuffer cmd, VkImage image, U32 layerCount, VkImageLayout oldLayout, VkImageLayout newLayout, VkAccessFlags srcAccess, VkAccessFlags dstAccess, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage) {
+    VkImageMemoryBarrier barrier;
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.pNext = NULL;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.srcAccessMask = srcAccess;
+    barrier.dstAccessMask = dstAccess;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = layerCount;
+
+    vkCmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, NULL, 0, NULL, 1, &barrier);
+}
+
+namespace UgTextureArray {
+
+    UgTextureArray.It create(const I8** paths, U32 count) {
+        UgContext.It ctx = UgContext.__get();
+        
+        I32 width, height;
+        U8** pixels = (U8**)malloc(sizeof(U8*) * count);
+        for (U32 i = 0; i < count; i++) {
+            I32 w, h, c;
+            pixels[i] = stbi_load(paths[i], &w, &h, &c, STBI_rgb_alpha);
+            if (i == 0) { width = w; height = h; }
+        }
+
+        U32 layerSize  = (U32)(width * height * 4);
+        U32 totalSize  = layerSize * count;
+
+        UgBuffer.It staging = UgBuffer.create(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+        U8* mapped;
+        vkMapMemory(ctx.device.handle, staging.memory, 0, totalSize, 0, (void**)&mapped);
+        for (U32 i = 0; i < count; i++) {
+            memcpy(mapped + i * layerSize, pixels[i], layerSize);
+            stbi_image_free(pixels[i]);
+        }
+        vkUnmapMemory(ctx.device.handle, staging.memory);
+        free(pixels);
+
+        VkImage image;
+        VkDeviceMemory memory;
+
+        VkImageCreateInfo imageInfo;
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.pNext = NULL;
+        imageInfo.flags = 0;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+        imageInfo.extent = { (U32)width, (U32)height, 1 };
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = count;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.queueFamilyIndexCount = 0;
+        imageInfo.pQueueFamilyIndices = NULL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        vkCreateImage(ctx.device.handle, &imageInfo, NULL, &image);
+
+        VkMemoryRequirements memReqs;
+        vkGetImageMemoryRequirements(ctx.device.handle, image, &memReqs);
+
+        VkMemoryAllocateInfo allocInfo;
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.pNext = NULL;
+        allocInfo.allocationSize = memReqs.size;
+        allocInfo.memoryTypeIndex = UgUtils.findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        vkAllocateMemory(ctx.device.handle, &allocInfo, NULL, &memory);
+        vkBindImageMemory(ctx.device.handle, image, memory, 0);
+
+        UgCommandBuffer.It cmd = UgCommandBuffer.create();
+        UgCommandBuffer.begin(cmd);
+
+        transitionArrayLayout(cmd.handle, image, count,
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            0, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+        VkBufferImageCopy* regions = (VkBufferImageCopy*)malloc(sizeof(VkBufferImageCopy) * count);
+        for (U32 i = 0; i < count; i++) {
+            regions[i].bufferOffset = i * layerSize;
+            regions[i].bufferRowLength = 0;
+            regions[i].bufferImageHeight = 0;
+            regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            regions[i].imageSubresource.mipLevel = 0;
+            regions[i].imageSubresource.baseArrayLayer = i;
+            regions[i].imageSubresource.layerCount = 1;
+            regions[i].imageOffset = { 0, 0, 0 };
+            regions[i].imageExtent = { (U32)width, (U32)height, 1 };
+        }
+        vkCmdCopyBufferToImage(cmd.handle, staging.handle, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, count, regions);
+        free(regions);
+
+        transitionArrayLayout(cmd.handle, image, count,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+
+        UgCommandBuffer.end(cmd);
+        submitOnce(cmd);
+        UgCommandBuffer.destroy(cmd);
+
+        UgBuffer.destroy(staging);
+
+        VkImageView view;
+        VkImageViewCreateInfo viewInfo;
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.pNext = NULL;
+        viewInfo.flags = 0;
+        viewInfo.image = image;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+        viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = count;
+        vkCreateImageView(ctx.device.handle, &viewInfo, NULL, &view);
+
+        VkSampler sampler = UgSampler.create();
+
+        VkDescriptorSetLayout setLayout = UgTexture.createSetLayout();
+
+        VkDescriptorSetAllocateInfo descAllocInfo;
+        descAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        descAllocInfo.pNext = NULL;
+        descAllocInfo.descriptorPool = ctx.descriptorPool;
+        descAllocInfo.descriptorSetCount = 1;
+        descAllocInfo.pSetLayouts = &setLayout;
+
+        VkDescriptorSet descriptorSet;
+        vkAllocateDescriptorSets(ctx.device.handle, &descAllocInfo, &descriptorSet);
+
+        VkDescriptorImageInfo imageDescInfo;
+        imageDescInfo.sampler = sampler;
+        imageDescInfo.imageView = view;
+        imageDescInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet write;
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext = NULL;
+        write.dstSet = descriptorSet;
+        write.dstBinding = 0;
+        write.dstArrayElement = 0;
+        write.descriptorCount = 1;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write.pImageInfo = &imageDescInfo;
+        write.pBufferInfo = NULL;
+        write.pTexelBufferView = NULL;
+        vkUpdateDescriptorSets(ctx.device.handle, 1, &write, 0, NULL);
+
+        UgTextureArray.It arr;
+        arr.image = image;
+        arr.memory = memory;
+        arr.view = view;
+        arr.sampler = sampler;
+        arr.setLayout = setLayout;
+        arr.descriptorSet = descriptorSet;
+        arr.layerCount = count;
+
+        return arr;
+    }
+
+    U0 bind(UgTextureArray.It& arr, UgCommandBuffer.It& cmd, VkPipelineLayout pipelineLayout, U32 slot) {
+        vkCmdBindDescriptorSets(cmd.handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1 + slot, 1, &arr.descriptorSet, 0, NULL);
+    }
+
+    U0 destroy(UgTextureArray.It& arr) {
+        UgContext.It ctx = UgContext.__get();
+        
+        vkDestroyDescriptorSetLayout(ctx.device.handle, arr.setLayout, NULL);
+        UgSampler.destroy(arr.sampler);
+        vkDestroyImageView(ctx.device.handle, arr.view, NULL);
+        vkDestroyImage(ctx.device.handle, arr.image, NULL);
+        vkFreeMemory(ctx.device.handle, arr.memory, NULL);
+    }
+}

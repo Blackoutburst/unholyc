@@ -1,0 +1,15 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+
+/// Vulkan descriptor pool creation and destruction
+namespace UgDescriptorPool {
+    /// Create a descriptor pool sized for uniform buffers and combined image samplers
+    /// @returns Newly created descriptor pool handle
+    VkDescriptorPool create();
+    /// Destroy a descriptor pool and free all sets allocated from it
+    /// @param descriptorPool Descriptor pool to destroy
+    U0 destroy(VkDescriptorPool descriptorPool);
+}

@@ -1,0 +1,47 @@
+#include "utils/utils.uhh"
+
+static F32 clearColor[4] = { 0, 0, 0, 1 };
+
+namespace UgUtils {
+
+    U0 setClearColor(F32 r, F32 g, F32 b, F32 a) {
+        clearColor[0] = r;
+        clearColor[1] = g;
+        clearColor[2] = b;
+        clearColor[3] = a;
+    }
+    
+    VkClearColorValue getClearColor() {
+        VkClearColorValue clearValue; 
+        clearValue.float32[0] = clearColor[0];
+        clearValue.float32[1] = clearColor[1];
+        clearValue.float32[2] = clearColor[2];
+        clearValue.float32[3] = clearColor[3];
+        return clearValue;
+    }
+
+    U32 findMemoryType(U32 typeFilter, VkMemoryPropertyFlags properties) {
+        UgContext.It ctx = UgContext.__get();
+        
+        VkPhysicalDeviceMemoryProperties memProps;
+        vkGetPhysicalDeviceMemoryProperties(ctx.physicalDevice, &memProps);
+
+        for (U32 i = 0; i < memProps.memoryTypeCount; i++) {
+            if ((typeFilter & (1 << i)) && (memProps.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+
+        return UINT32_MAX;
+    }
+
+    U0 drawIndexed(UgBuffer.It vertexBuffer, UgBuffer.It indexBuffer, U32 indexCount) {
+        UgCommandBuffer.It cmd = UgWindow.__getCmd();
+
+        VkBuffer vbs[] = { vertexBuffer.handle };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd.handle, 0, 1, vbs, offsets);
+        vkCmdBindIndexBuffer(cmd.handle, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cmd.handle, indexCount, 1, 0, 0, 0);
+    }
+}

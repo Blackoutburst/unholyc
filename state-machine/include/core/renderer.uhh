@@ -1,0 +1,48 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+#include "core/swapchain.uhh"
+#include "core/image.uhh"
+#include "core/fence.uhh"
+#include "core/buffer.uhh"
+
+/// High-level swapchain renderer managing per-frame synchronization
+namespace UgRenderer {
+    /// Renderer state: swapchain, framebuffers, and render pass
+    struct It {
+        UgSwapchain.It swapchain;
+        UgFrameBuffer.It framebuffers;
+        VkRenderPass renderPass;
+    };
+
+    /// Create a renderer for the given context
+    /// @returns Initialized renderer object
+    UgRenderer.It create();
+    /// Destroy the renderer and free all swapchain resources
+    U0 destroy();
+    /// Recreate the swapchain and framebuffers after a resize
+    U0 update();
+    /// Begin the render pass for the current frame
+    /// @param cmd Command buffer to record into
+    U0 begin(UgCommandBuffer.It& cmd);
+    /// End the render pass
+    /// @param cmd Command buffer to record into
+    U0 end(UgCommandBuffer.It& cmd);
+    /// Set the viewport and scissor to the current swapchain extent
+    /// @param cmd Command buffer to record into
+    U0 setViewport(UgCommandBuffer.It& cmd);
+    /// Submit the recorded command buffer to the graphics queue
+    /// @param cmd Command buffer to submit
+    /// @param fence Fence to signal when the submission completes
+    U0 submit(UgCommandBuffer.It& cmd, UgFence.It& fence);
+    /// Present the current swapchain image
+    /// @returns VkResult — VK_SUCCESS or an out-of-date/suboptimal code
+    VkResult present();
+    /// Acquire the next swapchain image for rendering
+    /// @returns VkResult — VK_SUCCESS or an out-of-date code
+    VkResult aquire();
+
+    UgRenderer.It __get();
+}

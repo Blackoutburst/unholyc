@@ -1,0 +1,108 @@
+#include <stdlib.h>
+#include <string.h>
+
+#include "core/material.uhh"
+#include "core/pipeline.uhh"
+#include "core/texture.uhh"
+#include "core/renderer.uhh"
+#include "window/window.uhh"
+
+namespace UgMaterial {
+
+    static VkPipeline compilePipeline(UgMaterial.It& mat, VkRenderPass renderPass) {
+        VkVertexInputBindingDescription bindingDesc;
+        bindingDesc.binding = 0;
+        bindingDesc.stride = mat.vertexDesc.stride;
+        bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        VkVertexInputAttributeDescription* attrDescs = (VkVertexInputAttributeDescription*)malloc(
+            sizeof(VkVertexInputAttributeDescription) * mat.vertexDesc.attributeCount
+        );
+        for (U32 i = 0; i < mat.vertexDesc.attributeCount; i++) {
+            attrDescs[i].location = mat.vertexDesc.attributes[i].location;
+            attrDescs[i].binding = 0;
+            attrDescs[i].format = mat.vertexDesc.attributes[i].format;
+            attrDescs[i].offset = mat.vertexDesc.attributes[i].offset;
+        }
+
+        VkPipelineVertexInputStateCreateInfo vertexInput;
+        vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInput.pNext = NULL;
+        vertexInput.flags = 0;
+        vertexInput.vertexBindingDescriptionCount = 1;
+        vertexInput.pVertexBindingDescriptions = &bindingDesc;
+        vertexInput.vertexAttributeDescriptionCount = mat.vertexDesc.attributeCount;
+        vertexInput.pVertexAttributeDescriptions = attrDescs;
+
+        VkPipeline pipeline = UgPipeline.create(mat.layout, mat.shaderProgram, renderPass, &vertexInput, mat.settings);
+
+        free(attrDescs);
+        return pipeline;
+    }
+
+    UgMaterial.It create(const I8* vertSpv, const I8* fragSpv, UgVertexDesc.It& desc, U32 textureCount, UgUniformBuffer.It& ubo, const UgVertexSettings.It& settings) {
+        UgContext.It ctx = UgContext.__get();
+        UgRenderer.It renderer = UgRenderer.__get();
+        
+        UgMaterial.It mat;
+        mat.shaderProgram = UgShaderProgram.create(vertSpv, fragSpv);
+        mat.vertexDesc = desc;
+        mat.vertexDesc.attributes = (UgVertexAttrib.It*)malloc(sizeof(UgVertexAttrib.It) * desc.attributeCount);
+        memcpy(mat.vertexDesc.attributes, desc.attributes, sizeof(UgVertexAttrib.It) * desc.attributeCount);
+        mat.settings = settings;
+        mat.textureCount = textureCount;
+        mat.pipelineCacheCount = 0;
+        mat.ctx = &ctx;
+        mat.swapchain = &renderer.swapchain;
+
+        VkDescriptorSetLayout setLayouts[1 + UG_MATERIAL_MAX_TEXTURES];
+        setLayouts[0] = ubo.setLayout;
+        for (U32 i = 0; i < textureCount; i++) {
+            mat.textureSetLayouts[i] = UgTexture.createSetLayout();
+            setLayouts[1 + i] = mat.textureSetLayouts[i];
+        }
+        mat.layout = UgPipelineLayout.create(1 + textureCount, setLayouts);
+
+        return mat;
+    }
+
+    U0 bind(UgMaterial.It& mat,UgUniformBuffer.It& ubo) {
+        UgCommandBuffer.It cmd = UgWindow.__getCmd();
+        UgRenderer.It renderer = UgRenderer.__get();
+        
+        VkPipeline pipeline = VK_NULL_HANDLE;
+        for (U32 i = 0; i < mat.pipelineCacheCount; i++) {
+            if (mat.pipelineCache[i].renderPass == renderer.renderPass) {
+                pipeline = mat.pipelineCache[i].pipeline;
+                break;
+            }
+        }
+
+        if (pipeline == VK_NULL_HANDLE) {
+            pipeline = compilePipeline(mat, renderer.renderPass);
+            U32 slot = mat.pipelineCacheCount < UG_MATERIAL_MAX_RENDER_PASSES
+                ? mat.pipelineCacheCount++
+                : 0;
+            mat.pipelineCache[slot].renderPass = renderer.renderPass;
+            mat.pipelineCache[slot].pipeline   = pipeline;
+        }
+
+        vkCmdBindPipeline(cmd.handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+        UgUniformBuffer.bind(ubo, cmd.handle, mat.layout);
+    }
+
+    U0 destroy(UgMaterial.It& mat) {
+        UgContext.It ctx = UgContext.__get();
+        vkDeviceWaitIdle(ctx.device.handle);
+    
+        free(mat.vertexDesc.attributes);
+        for (U32 i = 0; i < mat.pipelineCacheCount; i++) {
+            UgPipeline.destroy(mat.pipelineCache[i].pipeline);
+        }
+        UgPipelineLayout.destroy(mat.layout);
+        for (U32 i = 0; i < mat.textureCount; i++) {
+            vkDestroyDescriptorSetLayout(ctx.device.handle, mat.textureSetLayouts[i], NULL);
+        }
+        UgShaderProgram.destroy(mat.shaderProgram);
+    }
+}

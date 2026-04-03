@@ -1,0 +1,108 @@
+#include "core/renderPass.uhh"
+#include "core/swapchain.uhh"
+
+#include "utils/utils.uhh"
+
+namespace UgRenderPass {
+    U0 end(VkCommandBuffer cmdBuffer) {
+        vkCmdEndRenderPass(cmdBuffer);
+    }
+
+    U0 begin(VkRenderPass renderPass, UgFrameBuffer.It& framebuffers, VkCommandBuffer cmdBuffer, U32 imageIndex) {
+        VkClearValue clearValues[2];
+        clearValues[0].color = UgUtils.getClearColor();
+        clearValues[1].depthStencil = {1.0f, 0};
+
+        VkRenderPassBeginInfo createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        createInfo.pNext = NULL;
+        createInfo.renderPass = renderPass;
+        createInfo.framebuffer = framebuffers.handles[imageIndex];
+        createInfo.renderArea.offset = {0, 0};
+        createInfo.renderArea.extent = framebuffers.extends;
+        createInfo.clearValueCount = 2;
+        createInfo.pClearValues = clearValues;
+
+        vkCmdBeginRenderPass(cmdBuffer, &createInfo, VK_SUBPASS_CONTENTS_INLINE);
+    }
+
+
+    U0 destroy(VkRenderPass renderPass) {
+        UgContext.It ctx = UgContext.__get();
+        
+        vkDestroyRenderPass(ctx.device.handle, renderPass, NULL);
+    }
+
+    VkRenderPass create(UgSwapchain.It& swapchain) {
+        UgContext.It ctx = UgContext.__get();
+        
+        VkAttachmentDescription colorAttachment;
+        colorAttachment.flags = 0;
+        colorAttachment.format = swapchain.surfaceFormat.format;
+        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        VkAttachmentDescription depthAttachment;
+        depthAttachment.flags = 0;
+        depthAttachment.format = VK_FORMAT_D32_SFLOAT;
+        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentReference colorAttachmentRef;
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentReference depthAttachmentRef;
+        depthAttachmentRef.attachment = 1;
+        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass;
+        subpass.flags = 0;
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.inputAttachmentCount = 0;
+        subpass.pInputAttachments = NULL;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.pResolveAttachments = NULL;
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        subpass.preserveAttachmentCount = 0;
+        subpass.pPreserveAttachments = NULL;
+
+        VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
+
+        VkSubpassDependency dependency;
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependency.dependencyFlags = 0;
+
+        VkRenderPassCreateInfo renderPassInfo;
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.flags = 0;
+        renderPassInfo.pNext = NULL;
+        renderPassInfo.attachmentCount = 2;
+        renderPassInfo.pAttachments = attachments;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
+
+        VkRenderPass renderPass;
+        vkCreateRenderPass(ctx.device.handle, &renderPassInfo, NULL, &renderPass);
+        
+        return renderPass;
+    }
+}

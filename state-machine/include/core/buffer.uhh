@@ -1,0 +1,119 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include <uhcmath.uhh>
+
+/// Generic GPU buffer allocation and upload
+namespace UgBuffer {
+    /// GPU buffer with its backing device memory
+    struct It {
+        VkBuffer handle;
+        VkDeviceMemory memory;
+    };
+
+    /// Allocate a GPU buffer with the specified usage
+    /// @param size Size in bytes
+    /// @param usage Buffer usage flags
+    /// @returns Allocated buffer object
+    UgBuffer.It create(U32 size, VkBufferUsageFlagBits usage);
+    /// Upload data from CPU memory into a GPU buffer
+    /// @param buffer Destination buffer
+    /// @param data Pointer to source data
+    /// @param size Number of bytes to upload
+    U0 upload(UgBuffer.It& buffer, U0* data, U32 size);
+    /// Destroy a GPU buffer and free its device memory
+    /// @param buffer Buffer to destroy
+    U0 destroy(UgBuffer.It& buffer);
+}
+
+/// Framebuffer array tied to swapchain images
+namespace UgFrameBuffer {
+    /// Array of framebuffers covering all swapchain images
+    struct It {
+        VkFramebuffer* handles;
+        VkExtent2D extends;
+        U32 bufferCount;
+    };
+
+    /// Destroy all framebuffers in the array
+    /// @param framebuffers Framebuffer array to destroy
+    U0 destroy(UgFrameBuffer.It& framebuffers);
+    /// Create one framebuffer per swapchain image
+    /// @param swapchain Swapchain whose images the framebuffers wrap
+    /// @param renderPass Render pass the framebuffers are compatible with
+    /// @returns Initialized framebuffer array
+    UgFrameBuffer.It create();
+}
+
+/// Uniform buffer with descriptor set management
+namespace UgUniformBuffer {
+    /// Uniform buffer with its descriptor set and mapped CPU pointer
+    struct It {
+        UgBuffer.It buffer;
+        VkDescriptorSetLayout setLayout;
+        U0* mappedData;
+        U32 binding;
+        U32 size;
+        VkDescriptorSet descriptorSet;
+        U32 cursor;
+    };
+
+    /// Create a uniform buffer and allocate its descriptor set
+    /// @param binding Descriptor binding index
+    /// @param size Size of the uniform buffer in bytes
+    /// @returns Initialized uniform buffer
+    UgUniformBuffer.It create(U32 size);
+    /// Bind the uniform buffer's descriptor set to the command buffer
+    /// @param uniformBuffer Uniform buffer to bind
+    /// @param cmdBuffer Active command buffer
+    /// @param pipelineLayout Pipeline layout the descriptor set is compatible with
+    U0 bind(UgUniformBuffer.It& uniformBuffer, VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout);
+    /// Destroy the uniform buffer and release its descriptor set
+    /// @param uniformBuffer Uniform buffer to destroy
+    U0 destroy(UgUniformBuffer.It& uniformBuffer);
+    /// Reset the write cursor back to the beginning of the buffer
+    /// @param uniformBuffer Uniform buffer to reset
+    U0 reset(UgUniformBuffer.It& uniformBuffer);
+    /// Write a float value at the current cursor position
+    /// @param buffer Uniform buffer to write into
+    /// @param value Float value to write
+    U0 setFloat(UgUniformBuffer.It& buffer, F32 value);
+    /// Write a 2-component float vector at the current cursor position
+    /// @param buffer Uniform buffer to write into
+    /// @param vec Vector to write
+    U0 setVec2f(UgUniformBuffer.It& buffer, VectorF.It vec);
+    /// Write a 3-component float vector at the current cursor position
+    /// @param buffer Uniform buffer to write into
+    /// @param vec Vector to write
+    U0 setVec3f(UgUniformBuffer.It& buffer, VectorF.It vec);
+    /// Write a 4-component float vector at the current cursor position
+    /// @param buffer Uniform buffer to write into
+    /// @param vec Vector to write
+    U0 setVec4f(UgUniformBuffer.It& buffer, VectorF.It vec);
+    /// Write a 4×4 matrix at the current cursor position
+    /// @param buffer Uniform buffer to write into
+    /// @param mat Matrix to write
+    U0 setMat(UgUniformBuffer.It& buffer, Matrix.It mat);
+}
+
+/// Single-use and reusable command buffer wrapper
+namespace UgCommandBuffer {
+    /// Thin wrapper around a Vulkan command buffer handle
+    struct It {
+        VkCommandBuffer handle;
+    };
+
+    /// Begin recording commands into the command buffer
+    /// @param cmd Command buffer to begin
+    U0 begin(UgCommandBuffer.It& cmd);
+    /// End recording commands into the command buffer
+    /// @param cmd Command buffer to end
+    U0 end(UgCommandBuffer.It& cmd);
+    /// Free the command buffer
+    /// @param cmd Command buffer to destroy
+    U0 destroy(UgCommandBuffer.It& cmd);
+    /// Allocate a new command buffer from the context's command pool
+    /// @returns Allocated command buffer
+    UgCommandBuffer.It create();
+}

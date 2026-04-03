@@ -1,0 +1,62 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+
+#include "core/context.uhh"
+#include "core/shader.uhh"
+#include "core/buffer.uhh"
+#include "core/pipeline.uhh"
+#include "core/vertexdesc.uhh"
+
+/// Maximum number of render passes a material can cache pipelines for
+#define UG_MATERIAL_MAX_RENDER_PASSES 4
+/// Maximum number of textures a material can bind
+#define UG_MATERIAL_MAX_TEXTURES      4
+
+/// Per-render-pass pipeline cache entry
+namespace UgMaterialPipelineEntry {
+    /// Pair of render pass and the compiled pipeline for that pass
+    struct It {
+        VkRenderPass renderPass;
+        VkPipeline   pipeline;
+    };
+}
+
+/// Material combining shaders, vertex layout, and per-pass pipeline cache
+namespace UgMaterial {
+    /// Material with its pipeline layout, shader program, and cached pipelines
+    struct It {
+        VkPipelineLayout layout;
+        VkDescriptorSetLayout textureSetLayouts[UG_MATERIAL_MAX_TEXTURES];
+        UgShaderProgram.It shaderProgram;
+        UgVertexDesc.It    vertexDesc;
+        UgVertexSettings.It settings;
+        U32 textureCount;
+        UgMaterialPipelineEntry.It pipelineCache[UG_MATERIAL_MAX_RENDER_PASSES];
+        U32 pipelineCacheCount;
+        UgContext.It*   ctx;
+        UgSwapchain.It* swapchain;
+    };
+
+    /// Create a material from shaders, vertex layout, and texture count
+    /// @param vertSpv Path to the compiled vertex SPIR-V binary
+    /// @param fragSpv Path to the compiled fragment SPIR-V binary
+    /// @param desc Vertex attribute description
+    /// @param textureCount Number of texture slots the material exposes
+    /// @param ubo Uniform buffer whose descriptor set layout is included in the pipeline layout
+    /// @param settings Rasterizer and blending settings
+    /// @returns Initialized material object
+    UgMaterial.It create(const I8* vertSpv, const I8* fragSpv, UgVertexDesc.It& desc, U32 textureCount, UgUniformBuffer.It& ubo, const UgVertexSettings.It& settings);
+
+    /// Bind the material's pipeline and descriptor sets for a render pass
+    /// @param mat Material to bind
+    /// @param renderPass Active render pass (used to select or compile the pipeline)
+    /// @param cmd Active command buffer
+    /// @param ubo Uniform buffer to bind alongside the material
+    U0 bind(UgMaterial.It& mat, UgUniformBuffer.It& ubo);
+
+    /// Destroy the material and all cached pipelines
+    /// @param ctx Vulkan context
+    /// @param mat Material to destroy
+    U0 destroy(UgMaterial.It& mat);
+}
