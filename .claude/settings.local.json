@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(g++ -std=c++17 transpiler.cpp -o transpiler 2>&1)",
+      "Bash(grep -E \"\\\\.\\(md|mdx\\)$\")",
+      "Bash(grep -E \"\\\\.\\(uhh|h|cpp|c|py|js|ts|md|txt|def\\)$\")",
+      "Bash(find /c/Users/black/Documents/unholyc/graphics/src -name *.uhc -o -name *.cpp)",
+      "Bash(node docgen/index.js)",
+      "Bash(node docgen/index.js docgen/graphics-config.json)",
+      "Bash(g++ -std=c++17 -O2 -o transpiler.exe transpiler.cpp)",
+      "Bash(./transpiler.exe test_in test_out)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\black\\\\Documents\\\\unholyc\\\\test_in\" \"C:\\\\Users\\\\black\\\\Documents\\\\unholyc\\\\test_out\")",
+      "Bash(./transpiler.exe test_in test_out -v)",
+      "Bash(rm -rf test_in test_out)",
+      "Bash(mkdir -p test_in test_out)",
+      "Bash(cmd /c build-transpiller.bat)",
+      "Bash(cmd /c build-std.bat)",
+      "Bash(wc -l /c/Users/black/Documents/unholyc/uhcstd/std/*.uhc /c/Users/black/Documents/unholyc/uhcstd/math/*.uhc /c/Users/black/Documents/unholyc/uhcstd/io/*.uhc)",
+      "Bash(cmd /c build-all.bat)",
+      "Bash(cmd /c \"build-all.bat && echo BUILD_SUCCESS || echo BUILD_FAILED\")",
+      "Bash(cmd /c \"build-transpiler.bat\")",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(mkdir -p dist/bin)",
+      "Bash(c++ -std=c++17 -O2 -Wall -Wextra -Werror -o dist/bin/unholyc.exe transpiler.cpp)",
+      "Bash(./dist/bin/unholyc.exe uhcstd:*)",
+      "Bash(mkdir -p dist/lib)",
+      "Bash(llvm-ar rcs:*)",
+      "Bash(echo \"Archiver exit: $?\")",
+      "Bash(mkdir -p dist/include)",
+      "Bash(cp out_std/**/*.hh dist/include/)",
+      "Bash(mkdir:*)"
+    ]
+  }
+}

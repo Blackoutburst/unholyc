@@ -8,8 +8,8 @@ namespace UgShader {
     }
 
     VkShaderModule create(UgContext.It& ctx, const I8* filePath) {
-        FILE* file = File.open(filePath);
-        U32 codeSize = File.getSize(file);
+        File.It file = File.open(filePath);
+        U32 codeSize = file.size;
         U32* code = (U32*)File.read(file);
 
         VkShaderModuleCreateInfo createInfo;

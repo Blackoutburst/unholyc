@@ -5,5 +5,4 @@ cd "$(dirname "$0")"
 
 bash build-transpiler.sh
 bash build-std.sh
-#bash build-graphics.sh
-bash build-state-machine.sh
+bash build-graphics.sh
