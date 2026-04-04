@@ -6,83 +6,83 @@
 
 namespace DynamicLibrary {
 
-    static const DynamicLibrary.It invalidLibrary = {NULL, 0, 0};
+    static const DynamicLibrary invalidLibrary = {NULL, 0, 0}
 
 #if defined(_WIN32) || defined(_WIN64)
 
-    DynamicLibrary.It load(const I8* name) {
-        DynamicLibrary.It dll;
+    DynamicLibrary load(const I8* name) {
+        DynamicLibrary dll
 
-        dll.handle = LoadLibrary(name);
+        dll.handle = LoadLibrary(name)
         if (dll.handle == NULL) {
-            Log.warn("Couldn't load library");
-            return invalidLibrary;
+            Log.warn("Couldn't load library")
+            return invalidLibrary
         }
 
-        dll.name = strdup(name);
-        dll.isValid = 1;
+        dll.name = strdup(name)
+        dll.isValid = 1
 
-        return dll;
+        return dll
     }
 
-    U0* get(DynamicLibrary.It& dll, const I8* functionName) {
-        U0* func = (U0*)(GetProcAddress(dll.handle, functionName));
+    U0* get(DynamicLibrary dll, const I8* functionName) {
+        U0* func = (U0*)(GetProcAddress(dll.handle, functionName))
 
         if (func == NULL) {
-            Log.warn("Loading function %s", functionName);
+            Log.warn("Loading function %s", functionName)
         }
 
-        return func;
+        return func
     }
 
-    U0 unload(DynamicLibrary.It& dll) {
-        I32 r = FreeLibrary(dll.handle);
+    U0 unload(DynamicLibrary dll) {
+        I32 r = FreeLibrary(dll.handle)
 
-        dll.isValid = 0;
+        dll.isValid = 0
 
         if (r == 0) {
-            Log.warn("Failed freeing library");
+            Log.warn("Failed freeing library")
         }
 
-        free(dll.name);
+        free(dll.name)
     }
 
 #else
 
-    DynamicLibrary.It load(const I8* name) {
-        DynamicLibrary.It dll;
+    DynamicLibrary load(const I8* name) {
+        DynamicLibrary dll
 
-        dll.handle = dlopen(name, RTLD_LAZY);
+        dll.handle = dlopen(name, RTLD_LAZY)
         if (dll.handle == NULL) {
-            Log.warn("Couldn't load library");
-            return invalidLibrary;
+            Log.warn("Couldn't load library")
+            return invalidLibrary
         }
 
-        dll.name = strdup(name);
-        dll.isValid = 1;
+        dll.name = strdup(name)
+        dll.isValid = 1
 
-        return dll;
+        return dll
 
     }
 
-    U0* get(DynamicLibrary.It& lib, const I8* functionName) {
-        U0* func = dlsym(lib.handle, functionName);
+    U0* get(DynamicLibrary lib, const I8* functionName) {
+        U0* func = dlsym(lib.handle, functionName)
 
         if (func == NULL) {
-            Log.warn("Loading function %s", functionName);
+            Log.warn("Loading function %s", functionName)
         }
 
-        return func;
+        return func
     }
 
-    U0 unload(DynamicLibrary.It& dll) {
+    U0 unload(DynamicLibrary dll) {
         if (dll.handle != NULL) {
-            dlclose(dll.handle);
+            dlclose(dll.handle)
         }
 
-        dll.isValid = 0;
+        dll.isValid = 0
 
-        free(dll.name);
+        free(dll.name)
     }
 
 #endif

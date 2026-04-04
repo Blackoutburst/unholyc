@@ -208,6 +208,182 @@ static const std::unordered_set<std::string> CONTROL_FLOW_KW = {
     "if", "for", "while", "do", "switch", "else"
 };
 
+// Keywords that suppress implicit semicolon insertion after themselves or their closing paren
+static const std::unordered_set<std::string> NO_SEMI_KW = {
+    "if","else","while","for","do","switch",
+    "namespace","struct","class","enum","union","template"
+};
+
+// Keywords/tokens that begin a new statement — used to inject ; between two statements
+// on the same line (e.g. `union { U32 i F32 f }`)
+static const std::unordered_set<std::string> STMT_START_KW = {
+    // UnholyC type keywords
+    "U0","U8","U16","U32","U64","I8","I16","I32","I64","F32","F64","F128",
+    // C/C++ type and storage keywords that can appear in UnholyC source
+    "auto","const","static","volatile","unsigned","signed",
+    "int","short","long","char","float","double","void",
+    "struct","union","enum","class","typedef",
+    // Statement-starting flow keywords
+    "return","break","continue","goto",
+};
+
+static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tokens) {
+    std::vector<Token> out;
+    out.reserve(tokens.size() + 64);
+
+    int  lastReal        = -1;
+    bool lastRParenWasCF = false;
+    int  parenDepth      = 0;
+    std::vector<bool> cfParenStack;
+    // true = initializer list  {}; false = code block {}
+    std::vector<bool> initBraceStack;
+
+    // Keywords after which '{' introduces an initializer, not a code block
+    static const std::unordered_set<std::string> initBraceKw = { "return", "throw" };
+
+    auto isWS = [](const Token& t) -> bool {
+        if (t.type != TK::OTHER || t.value.empty()) return false;
+        for (char c : t.value)
+            if (!std::isspace((unsigned char)c)) return false;
+        return true;
+    };
+
+    // First non-WS, non-comment token at or after index start in the ORIGINAL token array
+    auto firstRealAfter = [&](size_t start) -> const Token* {
+        for (size_t k = start; k < tokens.size(); k++) {
+            const Token& t = tokens[k];
+            if (t.type == TK::END) break;
+            if (isWS(t) || t.type == TK::LINE_COMMENT || t.type == TK::BLOCK_COMMENT)
+                continue;
+            return &t;
+        }
+        return nullptr;
+    };
+
+    auto qualifies = [&](int idx) -> bool {
+        if (idx < 0) return false;
+        // Never inject inside parentheses (multi-line function args, casts, etc.)
+        if (parenDepth > 0) return false;
+        // Never inject inside an initializer-list brace
+        if (!initBraceStack.empty() && initBraceStack.back()) return false;
+        const Token& t = out[idx];
+        switch (t.type) {
+            case TK::NUMBER: case TK::STRING: case TK::CHAR_LIT: case TK::RBRACE:
+                return true;
+            case TK::RPAREN:
+                return !lastRParenWasCF;
+            case TK::IDENT:
+                return !NO_SEMI_KW.count(t.value);
+            default:
+                // Array subscript closer ] also ends a statement
+                return t.type == TK::OTHER && t.value == "]";
+        }
+    };
+
+    for (size_t ti = 0; ti < tokens.size(); ti++) {
+        const Token& tok = tokens[ti];
+        const bool ws     = isWS(tok);
+        const bool hasNL  = ws && tok.value.find('\n') != std::string::npos;
+        const bool isCmt  = tok.type == TK::LINE_COMMENT || tok.type == TK::BLOCK_COMMENT;
+        const bool isPrep = tok.type == TK::PREPROCESSOR;
+        const bool isEnd  = tok.type == TK::END;
+
+        // Inject semicolon before a line break if the last real token qualifies
+        if (hasNL && qualifies(lastReal)) {
+            // Lookahead: skip injection if next real token starts a continuation
+            // (ternary ? / :, and similar line-continuation operators)
+            const Token* next = firstRealAfter(ti + 1);
+            bool isContinuation = next && next->type == TK::OTHER &&
+                (next->value == "?" || next->value == ":");
+            if (!isContinuation)
+                out.push_back({ TK::SEMICOLON, ";", out[lastReal].line });
+        }
+
+        // Inject ; before a code-block closing brace for the last in-line statement
+        // e.g. `{ ...; va_end(a) }` → `{ ...; va_end(a); }`
+        if (tok.type == TK::RBRACE &&
+            !initBraceStack.empty() && !initBraceStack.back() &&
+            qualifies(lastReal))
+            out.push_back({ TK::SEMICOLON, ";", out[lastReal].line });
+
+        // Inject ; before a TYPE keyword that starts a new statement on the same line
+        // e.g. `union { U32 i F32 f }` → `union { U32 i; F32 f }`
+        // Only inject when the previous real token genuinely ends a statement — NOT
+        // when it is itself a type/storage qualifier (static, const, typedef, etc.).
+        if (!ws && !isCmt && !isPrep && !isEnd &&
+            tok.type == TK::IDENT && STMT_START_KW.count(tok.value) &&
+            parenDepth == 0 &&
+            (initBraceStack.empty() || !initBraceStack.back()) &&
+            lastReal >= 0) {
+            const Token& prev = out[lastReal];
+            bool prevEndsStmt =
+                prev.type == TK::NUMBER ||
+                prev.type == TK::STRING ||
+                prev.type == TK::CHAR_LIT ||
+                prev.type == TK::RBRACE ||
+                (prev.type == TK::OTHER && prev.value == "]") ||
+                (prev.type == TK::RPAREN && !lastRParenWasCF) ||
+                (prev.type == TK::IDENT &&
+                 !STMT_START_KW.count(prev.value) &&
+                 !NO_SEMI_KW.count(prev.value));
+            if (prevEndsStmt)
+                out.push_back({ TK::SEMICOLON, ";", tok.line });
+        }
+
+        // Track paren depth and control-flow parens
+        if (tok.type == TK::LPAREN) {
+            parenDepth++;
+            bool cf = lastReal >= 0 && out[lastReal].type == TK::IDENT &&
+                      CONTROL_FLOW_KW.count(out[lastReal].value);
+            cfParenStack.push_back(cf);
+        } else if (tok.type == TK::RPAREN) {
+            if (parenDepth > 0) parenDepth--;
+            if (!cfParenStack.empty()) {
+                lastRParenWasCF = cfParenStack.back();
+                cfParenStack.pop_back();
+            } else {
+                lastRParenWasCF = false;
+            }
+        }
+
+        // Track whether each brace level is an initializer list or a code block.
+        // Rule: code block if preceded by IDENT (non-return/throw), RPAREN, or RBRACE;
+        //       initializer list otherwise (preceded by =, ,, [, etc. or return/throw).
+        if (tok.type == TK::LBRACE) {
+            bool isInit = false;
+            if (lastReal >= 0) {
+                const Token& prev = out[lastReal];
+                if (prev.type == TK::IDENT)
+                    isInit = initBraceKw.count(prev.value) > 0;
+                else if (prev.type == TK::RPAREN || prev.type == TK::RBRACE)
+                    isInit = false;
+                else
+                    isInit = true; // OTHER (=, ,, [, etc.), LBRACE, LPAREN, ...
+            }
+            initBraceStack.push_back(isInit);
+        } else if (tok.type == TK::RBRACE) {
+            if (!initBraceStack.empty()) initBraceStack.pop_back();
+        }
+
+        out.push_back(tok);
+
+        // Update lastReal for meaningful tokens
+        if (!ws && !isCmt && !isPrep && !isEnd) {
+            lastReal = (int)out.size() - 1;
+            if (tok.type != TK::RPAREN)
+                lastRParenWasCF = false;
+        }
+
+        // Reset line context after a line boundary
+        if (hasNL || isPrep || (isCmt && tok.value.find('\n') != std::string::npos)) {
+            lastReal        = -1;
+            lastRParenWasCF = false;
+        }
+    }
+
+    return out;
+}
+
 std::unordered_set<std::string> collectNamespaces(const std::vector<Token>& tokens) {
     std::unordered_set<std::string> ns;
 
@@ -609,12 +785,29 @@ class Transpiler {
             if (tok.type == TK::IDENT) {
                 const std::string& v = tok.value;
 
+                if (v == "self") {
+                    buf << "struct It"; i++; continue;
+                }
+
                 auto typeIt = TYPE_MAP.find(v);
                 if (typeIt != TYPE_MAP.end()) {
                     buf << typeIt->second; i++; continue;
                 }
 
                 if (namespaces.count(v)) {
+                    // Helper: was the previous meaningful token the given keyword?
+                    auto prevMeaningfulIs = [&](size_t idx, const std::string& kw) -> bool {
+                        size_t j = idx;
+                        while (j > 0) {
+                            j--;
+                            const Token& t = toks[j];
+                            if (t.type == TK::OTHER || t.type == TK::LINE_COMMENT ||
+                                t.type == TK::BLOCK_COMMENT) continue;
+                            return t.type == TK::IDENT && t.value == kw;
+                        }
+                        return false;
+                    };
+
                     size_t j = nextNonWSLocal(i + 1);
                     if (j < toks.size() && toks[j].type == TK::DOT) {
                         size_t k = nextNonWSLocal(j + 1);
@@ -643,6 +836,14 @@ class Transpiler {
                             }
                             continue;
                         }
+                    } else if (!prevMeaningfulIs(i, "namespace")) {
+                        // If followed by ::, user wrote explicit scope — pass through as-is
+                        size_t nextCheck = nextNonWSLocal(i + 1);
+                        if (nextCheck < toks.size() && toks[nextCheck].type == TK::SCOPE) {
+                            buf << v; i++; continue;
+                        }
+                        // Standalone namespace name → expand to Namespace::It
+                        buf << v << "::It"; i++; continue;
                     }
                 }
 
@@ -999,6 +1200,10 @@ public:
                     }
                 }
 
+                if (v == "self") {
+                    out << "struct It"; i++; continue;
+                }
+
                 if (v == "lambda" && parenDepth > 0) {
                     std::string callee = paramListCallee;
                     if (callee.empty() && !callStack.empty()) {
@@ -1112,6 +1317,18 @@ public:
                 }
 
                 if (namespaces.count(v)) {
+                    auto prevMeaningfulIs = [&](size_t idx, const std::string& kw) -> bool {
+                        size_t j = idx;
+                        while (j > 0) {
+                            j--;
+                            const Token& t = tokens[j];
+                            if (t.type == TK::OTHER || t.type == TK::LINE_COMMENT ||
+                                t.type == TK::BLOCK_COMMENT) continue;
+                            return t.type == TK::IDENT && t.value == kw;
+                        }
+                        return false;
+                    };
+
                     size_t j = nextNonWS(i + 1);
                     if (j < tokens.size() && tokens[j].type == TK::DOT) {
                         size_t k = nextNonWS(j + 1);
@@ -1141,6 +1358,53 @@ public:
                             lastIdentAtDepth0.clear();
                             continue;
                         }
+                    } else if (!prevMeaningfulIs(i, "namespace")) {
+                        // If followed by ::, user wrote explicit scope — pass through as-is
+                        {
+                            size_t nextCheck = nextNonWS(i + 1);
+                            if (nextCheck < tokens.size() && tokens[nextCheck].type == TK::SCOPE) {
+                                out << v; i++; continue;
+                            }
+                        }
+                        // Standalone namespace name → expand to Namespace::It
+                        out << v << "::It";
+                        i++; // consume namespace name token
+
+                        // In a function definition's parameter list, automatically add &
+                        // unless the user explicitly wrote * (pointer) or & (reference).
+                        // Template args like List<T> must be emitted before the &.
+                        if (parenDepth > 0 && !inFunctionBody) {
+                            size_t ni = nextNonWS(i);
+                            if (ni < tokens.size() && tokens[ni].value == "<") {
+                                // Emit whitespace up to and including '<'
+                                for (size_t w = i; w <= ni; w++) out << tokens[w].value;
+                                i = ni + 1;
+                                // Emit the full template argument list, tracking < > depth.
+                                // Expand namespace names inside <...> to Namespace::It.
+                                int depth = 1;
+                                while (i < tokens.size() && depth > 0) {
+                                    const std::string& cv = tokens[i].value;
+                                    if (cv == "<") { depth++; out << cv; i++; }
+                                    else if (cv == ">") { depth--; out << cv; i++; }
+                                    else if (tokens[i].type == TK::IDENT && namespaces.count(cv)) {
+                                        out << cv << "::It"; i++;
+                                    } else {
+                                        out << cv; i++;
+                                    }
+                                }
+                                // After <T...>, check for explicit * or &
+                                size_t ni2 = nextNonWS(i);
+                                if (ni2 >= tokens.size() ||
+                                    (tokens[ni2].value != "*" && tokens[ni2].value != "&"))
+                                    out << "&";
+                            } else if (ni < tokens.size() &&
+                                       tokens[ni].value != "*" && tokens[ni].value != "&") {
+                                out << "&";
+                            }
+                        }
+
+                        lastIdentAtDepth0.clear();
+                        continue; // i already advanced above
                     }
                 }
 
@@ -1197,7 +1461,8 @@ public:
 };
 
 std::string transpile(const std::vector<Token>& tokens, const std::unordered_set<std::string>& namespaces) {
-    return Transpiler(tokens, namespaces).run();
+    auto processed = injectImplicitSemicolons(tokens);
+    return Transpiler(processed, namespaces).run();
 }
 
 static std::string readFile(const std::string& path) {
@@ -1223,10 +1488,13 @@ static fs::path relativeOutputPath(const fs::path& file, const fs::path& inRoot,
 int main(int argc, char* argv[]) {
     std::vector<fs::path> includeDirs;
     std::vector<std::string> positional;
+    bool verbose = false;
 
     for (int a = 1; a < argc; a++) {
         std::string arg = argv[a];
-        if (arg.size() >= 2 && arg[0] == '-' && arg[1] == 'I') {
+        if (arg == "-v") {
+            verbose = true;
+        } else if (arg.size() >= 2 && arg[0] == '-' && arg[1] == 'I') {
             fs::path dir = arg.substr(2);
             if (!fs::is_directory(dir)) {
                 std::cerr << "Warning: -I path is not a directory: " << dir << "\n";
@@ -1291,10 +1559,10 @@ int main(int argc, char* argv[]) {
             auto tokens = Lexer(src).tokenize();
             auto output = transpile(tokens, globalNS);
             writeFile(outPath.string(), output);
-            std::cout << entry.path().string() << "  ->  " << outPath.string() << "\n";
+            if (verbose) std::cout << entry.path().string() << "  ->  " << outPath.string() << "\n";
         } else {
             fs::copy_file(entry.path(), outPath, fs::copy_options::overwrite_existing);
-            std::cout << entry.path().string() << "  ->  " << outPath.string() << " (copied)\n";
+            if (verbose) std::cout << entry.path().string() << "  ->  " << outPath.string() << " (copied)\n";
         }
     }
 

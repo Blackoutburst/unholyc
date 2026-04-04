@@ -1,85 +1,85 @@
 #include "uhcstd.uhh"
 
 namespace Buffer {
-    U0 setOrder(Buffer.It& buffer, U8 order) {
-        buffer.order = order;
+    U0 setOrder(Buffer buffer, U8 order) {
+        buffer.order = order
     }
 
-    U0 reset(Buffer.It& buffer) {
-        buffer.cursor = 0;
+    U0 reset(Buffer buffer) {
+        buffer.cursor = 0
     }
 
-    I8 getI8(Buffer.It& buffer) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 1;
-        return (I8)*p;
+    I8 getI8(Buffer buffer) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 1
+        return (I8)*p
     }
 
-    U8 getU8(Buffer.It& buffer) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 1;
-        return *p;
+    U8 getU8(Buffer buffer) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 1
+        return *p
     }
 
-    I16 getI16(Buffer.It& buffer) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 2;
+    I16 getI16(Buffer buffer) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 2
         if (buffer.order == UHC_LITTLE_ENDIAN)
-            return (I16)(p[0] | (p[1] << 8));
+            return (I16)(p[0] | (p[1] << 8))
         else
-            return (I16)((p[0] << 8) | p[1]);
+            return (I16)((p[0] << 8) | p[1])
     }
 
-    U16 getU16(Buffer.It& buffer) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 2;
+    U16 getU16(Buffer buffer) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 2
         if (buffer.order == UHC_LITTLE_ENDIAN)
-            return (U16)(p[0] | (p[1] << 8));
+            return (U16)(p[0] | (p[1] << 8))
         else
-            return (U16)((p[0] << 8) | p[1]);
+            return (U16)((p[0] << 8) | p[1])
     }
 
-    I32 getI32(Buffer.It& buffer) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 4;
+    I32 getI32(Buffer buffer) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 4
         if (buffer.order == UHC_LITTLE_ENDIAN)
             return (I32)(
                 ( p[0]          ) |
                 ( p[1] <<  8    ) |
                 ( p[2] << 16    ) |
                 ((I32)p[3] << 24)
-            );
+            )
         else
             return (I32)(
                 ((I32)p[0] << 24) |
                 ( p[1] << 16    ) |
                 ( p[2] <<  8    ) |
                 ( p[3]          )
-            );
+            )
     }
 
-    U32 getU32(Buffer.It& buffer) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 4;
+    U32 getU32(Buffer buffer) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 4
         if (buffer.order == UHC_LITTLE_ENDIAN)
             return (U32)(
                 ( p[0]          ) |
                 ( p[1] <<  8    ) |
                 ( p[2] << 16    ) |
                 ((U32)p[3] << 24)
-            );
+            )
         else
             return (U32)(
                 ((U32)p[0] << 24) |
                 ( p[1] << 16    ) |
                 ( p[2] <<  8    ) |
                 ( p[3]          )
-            );
+            )
     }
 
-    I64 getI64(Buffer.It& buffer) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 8;
+    I64 getI64(Buffer buffer) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 8
         if (buffer.order == UHC_LITTLE_ENDIAN)
             return (I64)(
                 ((I64)p[0]      ) |
@@ -90,7 +90,7 @@ namespace Buffer {
                 ((I64)p[5] << 40) |
                 ((I64)p[6] << 48) |
                 ((I64)p[7] << 56)
-            );
+            )
         else
             return (I64)(
                 ((I64)p[0] << 56) |
@@ -101,12 +101,12 @@ namespace Buffer {
                 ((I64)p[5] << 16) |
                 ((I64)p[6] <<  8) |
                 ((I64)p[7]      )
-            );
+            )
     }
 
-    U64 getU64(Buffer.It& buffer) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 8;
+    U64 getU64(Buffer buffer) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 8
         if (buffer.order == UHC_LITTLE_ENDIAN)
             return (U64)(
                 ((U64)p[0]      ) |
@@ -117,7 +117,7 @@ namespace Buffer {
                 ((U64)p[5] << 40) |
                 ((U64)p[6] << 48) |
                 ((U64)p[7] << 56)
-            );
+            )
         else
             return (U64)(
                 ((U64)p[0] << 56) |
@@ -128,146 +128,146 @@ namespace Buffer {
                 ((U64)p[5] << 16) |
                 ((U64)p[6] <<  8) |
                 ((U64)p[7]      )
-            );
+            )
     }
 
-    F32 getF32(Buffer.It& buffer) {
-        union { U32 i; F32 f; } u;
-        u.i = getU32(buffer);
-        return u.f;
+    F32 getF32(Buffer buffer) {
+        union { U32 i; F32 f } u
+        u.i = getU32(buffer)
+        return u.f
     }
 
-    F64 getF64(Buffer.It& buffer) {
-        union { U64 i; F64 f; } u;
-        u.i = getU64(buffer);
-        return u.f;
+    F64 getF64(Buffer buffer) {
+        union { U64 i; F64 f } u
+        u.i = getU64(buffer)
+        return u.f
     }
 
-    U0 putI8(Buffer.It& buffer, I8 value) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 1;
-        p[0] = (U8)value;
+    U0 putI8(Buffer buffer, I8 value) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 1
+        p[0] = (U8)value
     }
 
-    U0 putU8(Buffer.It& buffer, U8 value) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 1;
-        p[0] = value;
+    U0 putU8(Buffer buffer, U8 value) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 1
+        p[0] = value
     }
 
-    U0 putI16(Buffer.It& buffer, I16 value) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 2;
+    U0 putI16(Buffer buffer, I16 value) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 2
         if (buffer.order == UHC_LITTLE_ENDIAN) {
-            p[0] =  value       & 0xFF;
-            p[1] = (value >> 8) & 0xFF;
+            p[0] =  value       & 0xFF
+            p[1] = (value >> 8) & 0xFF
         } else {
-            p[0] = (value >> 8) & 0xFF;
-            p[1] =  value       & 0xFF;
+            p[0] = (value >> 8) & 0xFF
+            p[1] =  value       & 0xFF
         }
     }
 
-    U0 putU16(Buffer.It& buffer, U16 value) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 2;
+    U0 putU16(Buffer buffer, U16 value) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 2
         if (buffer.order == UHC_LITTLE_ENDIAN) {
-            p[0] =  value       & 0xFF;
-            p[1] = (value >> 8) & 0xFF;
+            p[0] =  value       & 0xFF
+            p[1] = (value >> 8) & 0xFF
         } else {
-            p[0] = (value >> 8) & 0xFF;
-            p[1] =  value       & 0xFF;
+            p[0] = (value >> 8) & 0xFF
+            p[1] =  value       & 0xFF
         }
     }
 
-    U0 putI32(Buffer.It& buffer, I32 value) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 4;
+    U0 putI32(Buffer buffer, I32 value) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 4
         if (buffer.order == UHC_LITTLE_ENDIAN) {
-            p[0] =  value        & 0xFF;
-            p[1] = (value >>  8) & 0xFF;
-            p[2] = (value >> 16) & 0xFF;
-            p[3] = (value >> 24) & 0xFF;
+            p[0] =  value        & 0xFF
+            p[1] = (value >>  8) & 0xFF
+            p[2] = (value >> 16) & 0xFF
+            p[3] = (value >> 24) & 0xFF
         } else {
-            p[0] = (value >> 24) & 0xFF;
-            p[1] = (value >> 16) & 0xFF;
-            p[2] = (value >>  8) & 0xFF;
-            p[3] =  value        & 0xFF;
+            p[0] = (value >> 24) & 0xFF
+            p[1] = (value >> 16) & 0xFF
+            p[2] = (value >>  8) & 0xFF
+            p[3] =  value        & 0xFF
         }
     }
 
-    U0 putU32(Buffer.It& buffer, U32 value) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 4;
+    U0 putU32(Buffer buffer, U32 value) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 4
         if (buffer.order == UHC_LITTLE_ENDIAN) {
-            p[0] =  value        & 0xFF;
-            p[1] = (value >>  8) & 0xFF;
-            p[2] = (value >> 16) & 0xFF;
-            p[3] = (value >> 24) & 0xFF;
+            p[0] =  value        & 0xFF
+            p[1] = (value >>  8) & 0xFF
+            p[2] = (value >> 16) & 0xFF
+            p[3] = (value >> 24) & 0xFF
         } else {
-            p[0] = (value >> 24) & 0xFF;
-            p[1] = (value >> 16) & 0xFF;
-            p[2] = (value >>  8) & 0xFF;
-            p[3] =  value        & 0xFF;
+            p[0] = (value >> 24) & 0xFF
+            p[1] = (value >> 16) & 0xFF
+            p[2] = (value >>  8) & 0xFF
+            p[3] =  value        & 0xFF
         }
     }
 
-    U0 putI64(Buffer.It& buffer, I64 value) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 8;
+    U0 putI64(Buffer buffer, I64 value) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 8
         if (buffer.order == UHC_LITTLE_ENDIAN) {
-            p[0] =  value        & 0xFF;
-            p[1] = (value >>  8) & 0xFF;
-            p[2] = (value >> 16) & 0xFF;
-            p[3] = (value >> 24) & 0xFF;
-            p[4] = (value >> 32) & 0xFF;
-            p[5] = (value >> 40) & 0xFF;
-            p[6] = (value >> 48) & 0xFF;
-            p[7] = (value >> 56) & 0xFF;
+            p[0] =  value        & 0xFF
+            p[1] = (value >>  8) & 0xFF
+            p[2] = (value >> 16) & 0xFF
+            p[3] = (value >> 24) & 0xFF
+            p[4] = (value >> 32) & 0xFF
+            p[5] = (value >> 40) & 0xFF
+            p[6] = (value >> 48) & 0xFF
+            p[7] = (value >> 56) & 0xFF
         } else {
-            p[0] = (value >> 56) & 0xFF;
-            p[1] = (value >> 48) & 0xFF;
-            p[2] = (value >> 40) & 0xFF;
-            p[3] = (value >> 32) & 0xFF;
-            p[4] = (value >> 24) & 0xFF;
-            p[5] = (value >> 16) & 0xFF;
-            p[6] = (value >>  8) & 0xFF;
-            p[7] =  value        & 0xFF;
+            p[0] = (value >> 56) & 0xFF
+            p[1] = (value >> 48) & 0xFF
+            p[2] = (value >> 40) & 0xFF
+            p[3] = (value >> 32) & 0xFF
+            p[4] = (value >> 24) & 0xFF
+            p[5] = (value >> 16) & 0xFF
+            p[6] = (value >>  8) & 0xFF
+            p[7] =  value        & 0xFF
         }
     }
 
-    U0 putU64(Buffer.It& buffer, U64 value) {
-        U8* p = (U8*)buffer.handle + buffer.cursor;
-        buffer.cursor += 8;
+    U0 putU64(Buffer buffer, U64 value) {
+        U8* p = (U8*)buffer.handle + buffer.cursor
+        buffer.cursor += 8
         if (buffer.order == UHC_LITTLE_ENDIAN) {
-            p[0] =  value        & 0xFF;
-            p[1] = (value >>  8) & 0xFF;
-            p[2] = (value >> 16) & 0xFF;
-            p[3] = (value >> 24) & 0xFF;
-            p[4] = (value >> 32) & 0xFF;
-            p[5] = (value >> 40) & 0xFF;
-            p[6] = (value >> 48) & 0xFF;
-            p[7] = (value >> 56) & 0xFF;
+            p[0] =  value        & 0xFF
+            p[1] = (value >>  8) & 0xFF
+            p[2] = (value >> 16) & 0xFF
+            p[3] = (value >> 24) & 0xFF
+            p[4] = (value >> 32) & 0xFF
+            p[5] = (value >> 40) & 0xFF
+            p[6] = (value >> 48) & 0xFF
+            p[7] = (value >> 56) & 0xFF
         } else {
-            p[0] = (value >> 56) & 0xFF;
-            p[1] = (value >> 48) & 0xFF;
-            p[2] = (value >> 40) & 0xFF;
-            p[3] = (value >> 32) & 0xFF;
-            p[4] = (value >> 24) & 0xFF;
-            p[5] = (value >> 16) & 0xFF;
-            p[6] = (value >>  8) & 0xFF;
-            p[7] =  value        & 0xFF;
+            p[0] = (value >> 56) & 0xFF
+            p[1] = (value >> 48) & 0xFF
+            p[2] = (value >> 40) & 0xFF
+            p[3] = (value >> 32) & 0xFF
+            p[4] = (value >> 24) & 0xFF
+            p[5] = (value >> 16) & 0xFF
+            p[6] = (value >>  8) & 0xFF
+            p[7] =  value        & 0xFF
         }
     }
 
-    U0 putF32(Buffer.It& buffer, F32 value) {
-        union { F32 f; U32 u; } u;
-        u.f = value;
-        putU32(buffer, u.u);
+    U0 putF32(Buffer buffer, F32 value) {
+        union { F32 f; U32 u } u
+        u.f = value
+        putU32(buffer, u.u)
     }
 
-    U0 putF64(Buffer.It& buffer, F64 value) {
-        union { F64 f; U64 u; } u;
-        u.f = value;
-        putU64(buffer, u.u);
+    U0 putF64(Buffer buffer, F64 value) {
+        union { F64 f; U64 u } u
+        u.f = value
+        putU64(buffer, u.u)
     }
 }

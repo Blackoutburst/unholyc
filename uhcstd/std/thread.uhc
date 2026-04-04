@@ -5,51 +5,51 @@
 namespace Thread {
 #if defined(_WIN32) || defined(_WIN64)
     struct _Args {
-        Thread.Fn fn;
-        void* arg;
-    };
+        Thread.Fn fn
+        void* arg
+    }
 
     DWORD WINAPI _wrapper(LPVOID param) {
-        _Args* args = (_Args*)param;
-        Thread.Fn fn = args->fn;
-        void* arg = args->arg;
-        free(args);
-        fn(arg);
-        return 0;
+        _Args* args = (_Args*)param
+        Thread.Fn fn = args->fn
+        void* arg = args->arg
+        free(args)
+        fn(arg)
+        return 0
     }
 
-    Thread.It start(Thread.Fn method, void* arg) {
-        Thread.It thread;
-        _Args* args = (_Args*)malloc(sizeof(_Args));
+    Thread start(Thread.Fn method, void* arg) {
+        Thread thread
+        _Args* args = (_Args*)malloc(sizeof(_Args))
         if (!args) {
-            Log.warn("Thread allocation failed");
-            return thread;
+            Log.warn("Thread allocation failed")
+            return thread
         }
-        args->fn  = method;
-        args->arg = arg;
-        thread.handle = CreateThread(NULL, 0, _wrapper, args, 0, NULL);
+        args->fn  = method
+        args->arg = arg
+        thread.handle = CreateThread(NULL, 0, _wrapper, args, 0, NULL)
         if (thread.handle == NULL) {
-            free(args);
-            Log.warn("Thread creation failed");
+            free(args)
+            Log.warn("Thread creation failed")
         }
-        return thread;
+        return thread
     }
 
-    U0 join(Thread.It& thread) {
-        WaitForSingleObject(thread.handle, INFINITE);
+    U0 join(Thread thread) {
+        WaitForSingleObject(thread.handle, INFINITE)
     }
 #else
-    Thread.It start(Thread.Fn method, void* arg) {
-        Thread.It thread;
+    Thread start(Thread.Fn method, void* arg) {
+        Thread thread
         if (pthread_create(&thread.handle, NULL, method, arg)) {
-            Log.warn("Thread creation failed");
-            return thread;
+            Log.warn("Thread creation failed")
+            return thread
         }
-        return thread;
+        return thread
     }
 
-    U0 join(Thread.It& thread) {
-        pthread_join(thread.handle, 0);
+    U0 join(Thread thread) {
+        pthread_join(thread.handle, 0)
     }
 #endif
 }

@@ -41,7 +41,7 @@ namespace UgRenderer {
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.pNext = NULL;
         submitInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = &renderer.swapchain.rSemaphore[renderer.swapchain.imageIndex].handle; 
+        submitInfo.pWaitSemaphores = &renderer.swapchain.rSemaphore[renderer.swapchain.imageIndex].handle; 
         submitInfo.pWaitDstStageMask = &waitStage;
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &cmd.handle;

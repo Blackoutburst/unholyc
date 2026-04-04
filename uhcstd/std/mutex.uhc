@@ -2,42 +2,42 @@
 
 namespace Mutex {
 #if defined(_WIN32) || defined(_WIN64)
-    Mutex.It create() {
-        Mutex.It mutex;
-        InitializeCriticalSection(&mutex.handle);
+    Mutex create() {
+        Mutex mutex
+        InitializeCriticalSection(&mutex.handle)
 
-        return mutex;
+        return mutex
     }
 
-    U0 destroy(Mutex.It& mutex) {
-        DeleteCriticalSection(&mutex.handle);
+    U0 destroy(Mutex mutex) {
+        DeleteCriticalSection(&mutex.handle)
     }
 
-    U0 lock(Mutex.It& mutex) {
-        EnterCriticalSection(&mutex.handle);
+    U0 lock(Mutex mutex) {
+        EnterCriticalSection(&mutex.handle)
     }
 
-    U0 unlock(Mutex.It& mutex) {
-        LeaveCriticalSection(&mutex.handle);
+    U0 unlock(Mutex mutex) {
+        LeaveCriticalSection(&mutex.handle)
     }
 #else
-    Mutex.It create() {
-        Mutex.It mutex;
-        pthread_mutex_init(&mutex.handle, NULL);
+    Mutex create() {
+        Mutex mutex
+        pthread_mutex_init(&mutex.handle, NULL)
         
-        return mutex;
+        return mutex
     }
 
-    U0 destroy(Mutex.It& mutex) {
-        pthread_mutex_destroy(&mutex.handle);
+    U0 destroy(Mutex mutex) {
+        pthread_mutex_destroy(&mutex.handle)
     }
 
-    U0 lock(Mutex.It& mutex) {
-        pthread_mutex_lock(&mutex.handle);
+    U0 lock(Mutex mutex) {
+        pthread_mutex_lock(&mutex.handle)
     }
 
-    U0 unlock(Mutex.It& mutex) {
-        pthread_mutex_unlock(&mutex.handle);
+    U0 unlock(Mutex mutex) {
+        pthread_mutex_unlock(&mutex.handle)
     }
 #endif
 }

@@ -3,144 +3,144 @@
 
 namespace TcpClient {
 #if defined(_WIN32) || defined(_WIN64)
-    TcpClient.It create(I8* ip, I16 port) {
-        TcpClient.It client;
+    TcpClient create(I8* ip, I16 port) {
+        TcpClient client
         
-        struct sockaddr_in server_addr;
+        struct sockaddr_in server_addr
 
-        WSADATA wsaData;
-        I32 result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        WSADATA wsaData
+        I32 result = WSAStartup(MAKEWORD(2, 2), &wsaData)
         if (result != 0) {
-            Log.warn("WSA startup failed");
-            return client;
+            Log.warn("WSA startup failed")
+            return client
         }
 
-        client.sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        client.sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
         if (client.sockfd == INVALID_SOCKET) {
-            Log.warn("Socket creation failed, error code: %d", WSAGetLastError());
-            WSACleanup();
-            return client;
+            Log.warn("Socket creation failed, error code: %d", WSAGetLastError())
+            WSACleanup()
+            return client
         }
 
-        memset(&server_addr, 0, sizeof(server_addr));
-        server_addr.sin_family      = AF_INET;
-        server_addr.sin_port        = htons(port);
+        memset(&server_addr, 0, sizeof(server_addr))
+        server_addr.sin_family      = AF_INET
+        server_addr.sin_port        = htons(port)
 
         if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
-            Log.warn("Invalid server address");
-            destroy(client);
-            return client;
+            Log.warn("Invalid server address")
+            destroy(client)
+            return client
         }
 
         if (connect(client.sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == SOCKET_ERROR) {
-            Log.warn("Connection failed");
-            destroy(client);
-            return client;
+            Log.warn("Connection failed")
+            destroy(client)
+            return client
         }
 
-        return client;
+        return client
     }
 
-    U0 destroy(TcpClient.It& client) {
-        if (client.sockfd == INVALID_SOCKET) return;
-        closesocket(client.sockfd);
-        client.sockfd = INVALID_SOCKET;
-        WSACleanup();
+    U0 destroy(TcpClient client) {
+        if (client.sockfd == INVALID_SOCKET) return
+        closesocket(client.sockfd)
+        client.sockfd = INVALID_SOCKET
+        WSACleanup()
     }
 
-    U8 write(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd == INVALID_SOCKET) return 1;
-        send(client.sockfd, buffer, size, 0);
+    U8 write(TcpClient client, I8* buffer, U32 size) {
+        if (client.sockfd == INVALID_SOCKET) return 1
+        send(client.sockfd, buffer, size, 0)
 
-        return 0;
+        return 0
     }
 
-    U8 read(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd == INVALID_SOCKET) return 0;
+    U8 read(TcpClient client, I8* buffer, U32 size) {
+        if (client.sockfd == INVALID_SOCKET) return 0
 
-        I32 bytesRead = recv(client.sockfd, buffer, size, 0);
-        if (bytesRead <= 0) return 0;
+        I32 bytesRead = recv(client.sockfd, buffer, size, 0)
+        if (bytesRead <= 0) return 0
 
-        return 1;
+        return 1
     }
 
-    U8 readAll(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd == INVALID_SOCKET) return 0;
+    U8 readAll(TcpClient client, I8* buffer, U32 size) {
+        if (client.sockfd == INVALID_SOCKET) return 0
 
-        I32 totalBytesRead = 0;
+        I32 totalBytesRead = 0
         while (totalBytesRead < size) {
-            I32 bytesRead = recv(client.sockfd, buffer + totalBytesRead, size - totalBytesRead, 0);
-            totalBytesRead += bytesRead;
-            if (bytesRead <= 0) return 0;
+            I32 bytesRead = recv(client.sockfd, buffer + totalBytesRead, size - totalBytesRead, 0)
+            totalBytesRead += bytesRead
+            if (bytesRead <= 0) return 0
         }
 
-        return 1;
+        return 1
     }
 #else
-    TcpClient.It create(I8* ip, I16 port) {
-        TcpClient.It client;
+    TcpClient create(I8* ip, I16 port) {
+        TcpClient client
         
-        struct sockaddr_in server_addr;
+        struct sockaddr_in server_addr
 
-        client.sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        client.sockfd = socket(AF_INET, SOCK_STREAM, 0)
         if (client.sockfd < 0) {
-            Log.warn("Socket creation failed");
-            return client;
+            Log.warn("Socket creation failed")
+            return client
         }
 
-        memset(&server_addr, 0, sizeof(server_addr));
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_port = htons(port);
+        memset(&server_addr, 0, sizeof(server_addr))
+        server_addr.sin_family = AF_INET
+        server_addr.sin_port = htons(port)
 
         if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
-            Log.warn("Invalid server address");
-            destroy(client);
-            return client;
+            Log.warn("Invalid server address")
+            destroy(client)
+            return client
         }
 
         if (connect(client.sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-            Log.warn("Connection failed");
-            destroy(client);
-            return client;
+            Log.warn("Connection failed")
+            destroy(client)
+            return client
         }
 
-        return client;
+        return client
     }
 
-    U0 destroy(TcpClient.It& client) {
-        if (client.sockfd < 0) return;
-        close(client.sockfd);
-        client.sockfd = -1;
+    U0 destroy(TcpClient client) {
+        if (client.sockfd < 0) return
+        close(client.sockfd)
+        client.sockfd = -1
     }
 
-    U8 write(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd < 0) return 0;
+    U8 write(TcpClient client, I8* buffer, U32 size) {
+        if (client.sockfd < 0) return 0
         
-        send(client.sockfd, buffer, size, 0);
+        send(client.sockfd, buffer, size, 0)
 
-        return 1;
+        return 1
     }
 
-    U8 read(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd < 0) return 0;
+    U8 read(TcpClient client, I8* buffer, U32 size) {
+        if (client.sockfd < 0) return 0
 
-        I32 bytesRead = recv(client.sockfd, buffer, size, 0);
-        if (bytesRead <= 0) return 0;
+        I32 bytesRead = recv(client.sockfd, buffer, size, 0)
+        if (bytesRead <= 0) return 0
 
-        return 1;
+        return 1
     }
 
-    U8 readAll(TcpClient.It& client, I8* buffer, U32 size) {
-        if (client.sockfd < 0) return 0;
+    U8 readAll(TcpClient client, I8* buffer, U32 size) {
+        if (client.sockfd < 0) return 0
 
-        I32 totalBytesRead = 0;
+        I32 totalBytesRead = 0
         while (totalBytesRead < size) {
-            I32 bytesRead = recv(client.sockfd, buffer + totalBytesRead, size - totalBytesRead, 0);
-            totalBytesRead += bytesRead;
-            if (bytesRead <= 0) return 0;
+            I32 bytesRead = recv(client.sockfd, buffer + totalBytesRead, size - totalBytesRead, 0)
+            totalBytesRead += bytesRead
+            if (bytesRead <= 0) return 0
         }
 
-        return 1;
+        return 1
     }
 #endif
 }

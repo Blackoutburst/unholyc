@@ -10,135 +10,135 @@ namespace Math {
     /// Convert degrees to radians
     /// @param angle Angle in degrees
     /// @returns Equivalent angle in radians
-    F32 rad(F32 angle);
+    F32 rad(F32 angle)
     /// Return the sign of an integer value
     /// @param value The value to inspect
     /// @returns -1 if negative, 0 if zero, 1 if positive
-    I8 sign(I32 value);
+    I8 sign(I32 value)
     /// Return the sign of a float as an integer
     /// @param value The value to inspect
     /// @returns -1 if negative, 0 if zero, 1 if positive
-    I8 fsign(F32 value);
+    I8 fsign(F32 value)
     /// Return the sign of a float as a float
     /// @param value The value to inspect
     /// @returns -1.0 if negative, 0.0 if zero, 1.0 if positive
-    F32 fsignf(F32 value);
+    F32 fsignf(F32 value)
     /// Clamp an integer between min and max
     /// @param v Value to clamp
     /// @param min Lower bound (inclusive)
     /// @param max Upper bound (inclusive)
     /// @returns Clamped integer value
-    I32 clamp(I32 v, I32 min, I32 max);
+    I32 clamp(I32 v, I32 min, I32 max)
     /// Clamp a float between boundaries, return as integer
     /// @param v Value to clamp
     /// @param min Lower bound
     /// @param max Upper bound
     /// @returns Clamped value as integer
-    I32 fclamp(F32 v, F32 min, F32 max);
+    I32 fclamp(F32 v, F32 min, F32 max)
     /// Clamp a float between boundaries, return as float
     /// @param v Value to clamp
     /// @param min Lower bound
     /// @param max Upper bound
     /// @returns Clamped float value
-    F32 fclampf(F32 v, F32 min, F32 max);
+    F32 fclampf(F32 v, F32 min, F32 max)
 }
 
 /// Four-component float vector (x, y, z, w)
 namespace VectorF {
     /// Float vector object
-    struct It {
-        F32 x = 0.0f;
-        F32 y = 0.0f;
-        F32 z = 0.0f;
-        F32 w = 0.0f;
-    };
+    self {
+        F32 x = 0.0f
+        F32 y = 0.0f
+        F32 z = 0.0f
+        F32 w = 0.0f
+    }
 
     /// Test whether two float vectors are component-wise equal
     /// @param a First vector
     /// @param b Second vector
     /// @returns Non-zero if equal
-    U8 equals(VectorF.It& a, VectorF.It& b);
+    U8 equals(VectorF a, VectorF b)
     /// Set all four components of a float vector
     /// @param vec Target vector
     /// @param x X component
     /// @param y Y component
     /// @param z Z component
     /// @param w W component
-    U0 set(VectorF.It& vec, F32 x, F32 y, F32 z, F32 w);
+    U0 set(VectorF vec, F32 x, F32 y, F32 z, F32 w)
     /// Normalize a float vector to unit length in-place
     /// @param vec Vector to normalize
-    U0 normalize(VectorF.It& vec);
+    U0 normalize(VectorF vec)
     /// Compute the length (magnitude) of a float vector
     /// @param vec The vector
     /// @returns Euclidean length
-    F32 length(VectorF.It& vec);
+    F32 length(VectorF vec)
     /// Set all components of a float vector to zero
     /// @param vec Vector to zero
-    U0 zero(VectorF.It& vec);
+    U0 zero(VectorF vec)
     /// Compute the dot product of two float vectors
     /// @param a First vector
     /// @param b Second vector
     /// @returns Dot product
-    F32 dot(VectorF.It& a, VectorF.It& b);
+    F32 dot(VectorF a, VectorF b)
     /// Compute the cross product of two float vectors
     /// @param result Vector to store the result
     /// @param a First vector
     /// @param b Second vector
-    U0 cross(VectorF.It& result, VectorF.It& a, VectorF.It& b);
+    U0 cross(VectorF result, VectorF a, VectorF b)
     /// Subtract one float vector from another
     /// @param result Vector to store the result
     /// @param a Minuend vector
     /// @param b Subtrahend vector
-    U0 sub(VectorF.It& result, VectorF.It& a, VectorF.It& b);
+    U0 sub(VectorF result, VectorF a, VectorF b)
 }
 
 /// Four-component integer vector (x, y, z, w)
 namespace VectorI {
     /// Integer vector object
     struct It {
-        I32 x = 0;
-        I32 y = 0;
-        I32 z = 0;
-        I32 w = 0;
-    };
+        I32 x = 0
+        I32 y = 0
+        I32 z = 0
+        I32 w = 0
+    }
 
     /// Test whether two integer vectors are component-wise equal
     /// @param a First vector
     /// @param b Second vector
     /// @returns Non-zero if equal
-    U8 equals(VectorI.It& a, VectorI.It& b);
+    U8 equals(VectorI a, VectorI b)
     /// Set all four components of an integer vector
     /// @param vec Target vector
     /// @param x X component
     /// @param y Y component
     /// @param z Z component
     /// @param w W component
-    U0 set(VectorI.It& vec, I32 x, I32 y, I32 z, I32 w);
+    U0 set(VectorI vec, I32 x, I32 y, I32 z, I32 w)
     /// Normalize an integer vector to unit length in-place
     /// @param vec Vector to normalize
-    U0 normalize(VectorI.It& vec);
+    U0 normalize(VectorI vec)
     /// Compute the length (magnitude) of an integer vector
     /// @param vec The vector
     /// @returns Euclidean length as float
-    F32 length(VectorI.It& vec);
+    F32 length(VectorI vec)
     /// Set all components of an integer vector to zero
     /// @param vec Vector to zero
-    U0 zero(VectorI.It& vec);
+    U0 zero(VectorI vec)
     /// Compute the dot product of two integer vectors
     /// @param a First vector
     /// @param b Second vector
     /// @returns Dot product
-    I32 dot(VectorI.It& a, VectorI.It& b);
+    I32 dot(VectorI a, VectorI b)
     /// Compute the cross product of two integer vectors
     /// @param result Vector to store the result
     /// @param a First vector
     /// @param b Second vector
-    U0 cross(VectorI.It& result, VectorI.It& a, VectorI.It& b);
+    U0 cross(VectorI result, VectorI a, VectorI b)
     /// Subtract one integer vector from another
     /// @param result Vector to store the result
     /// @param a Minuend vector
     /// @param b Subtrahend vector
-    U0 sub(VectorI.It& result, VectorI.It& a, VectorI.It& b);
+    U0 sub(VectorI result, VectorI a, VectorI b)
 }
 
 /// Row 0, column 0 matrix index
@@ -181,21 +181,21 @@ namespace VectorI {
 namespace Matrix {
     /// Matrix object (16 floats, initialized to identity)
     struct It {
-        F32 values[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-    };
+        F32 values[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
+    }
 
     /// Reset a matrix to the identity matrix
     /// @param mat The matrix to reset
-    U0 setIdentity(Matrix.It& mat);
+    U0 setIdentity(Matrix mat)
     /// Multiply two matrices and store the result
     /// @param result Matrix to store the result
     /// @param left First (left) matrix
     /// @param right Second (right) matrix
-    U0 multiply(Matrix.It& result, Matrix.It& left, Matrix.It& right);
+    U0 multiply(Matrix result, Matrix left, Matrix right)
     /// Copy a matrix into another
     /// @param src Source matrix
     /// @param dest Destination matrix
-    U0 copy(Matrix.It& src, Matrix.It& dest);
+    U0 copy(Matrix src, Matrix dest)
     /// Build a 2D orthographic projection matrix
     /// @param mat Output matrix
     /// @param left Left boundary
@@ -204,7 +204,7 @@ namespace Matrix {
     /// @param top Top boundary
     /// @param near Near plane
     /// @param far Far plane
-    U0 ortho2D(Matrix.It& mat, F32 left, F32 right, F32 bottom, F32 top, F32 near, F32 far);
+    U0 ortho2D(Matrix mat, F32 left, F32 right, F32 bottom, F32 top, F32 near, F32 far)
     /// Build a 2D orthographic projection matrix adjusted for Vulkan's coordinate system
     /// @param mat Output matrix
     /// @param left Left boundary
@@ -213,7 +213,7 @@ namespace Matrix {
     /// @param top Top boundary
     /// @param near Near plane
     /// @param far Far plane
-    U0 ortho2DVk(Matrix.It& mat, F32 left, F32 right, F32 bottom, F32 top, F32 near, F32 far);
+    U0 ortho2DVk(Matrix mat, F32 left, F32 right, F32 bottom, F32 top, F32 near, F32 far)
     /// Build a 3D perspective projection matrix
     /// @param mat Output matrix
     /// @param width Viewport width
@@ -221,32 +221,32 @@ namespace Matrix {
     /// @param fov Field of view angle in radians
     /// @param near Near plane distance
     /// @param far Far plane distance
-    U0 projection(Matrix.It& mat, F32 width, F32 height, F32 fov, F32 near, F32 far);
+    U0 projection(Matrix mat, F32 width, F32 height, F32 fov, F32 near, F32 far)
     /// Apply a scale transform to a matrix
     /// @param mat Matrix to modify
     /// @param x X scale factor
     /// @param y Y scale factor
     /// @param z Z scale factor
     /// @param w W scale factor
-    U0 scale(Matrix.It& mat, F32 x, F32 y, F32 z, F32 w);
+    U0 scale(Matrix mat, F32 x, F32 y, F32 z, F32 w)
     /// Apply a translation transform to a matrix
     /// @param mat Matrix to modify
     /// @param x X translation
     /// @param y Y translation
     /// @param z Z translation
     /// @param w W translation
-    U0 translate(Matrix.It& mat, F32 x, F32 y, F32 z, F32 w);
+    U0 translate(Matrix mat, F32 x, F32 y, F32 z, F32 w)
     /// Apply a rotation transform to a matrix
     /// @param mat Matrix to modify
     /// @param angle Rotation angle in radians
     /// @param x X axis weight
     /// @param y Y axis weight
     /// @param z Z axis weight
-    U0 rotate(Matrix.It& mat, F32 angle, F32 x, F32 y, F32 z);
+    U0 rotate(Matrix mat, F32 angle, F32 x, F32 y, F32 z)
     /// Build a view matrix from eye position, target, and up vector
     /// @param mat Output view matrix
     /// @param eye Camera position
     /// @param center Camera target point
     /// @param up World up direction
-    U0 lookAt(Matrix.It& mat, VectorF.It& eye, VectorF.It& center, VectorF.It& up);
+    U0 lookAt(Matrix mat, VectorF eye, VectorF center, VectorF up)
 }

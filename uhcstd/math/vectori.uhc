@@ -1,50 +1,50 @@
 #include "uhcmath.uhh"
 
 namespace VectorI {
-    U8 equals(VectorI.It& a, VectorI.It& b) {
-        return !((a.x - b.x) + (a.y - b.y) + (a.z - b.z) + (a.w - b.w));
+    U8 equals(VectorI a, VectorI b) {
+        return !((a.x - b.x) + (a.y - b.y) + (a.z - b.z) + (a.w - b.w))
     }
 
-    U0 set(VectorI.It& vec, I32 x, I32 y, I32 z, I32 w) {
-        vec.x = x;
-        vec.y = y;
-        vec.z = z;
-        vec.w = w;
+    U0 set(VectorI vec, I32 x, I32 y, I32 z, I32 w) {
+        vec.x = x
+        vec.y = y
+        vec.z = z
+        vec.w = w
     }
 
-    U0 normalize(VectorI.It& vec) {
-        F32 mag = sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w);
-        if (mag == 0.0) return;
+    U0 normalize(VectorI vec) {
+        F32 mag = sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w)
+        if (mag == 0.0) return
 
-        vec.x /= mag;
-        vec.y /= mag;
-        vec.z /= mag;
-        vec.w /= mag;
+        vec.x /= mag
+        vec.y /= mag
+        vec.z /= mag
+        vec.w /= mag
     }
 
-    F32 length(VectorI.It& vec) {
-        return sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w);
+    F32 length(VectorI vec) {
+        return sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w)
     }
 
-    U0 zero(VectorI.It& vec) {
-        set(vec, 0, 0, 0, 0);
+    U0 zero(VectorI vec) {
+        set(vec, 0, 0, 0, 0)
     }
 
-    I32 dot(VectorI.It& a, VectorI.It& b) {
-        return a.x * b.x + a.y * b.y + a.z * b.z;
+    I32 dot(VectorI a, VectorI b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z
     }
 
-    U0 cross(VectorI.It& result, VectorI.It& a, VectorI.It& b) {
-        result.x = a.y * b.z - a.z * b.y;
-        result.y = a.z * b.x - a.x * b.z;
-        result.z = a.x * b.y - a.y * b.x;
-        result.w = 0;
+    U0 cross(VectorI result, VectorI a, VectorI b) {
+        result.x = a.y * b.z - a.z * b.y
+        result.y = a.z * b.x - a.x * b.z
+        result.z = a.x * b.y - a.y * b.x
+        result.w = 0
     }
 
-    U0 sub(VectorI.It& result, VectorI.It& a, VectorI.It& b) {
-        result.x = a.x - b.x;
-        result.y = a.y - b.y;
-        result.z = a.z - b.z;
-        result.w = a.w - b.w;
+    U0 sub(VectorI result, VectorI a, VectorI b) {
+        result.x = a.x - b.x
+        result.y = a.y - b.y
+        result.z = a.z - b.z
+        result.w = a.w - b.w
     }
 }

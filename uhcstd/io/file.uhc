@@ -1,53 +1,53 @@
 #include "uhcio.uhh"
 
 namespace File {
-    I64 getSize(FILE* file) {
-        fseek(file, 0, SEEK_END);
-        I64 fileSize = ftell(file);
-        rewind(file);
-
-        return fileSize;
-    }
-
-    FILE* open(const I8* filePath) {
-        FILE* file = fopen(filePath, "rb");
-        if (!file) {
-            Log.warn("Couldn't find file");
-            return NULL;
+    File open(const I8* filePath) {
+        File file
+        
+        FILE* handle = fopen(filePath, "rb")
+        if (!handle) {
+            Log.warn("Couldn't find file")
+            return file
         }
 
-        return file;
+        fseek(file.handle, 0, SEEK_END)
+        I64 fileSize = ftell(file.handle)
+        rewind(file.handle)
+
+        file.handle = handle
+        file.size = fileSize
+        
+        return file
     }
 
-    U0 close(FILE* file) {
-        fclose(file);
+    U0 close(File file) {
+        fclose(file.handle)
     }
 
-    I8* read(FILE* file) {
-        I64 fileSize = File.getSize(file);
-        if (!fileSize) {
-            Log.warn("File size error");
-            fclose(file);
-            return NULL;
+    I8* read(File file) {
+        if (!file.size) {
+            Log.warn("File size error")
+            fclose(file.handle)
+            return NULL
         }
 
-        I8* buffer = (I8*)malloc(fileSize + 1);
+        I8* buffer = (I8*)malloc(file.size + 1)
         if (!buffer) {
-            Log.warn("File allocation failed");
-            fclose(file);
-            return NULL;
+            Log.warn("File allocation failed")
+            fclose(file.handle)
+            return NULL
         }
 
-        I64 data = fread(buffer, 1, fileSize, file);
-        if (data != fileSize) {
-            Log.warn("Reading file failed");
-            fclose(file);
-            return NULL;
+        I64 data = fread(buffer, 1, file.size, file.handle)
+        if (data != file.size) {
+            Log.warn("Reading file failed")
+            fclose(file.handle)
+            return NULL
         }
         
-        buffer[fileSize] = 0x00;
-        fclose(file);
+        buffer[file.size] = 0x00
+        fclose(file.handle)
 
-        return buffer;
+        return buffer
     }
 }

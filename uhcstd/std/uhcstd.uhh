@@ -17,26 +17,26 @@ namespace Mutex {
     /// Platform-specific mutex handle
 #if defined(_WIN32) || defined(_WIN64)
     struct It {
-        CRITICAL_SECTION handle;
-    };
+        CRITICAL_SECTION handle
+    }
 #else
     struct It {
-        pthread_mutex_t handle;
-    };
+        pthread_mutex_t handle
+    }
 #endif
 
     /// Create and initialize a new mutex
     /// @returns Initialized mutex object
-    Mutex.It create();
+    Mutex.It create()
     /// Destroy a mutex and release its resources
     /// @param mutex The mutex to destroy
-    U0 destroy(Mutex.It& mutex);
+    U0 destroy(Mutex mutex)
     /// Acquire a mutex, blocking until it is available
     /// @param mutex The mutex to lock
-    U0 lock(Mutex.It& mutex);
+    U0 lock(Mutex mutex)
     /// Release a previously acquired mutex
     /// @param mutex The mutex to unlock
-    U0 unlock(Mutex.It& mutex);
+    U0 unlock(Mutex mutex)
 }
 
 /// Little-endian byte order constant
@@ -48,124 +48,124 @@ namespace Mutex {
 namespace Buffer {
     /// Buffer object
     struct It {
-        U0* handle;
-        U8 order;
-        U32 cursor;
-    };
+        U0* handle
+        U8 order
+        U32 cursor
+    }
 
     /// Set the byte order for subsequent get/put operations
     /// @param buffer The buffer
     /// @param order Byte order — use UHC_LITTLE_ENDIAN or UHC_BIG_ENDIAN
-    U0 setOrder(Buffer.It& buffer, U8 order);
+    U0 setOrder(Buffer buffer, U8 order)
     /// Reset the buffer cursor to the beginning
     /// @param buffer The buffer
-    U0 reset(Buffer.It& buffer);
+    U0 reset(Buffer buffer)
     /// Read a signed 8-bit integer from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    I8 getI8(Buffer.It& buffer);
+    I8 getI8(Buffer buffer)
     /// Read an unsigned 8-bit integer from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    U8 getU8(Buffer.It& buffer);
+    U8 getU8(Buffer buffer)
     /// Read a signed 16-bit integer from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    I16 getI16(Buffer.It& buffer);
+    I16 getI16(Buffer buffer)
     /// Read an unsigned 16-bit integer from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    U16 getU16(Buffer.It& buffer);
+    U16 getU16(Buffer buffer)
     /// Read a signed 32-bit integer from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    I32 getI32(Buffer.It& buffer);
+    I32 getI32(Buffer buffer)
     /// Read an unsigned 32-bit integer from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    U32 getU32(Buffer.It& buffer);
+    U32 getU32(Buffer buffer)
     /// Read a signed 64-bit integer from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    I64 getI64(Buffer.It& buffer);
+    I64 getI64(Buffer buffer)
     /// Read an unsigned 64-bit integer from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    U64 getU64(Buffer.It& buffer);
+    U64 getU64(Buffer buffer)
     /// Read a 32-bit float from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    F32 getF32(Buffer.It& buffer);
+    F32 getF32(Buffer buffer)
     /// Read a 64-bit float from the buffer
     /// @param buffer The buffer
     /// @returns The value read
-    F64 getF64(Buffer.It& buffer);
+    F64 getF64(Buffer buffer)
     /// Write a signed 8-bit integer to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putI8(Buffer.It& buffer, I8 value);
+    U0 putI8(Buffer buffer, I8 value)
     /// Write an unsigned 8-bit integer to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putU8(Buffer.It& buffer, U8 value);
+    U0 putU8(Buffer buffer, U8 value)
     /// Write a signed 16-bit integer to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putI16(Buffer.It& buffer, I16 value);
+    U0 putI16(Buffer buffer, I16 value)
     /// Write an unsigned 16-bit integer to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putU16(Buffer.It& buffer, U16 value);
+    U0 putU16(Buffer buffer, U16 value)
     /// Write a signed 32-bit integer to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putI32(Buffer.It& buffer, I32 value);
+    U0 putI32(Buffer buffer, I32 value)
     /// Write an unsigned 32-bit integer to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putU32(Buffer.It& buffer, U32 value);
+    U0 putU32(Buffer buffer, U32 value)
     /// Write a signed 64-bit integer to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putI64(Buffer.It& buffer, I64 value);
+    U0 putI64(Buffer buffer, I64 value)
     /// Write an unsigned 64-bit integer to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putU64(Buffer.It& buffer, U64 value);
+    U0 putU64(Buffer buffer, U64 value)
     /// Write a 32-bit float to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putF32(Buffer.It& buffer, F32 value);
+    U0 putF32(Buffer buffer, F32 value)
     /// Write a 64-bit float to the buffer
     /// @param buffer The buffer
     /// @param value The value to write
-    U0 putF64(Buffer.It& buffer, F64 value);
+    U0 putF64(Buffer buffer, F64 value)
 }
 
 /// Lightweight thread creation and joining
 namespace Thread {
     /// Thread entry point function type
-    typedef U0* (*Fn)(U0*);
+    typedef U0* (*Fn)(U0*)
 
     /// Platform-specific thread handle
 #if defined(_WIN32) || defined(_WIN64)
     struct It {
-        HANDLE handle;
-    };
+        HANDLE handle
+    }
 #else
     struct It {
-        pthread_t handle;
-    };
+        pthread_t handle
+    }
 #endif
 
     /// Start a new thread running the given function
     /// @param method The thread entry function
     /// @param arg Argument passed to the thread function
     /// @returns Thread handle — use with join
-    Thread.It start(Thread.Fn method, U0* arg);
+    Thread.It start(Thread.Fn method, U0* arg)
     /// Wait for a thread to finish
     /// @param thread The thread to wait on
-    U0 join(Thread.It& thread);
+    U0 join(Thread thread)
 }
 
 /// Cross-platform shared library loader
@@ -173,30 +173,30 @@ namespace DynamicLibrary {
     /// Platform-specific dynamic library handle
 #if defined(_WIN32) || defined(_WIN64)
     struct It {
-        HINSTANCE handle;
-        I8* name;
-        U8 isValid;
-    };
+        HINSTANCE handle
+        I8* name
+        U8 isValid
+    }
 #else
     struct It {
-        U0* handle;
-        I8* name;
-        U8 isValid;
-    };
+        U0* handle
+        I8* name
+        U8 isValid
+    }
 #endif
 
     /// Load a shared library by name or path
     /// @param name Library name or path
     /// @returns Library object — check isValid before use
-    DynamicLibrary.It load(const I8* name);
+    DynamicLibrary.It load(const I8* name)
     /// Retrieve a function pointer from a loaded library
     /// @param dll The dynamic library
     /// @param functionName The exported symbol name
     /// @returns Raw function pointer — cast before calling
-    U0* get(DynamicLibrary.It& dll, const I8* functionName);
+    U0* get(DynamicLibrary dll, const I8* functionName)
     /// Unload a dynamic library and free its resources
     /// @param dll The dynamic library
-    U0 unload(DynamicLibrary.It& dll);
+    U0 unload(DynamicLibrary dll)
 }
 
 
@@ -205,15 +205,15 @@ namespace List {
     /// List container object
     template<typename T>
     struct It {
-        std::list<T> handle;
-    };
+        std::list<T> handle
+    }
 
     /// Append a value to the end of the list
     /// @param list Target list
     /// @param value Value to append
     template<typename T>
-    U0 add(List.It<T>& list, T value) {
-        list.handle.push_back(value);
+    U0 add(List<T> list, T value) {
+        list.handle.push_back(value)
     }
 
     /// Insert a value at a specific index
@@ -221,10 +221,10 @@ namespace List {
     /// @param value Value to insert
     /// @param index Zero-based position
     template<typename T>
-    U0 addAt(List.It<T>& list, T value, I32 index) {
-        auto it = list.handle.begin();
-        std::advance(it, index);
-        list.handle.insert(it, value);
+    U0 addAt(List<T> list, T value, I32 index) {
+        auto it = list.handle.begin()
+        std::advance(it, index)
+        list.handle.insert(it, value)
     }
 
     /// Remove the first matching value from the list
@@ -232,21 +232,21 @@ namespace List {
     /// @param value Value to find and remove
     /// @returns Non-zero if element was found and removed
     template<typename T>
-    U8 remove(List.It<T>& list, T value) {
-        auto it = std::find(list.handle.begin(), list.handle.end(), value);
-        if (it == list.handle.end()) return 0;
-        list.handle.erase(it);
-        return 1;
+    U8 remove(List<T> list, T value) {
+        auto it = std::find(list.handle.begin(), list.handle.end(), value)
+        if (it == list.handle.end()) return 0
+        list.handle.erase(it)
+        return 1
     }
 
     /// Remove the element at a specific index
     /// @param list Target list
     /// @param index Zero-based position to remove
     template<typename T>
-    U0 removeAt(List.It<T>& list, I32 index) {
-        auto it = list.handle.begin();
-        std::advance(it, index);
-        list.handle.erase(it);
+    U0 removeAt(List<T> list, I32 index) {
+        auto it = list.handle.begin()
+        std::advance(it, index)
+        list.handle.erase(it)
     }
 
     /// Get a pointer to the element at a specific index
@@ -254,10 +254,10 @@ namespace List {
     /// @param index Zero-based position
     /// @returns Pointer to the element
     template<typename T>
-    T* get(List.It<T>& list, I32 index) {
-        auto it = list.handle.begin();
-        std::advance(it, index);
-        return &(*it);
+    T* get(List<T> list, I32 index) {
+        auto it = list.handle.begin()
+        std::advance(it, index)
+        return &(*it)
     }
 
     /// Set the value of an element at a specific index
@@ -265,42 +265,42 @@ namespace List {
     /// @param index Zero-based position
     /// @param value New value
     template<typename T>
-    U0 set(List.It<T>& list, I32 index, T value) {
-        auto it = list.handle.begin();
-        std::advance(it, index);
-        *it = value;
+    U0 set(List<T> list, I32 index, T value) {
+        auto it = list.handle.begin()
+        std::advance(it, index)
+        *it = value
     }
 
     /// Get a pointer to the first element
     /// @param list Target list
     /// @returns Pointer to first element, or NULL if empty
     template<typename T>
-    T* first(List.It<T>& list) {
-        if (list.handle.empty()) return NULL;
-        return &list.handle.front();
+    T* first(List<T> list) {
+        if (list.handle.empty()) return NULL
+        return &list.handle.front()
     }
 
     /// Get a pointer to the last element
     /// @param list Target list
     /// @returns Pointer to last element, or NULL if empty
     template<typename T>
-    T* last(List.It<T>& list) {
-        if (list.handle.empty()) return NULL;
-        return &list.handle.back();
+    T* last(List<T> list) {
+        if (list.handle.empty()) return NULL
+        return &list.handle.back()
     }
 
     /// Get the number of elements in the list
     /// @param list Target list
     /// @returns Element count
     template<typename T>
-    U64 size(List.It<T>& list) {
-        return (U64)list.handle.size();
+    U64 size(List<T> list) {
+        return (U64)list.handle.size()
     }
 
     /// Remove all elements from the list
     /// @param list Target list
     template<typename T>
-    U0 clear(List.It<T>& list) {
-        list.handle.clear();
+    U0 clear(List<T> list) {
+        list.handle.clear()
     }
 }
