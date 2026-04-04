@@ -56,7 +56,7 @@ namespace UgRenderer {
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &cmd.handle;
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &renderer.swapchain.rSemaphore[renderer.swapchain.currentFrame].handle;
+        submitInfo.pSignalSemaphores = &renderer.swapchain.rSemaphore[renderer.swapchain.imageIndex].handle;
 
         vkQueueSubmit(ctx.device.graphicQueue, 1, &submitInfo, fence.handle);
     }
@@ -68,7 +68,7 @@ namespace UgRenderer {
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         presentInfo.pNext = NULL;
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = &renderer.swapchain.rSemaphore[renderer.swapchain.currentFrame].handle;
+        presentInfo.pWaitSemaphores = &renderer.swapchain.rSemaphore[renderer.swapchain.imageIndex].handle;
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &renderer.swapchain.handle;
         presentInfo.pImageIndices = &renderer.swapchain.imageIndex;
