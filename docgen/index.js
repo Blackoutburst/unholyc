@@ -47,22 +47,59 @@ const TYPE_MAP = [
   ['F128', 'long double'],
 ];
 
-// Pre-compile regexes for namespace dot→scope conversion
+// Pre-compile regexes for namespace dot→scope conversion and standalone expansion
 const NS_DOT_RE = new RegExp(
   `\\b(${KNOWN_NAMESPACES.join('|')})\\.([A-Za-z_][A-Za-z0-9_]*)`,
   'g'
 );
+const NS_STANDALONE_RE = new RegExp(
+  `\\b(${KNOWN_NAMESPACES.join('|')})\\b(?!\\s*::)`,
+  'g'
+);
 
 function transpile(code) {
-  // 1. Namespace.Member → Namespace::Member
-  let out = code.replace(NS_DOT_RE, '$1::$2');
+  return code.split('\n').map(rawLine => {
+    const trimmed = rawLine.trim();
+    // Pass through blanks, preprocessor directives, and line comments unchanged
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('//')) return rawLine;
 
-  // 2. UHC types → C++ types (longest first to avoid partial matches)
-  for (const [uhc, cpp] of TYPE_MAP) {
-    out = out.replace(new RegExp(`\\b${uhc}\\b`, 'g'), cpp);
-  }
+    let line = rawLine;
 
-  return out;
+    // 1. self → struct It
+    line = line.replace(/\bself\b/g, 'struct It');
+
+    // 2. Namespace.Member → Namespace::Member
+    line = line.replace(NS_DOT_RE, '$1::$2');
+
+    // 3. Standalone namespace name → Namespace::It
+    //    Skip if the token is immediately preceded by 'namespace' keyword (declaration line)
+    line = line.replace(NS_STANDALONE_RE, (match, ns, offset, str) => {
+      if (/\bnamespace\s+$/.test(str.slice(0, offset))) return match;
+      return ns + '::It';
+    });
+
+    // 4. UHC types → C++ types
+    for (const [uhc, cpp] of TYPE_MAP) {
+      line = line.replace(new RegExp(`\\b${uhc}\\b`, 'g'), cpp);
+    }
+
+    // 5. Add & for Namespace::It parameters inside (...) — skip explicit pointers
+    line = line.replace(/\(([^)]*)\)/, (_, params) => {
+      const expanded = params.replace(
+        /(\b\w+::It(?:<[^>]*>)?)\s+([A-Za-z_]\w*)/g,
+        '$1& $2'
+      );
+      return `(${expanded})`;
+    });
+
+    // 6. Inject semicolon where missing (not before {, }, already-terminated lines)
+    const t = line.trim();
+    if (t && !t.endsWith(';') && !t.endsWith('{') && !t.endsWith('}') && !t.endsWith(',')) {
+      line = line.trimEnd() + ';';
+    }
+
+    return line;
+  }).join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -199,23 +236,24 @@ function parseHeader(source) {
         continue;
       }
 
-      // Plain struct (non-platform)
-      if (t.startsWith('struct ')) {
+      // Plain struct (non-platform) — also matches 'self' keyword
+      if (t.startsWith('struct ') || t === 'self' || t.startsWith('self ') || t.startsWith('self{')) {
+        const isSelf = !t.startsWith('struct');
         localDocLines = [];
-        // Collect fields until '};'
+        // Collect fields until '}' or '};'
         const fieldLines = [];
         j++;
         while (j < lines.length) {
           const ft = lines[j].trim();
           if (ft === '};' || ft === '}') { j++; break; }
           if (ft !== '') {
-            // Strip default value: "F32 x = 0.0f;" → "F32 x;"
-            const stripped = ft.replace(/\s*=\s*[^;]+;/, ';');
+            // Strip default value: "F32 x = 0.0f" → "F32 x"  or  "F32 x = 0.0f;" → "F32 x;"
+            const stripped = ft.replace(/\s*=\s*[^;]*(;?)$/, '$1').trim();
             fieldLines.push(stripped);
           }
           j++;
         }
-        ns.items.push({ kind: 'struct', platform: false, fieldLines, doc: itemDoc });
+        ns.items.push({ kind: 'struct', platform: false, fieldLines, isSelf, doc: itemDoc });
         continue;
       }
 
@@ -265,18 +303,18 @@ function parseHeader(source) {
 
         // Template struct
         if (sigLine.startsWith('struct ')) {
-          // Collect fields until '};'
+          // Collect fields until '}' or '};'
           const fieldLines = [];
           while (j < lines.length) {
             const ft = lines[j].trim();
             if (ft === '};' || ft === '}') { j++; break; }
             if (ft !== '') {
-              const stripped = ft.replace(/\s*=\s*[^;]+;/, ';');
+              const stripped = ft.replace(/\s*=\s*[^;]*(;?)$/, '$1').trim();
               fieldLines.push(stripped);
             }
             j++;
           }
-          ns.items.push({ kind: 'struct', platform: false, fieldLines, templatePrefix, doc: itemDoc });
+          ns.items.push({ kind: 'struct', platform: false, fieldLines, isSelf: false, templatePrefix, doc: itemDoc });
           continue;
         }
 
@@ -399,9 +437,9 @@ function parseHeader(source) {
 }
 
 function isFunctionDecl(line) {
-  // Must have '(' and end with ');'  and not start with keywords that aren't functions
+  // Must have '(' and end with ')' or ');'
   if (!line.includes('(')) return false;
-  if (!line.endsWith(');')) return false;
+  if (!line.endsWith(')') && !line.endsWith(');')) return false;
   if (line.startsWith('//') || line.startsWith('#') || line.startsWith('*')) return false;
   return true;
 }
@@ -524,14 +562,18 @@ function renderItem(item) {
           codetabs(rawUhc, rawCpp),
         ].join('\n');
       } else {
-        // template<typename T> prefix is omitted — just show the struct definition
-        const body = `struct It {\n${item.fieldLines.map(f => `    ${f}`).join('\n')}\n};`;
+        // UHC tab: use 'self' if defined that way, otherwise 'struct It'; no trailing semicolons on fields
+        const uhcPrefix = item.isSelf ? 'self' : 'struct It';
+        const uhcClose = item.isSelf ? '}' : '};';
+        const uhcBody = `${uhcPrefix} {\n${item.fieldLines.map(f => `    ${f}`).join('\n')}\n${uhcClose}`;
+        // C++ tab: always 'struct It' with transpile (adds type mappings + semicolons)
+        const cppBody = `struct It {\n${item.fieldLines.map(f => `    ${f}`).join('\n')}\n};`;
         return [
           `<H2 id="It">It</H2>`,
           '',
           brief,
           '',
-          codetabs(body, transpile(body)),
+          codetabs(uhcBody, transpile(cppBody)),
         ].join('\n');
       }
     }
@@ -606,7 +648,8 @@ function renderNamespacePage(ns) {
 // ---------------------------------------------------------------------------
 
 function stripDefaultValues(line) {
-  return line.replace(/\s*=\s*[^;{,]+(?=[;,{])/g, '');
+  // Handle both "= value;" and "= value" (no trailing semicolon)
+  return line.replace(/\s*=\s*[^;{,\n]+/g, '');
 }
 
 function buildCheatSheetNs(ns, isUhc) {
@@ -635,13 +678,15 @@ function buildCheatSheetNs(ns, isUhc) {
           const block = isUhc ? rawBlock : transpile(rawBlock);
           for (const l of block.split('\n')) lines.push(`  ${l}`);
         } else {
-          lines.push(`  struct It {`);
+          const prefix = (item.isSelf && isUhc) ? 'self' : 'struct It';
+          const suffix = (item.isSelf && isUhc) ? '  }' : '  };';
+          lines.push(`  ${prefix} {`);
           for (const f of item.fieldLines) {
             const stripped = stripDefaultValues(f);
             const out = isUhc ? stripped : transpile(stripped);
             lines.push(`    ${out}`);
           }
-          lines.push(`  };`);
+          lines.push(suffix);
         }
         break;
       }
@@ -742,13 +787,15 @@ function renderSectionIndexPage(section, parsedSections) {
                 nsLines.push(l.trim() === '' ? '' : `    ${l}`);
               }
             } else {
-              nsLines.push(`    struct It {`);
+              const prefix = (item.isSelf && isUhc) ? 'self' : 'struct It';
+              const suffix = (item.isSelf && isUhc) ? '    }' : '    };';
+              nsLines.push(`    ${prefix} {`);
               for (const f of item.fieldLines) {
                 const stripped = stripDefaultValues(f);
                 const out = isUhc ? stripped : transpile(stripped);
                 nsLines.push(`        ${out}`);
               }
-              nsLines.push(`    };`);
+              nsLines.push(suffix);
             }
             break;
           }
