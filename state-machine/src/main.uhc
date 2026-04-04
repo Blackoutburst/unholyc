@@ -57,9 +57,9 @@ static U32 CUBE_IDX[36] = {
 
 I32 main() {
     UgWindow.It window = UgWindow.create("State Machine");
-    UgUtils.setClearColor(0.1, 0.1, 0.1, 1);
+    glfwSetInputMode(window.handle, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-    UgTexture.It texture = UgTexture.create("./gold_block.png");
+    UgTexture.It texture = UgTexture.create("./stonebrick.png");
     
     UgBuffer.It vertexBuffer = UgBuffer.create(sizeof(CUBE_VERTS), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     UgBuffer.It indexBuffer = UgBuffer.create(sizeof(CUBE_IDX), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
