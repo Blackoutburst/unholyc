@@ -11,14 +11,13 @@ set L_UHC=..\dist\lib
 set UHC=-I%I_UHC% -L%L_UHC% -luhc
 
 :: Vulkan (update paths as needed for your Windows install)
-set I_VK=C:\VulkanSDK\Include
-set L_VK=C:\VulkanSDK\Lib
+set I_VK=C:\VulkanSDK\1.4.341.1\Include
+set L_VK=C:\VulkanSDK\1.4.341.1\Lib
 set VK=-I%I_VK% -L%L_VK% -lvulkan-1
 
 :: GLFW (update paths as needed for your Windows install)
-set I_GLFW=C:\glfw\include
-set L_GLFW=C:\glfw\lib
-set GLFW=-I%I_GLFW% -L%L_GLFW% -lglfw3
+set L_GLFW=.\libs
+set GLFW=-L%L_GLFW% -lglfw3
 
 :: Clang flags
 set F_ERROR=-Wall -Wextra -Wpedantic

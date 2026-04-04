@@ -16,9 +16,8 @@ readonly L_VK="/opt/homebrew/lib"
 readonly VK="-isystem $I_VK -L$L_VK -lvulkan -Wl,-rpath,$L_VK"
 
 # GLFW
-readonly I_GLFW="/opt/homebrew/include"
-readonly L_GLFW="/opt/homebrew/lib"
-readonly GLFW="-I$I_GLFW -L$L_GLFW -lglfw3"
+readonly L_GLFW="./libs"
+readonly GLFW="-L$L_GLFW -lglfw3"
 
 # Clang flags
 readonly F_ERROR="-Wall -Wextra -Wpedantic"
