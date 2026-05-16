@@ -10,11 +10,12 @@ namespace File {
             return file
         }
 
+        file.handle = handle
+
         fseek(file.handle, 0, SEEK_END)
         I64 fileSize = ftell(file.handle)
         rewind(file.handle)
 
-        file.handle = handle
         file.size = fileSize
         
         return file
