@@ -1,10 +1,13 @@
 #include <uhcio.uhh>
+#include <uhcmath.uhh>
 
 I32 main() {
+    VectorF v = { 1.0f, 2.0f, 3.0f, 4.0f }
     Log.info("Hello, UnholyC!")
     Log.debug("debug message")
     Log.warn("warning message")
     Log.error("error message")
     Log.msg("raw: %d + %d = %d", 1, 2, 3)
+    Log.trace("UHC self struct %T", v)
     return 0
 }
