@@ -135,9 +135,22 @@ namespace Matrix {
         F32 frustumLength = far - near
 
         mat.values[M00] = xScale
+        mat.values[M01] = 0.0f
+        mat.values[M02] = 0.0f
+        mat.values[M03] = 0.0f
+
+        mat.values[M10] = 0.0f
         mat.values[M11] = yScale
+        mat.values[M12] = 0.0f
+        mat.values[M13] = 0.0f
+
+        mat.values[M20] = 0.0f
+        mat.values[M21] = 0.0f
         mat.values[M22] = -((far + near) / frustumLength)
         mat.values[M23] = -1.0f
+
+        mat.values[M30] = 0.0f
+        mat.values[M31] = 0.0f
         mat.values[M32] = -((2.0f * near * far) / frustumLength)
         mat.values[M33] = 0.0f
     }
@@ -158,10 +171,10 @@ namespace Matrix {
         mat.values[M22] = mat.values[M22] * z
         mat.values[M23] = mat.values[M23] * z
 
-        mat.values[M30] = mat.values[M30] * z
-        mat.values[M31] = mat.values[M31] * z
-        mat.values[M32] = mat.values[M32] * z
-        mat.values[M33] = mat.values[M33] * z
+        mat.values[M30] = mat.values[M30] * w
+        mat.values[M31] = mat.values[M31] * w
+        mat.values[M32] = mat.values[M32] * w
+        mat.values[M33] = mat.values[M33] * w
     }
 
     

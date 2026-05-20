@@ -2,7 +2,7 @@
 
 namespace VectorF {
     U8 equals(VectorF a, VectorF b) {
-        return !((a.x - b.x) + (a.y - b.y) + (a.z - b.z) + (a.w - b.w))
+        return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w
     }
 
     U0 set(VectorF vec, F32 x, F32 y, F32 z, F32 w) {

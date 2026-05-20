@@ -28,7 +28,12 @@
       "Bash(echo \"Archiver exit: $?\")",
       "Bash(mkdir -p dist/include)",
       "Bash(cp out_std/**/*.hh dist/include/)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(bash *)",
+      "Bash(/Users/florianchanson/Documents/code/unholyc/dist/bin/unholyc)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

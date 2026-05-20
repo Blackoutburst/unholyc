@@ -49,10 +49,10 @@ namespace TcpClient {
     }
 
     U8 write(TcpClient client, const I8* buffer, U32 size) {
-        if (client.sockfd == INVALID_SOCKET) return 1
+        if (client.sockfd == INVALID_SOCKET) return 0
         send(client.sockfd, buffer, size, 0)
 
-        return 0
+        return 1
     }
 
     U8 read(TcpClient client, I8* buffer, U32 size) {

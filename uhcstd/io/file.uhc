@@ -29,6 +29,7 @@ namespace File {
         if (!file.size) {
             Log.warn("File size error")
             fclose(file.handle)
+            file.handle = NULL
             return NULL
         }
 
@@ -36,18 +37,22 @@ namespace File {
         if (!buffer) {
             Log.warn("File allocation failed")
             fclose(file.handle)
+            file.handle = NULL
             return NULL
         }
 
         I64 data = fread(buffer, 1, file.size, file.handle)
         if (data != file.size) {
             Log.warn("Reading file failed")
+            free(buffer)
             fclose(file.handle)
+            file.handle = NULL
             return NULL
         }
-        
+
         buffer[file.size] = 0x00
         fclose(file.handle)
+        file.handle = NULL
 
         return buffer
     }
