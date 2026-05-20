@@ -421,6 +421,128 @@ std::unordered_set<std::string> collectNamespaces(const std::vector<Token>& toke
     return ns;
 }
 
+struct FieldInfo {
+    std::string name;
+    std::string fmtSpec; // empty = skip this field
+};
+
+struct NSInfo {
+    bool hasSelf         = false;
+    bool hasUserToString = false;
+    bool isTemplate      = false;
+    std::vector<FieldInfo> selfFields;
+};
+
+static bool isWSTok(const Token& t) {
+    if (t.type != TK::OTHER || t.value.empty()) return false;
+    for (char c : t.value) if (!std::isspace((unsigned char)c)) return false;
+    return true;
+}
+
+static size_t skipWSIdx(const std::vector<Token>& toks, size_t i) {
+    while (i < toks.size() && isWSTok(toks[i])) i++;
+    return i;
+}
+
+static std::string uhcTypeToFmt(const std::string& t, bool ptr) {
+    if (ptr) return (t == "U8" || t == "I8") ? "%s" : "";
+    if (t == "F32" || t == "F64" || t == "F128") return "%f";
+    if (t == "I8"  || t == "I16" || t == "I32")  return "%d";
+    if (t == "I64") return "%lld";
+    if (t == "U8"  || t == "U16" || t == "U32")  return "%u";
+    if (t == "U64") return "%llu";
+    return "";
+}
+
+// Per-file: which namespaces have `self`, a user-defined toString, or are templates.
+// Also extracts primitive fields from self blocks for auto-generated toString formatting.
+static std::unordered_map<std::string, NSInfo> collectNSInfo(const std::vector<Token>& tokens) {
+    std::unordered_map<std::string, NSInfo> result;
+    int         depth        = 0;
+    std::string curNS;
+    bool        seenTemplate = false; // persists through <typename T>; consumed by namespace/self/struct/{
+    bool        pendingSelf  = false; // seen `self`, waiting for its opening {
+    bool        inSelfBlock  = false;
+
+    for (size_t i = 0; i < tokens.size(); i++) {
+        const Token& tok = tokens[i];
+
+        if (tok.type == TK::LBRACE) {
+            seenTemplate = false;
+            depth++;
+            if (pendingSelf && depth == 2) { inSelfBlock = true; }
+            pendingSelf = false;
+            continue;
+        }
+        if (tok.type == TK::RBRACE) {
+            if (inSelfBlock && depth == 2) inSelfBlock = false;
+            depth--;
+            if (depth == 0) curNS.clear();
+            continue;
+        }
+        if (tok.type != TK::IDENT) continue;
+
+        if (tok.value == "template") { seenTemplate = true; continue; }
+
+        if (tok.value == "namespace" && depth == 0) {
+            size_t j = i + 1;
+            while (j < tokens.size() && tokens[j].type == TK::OTHER) j++;
+            if (j < tokens.size() && tokens[j].type == TK::IDENT) {
+                curNS = tokens[j].value;
+                result[curNS].isTemplate |= seenTemplate;
+                i = j;
+            }
+            seenTemplate = false;
+            continue;
+        }
+
+        if (tok.value == "self" && depth == 1 && !curNS.empty()) {
+            result[curNS].hasSelf = true;
+            if (seenTemplate) result[curNS].isTemplate = true;
+            seenTemplate = false;
+            if (!result[curNS].isTemplate) pendingSelf = true;
+            continue;
+        }
+
+        if (tok.value == "struct" || tok.value == "class" || tok.value == "union") {
+            seenTemplate = false; continue;
+        }
+
+        // Parse primitive fields inside the self block
+        if (inSelfBlock && !curNS.empty() && !result[curNS].isTemplate) {
+            // Skip 'const' prefix
+            if (tok.value == "const") continue;
+
+            if (TYPE_MAP.count(tok.value)) {
+                std::string typeName = tok.value;
+                size_t j = skipWSIdx(tokens, i + 1);
+                bool isPointer = false;
+                if (j < tokens.size() && tokens[j].type == TK::OTHER && tokens[j].value == "*") {
+                    isPointer = true;
+                    j = skipWSIdx(tokens, j + 1);
+                }
+                if (j < tokens.size() && tokens[j].type == TK::IDENT) {
+                    std::string fieldName = tokens[j].value;
+                    size_t k = skipWSIdx(tokens, j + 1);
+                    bool isArray = (k < tokens.size() &&
+                                   tokens[k].type == TK::OTHER && tokens[k].value == "[");
+                    if (!isArray) {
+                        std::string fmt = uhcTypeToFmt(typeName, isPointer);
+                        if (!fmt.empty())
+                            result[curNS].selfFields.push_back({fieldName, fmt});
+                    }
+                }
+            }
+            continue;
+        }
+
+        if (curNS.empty()) continue;
+        if (tok.value == "toString" && depth >= 1)
+            result[curNS].hasUserToString = true;
+    }
+    return result;
+}
+
 struct ScopeVar {
     std::string name;
     std::string cType;
@@ -463,8 +585,10 @@ static uint32_t fnv1a32(const std::string& s) {
 }
 
 class Transpiler {
-    const std::vector<Token>&            tokens;
+    const std::vector<Token>&              tokens;
     const std::unordered_set<std::string>& namespaces;
+    const std::unordered_map<std::string, NSInfo>& fileNSInfo;
+    const std::unordered_set<std::string>& globalUserToStringNS;
 
     std::ostringstream out;
     std::ostringstream preamble;
@@ -481,6 +605,10 @@ class Transpiler {
     int  globalBraceDepth  = 0;
 
     std::vector<CallFrame> callStack;
+
+    std::string currentNamespace;
+    std::string pendingNamespaceName;
+    std::unordered_set<std::string> emittedUhcToString;
 
     std::unordered_map<std::string, int> lambdaNameCount;
 
@@ -1062,9 +1190,70 @@ class Transpiler {
         }
     }
 
+    // --- toString helpers ---
+
+    static std::vector<size_t> findTArgPositions(const std::string& fmt) {
+        std::vector<size_t> positions;
+        size_t argIdx = 0;
+        for (size_t k = 1; k + 1 < fmt.size(); k++) {
+            if (fmt[k] != '%') continue;
+            k++;
+            if (k + 1 >= fmt.size()) break;
+            if (fmt[k] == '%') continue;
+            while (k < fmt.size()-1 && (fmt[k]=='-'||fmt[k]=='+'||fmt[k]==' '||fmt[k]=='#'||fmt[k]=='0')) k++;
+            if (k < fmt.size()-1 && fmt[k]=='*') k++;
+            else while (k < fmt.size()-1 && std::isdigit((unsigned char)fmt[k])) k++;
+            if (k < fmt.size()-1 && fmt[k]=='.') {
+                k++;
+                if (k < fmt.size()-1 && fmt[k]=='*') k++;
+                else while (k < fmt.size()-1 && std::isdigit((unsigned char)fmt[k])) k++;
+            }
+            while (k < fmt.size()-1 && (fmt[k]=='h'||fmt[k]=='l'||fmt[k]=='L'||fmt[k]=='z'||fmt[k]=='j'||fmt[k]=='t')) k++;
+            if (k < fmt.size()-1 && fmt[k]=='T') positions.push_back(argIdx);
+            argIdx++;
+        }
+        return positions;
+    }
+
+    // Collect per-arg token ranges [start,end) after a format string token.
+    // Stops at the RPAREN that closes the current call level (depth 0 relative to start).
+    // Sets endIdx to that RPAREN's position.
+    std::vector<std::pair<size_t,size_t>> collectFormatArgs(size_t start, size_t& endIdx) const {
+        std::vector<std::pair<size_t,size_t>> ranges;
+        size_t j = start;
+        while (j < tokens.size() && tokens[j].type != TK::END) {
+            if (tokens[j].type == TK::RPAREN) { endIdx = j; return ranges; }
+            if (tokens[j].type == TK::OTHER && tokens[j].value == ",") {
+                j++;
+                while (j < tokens.size() && tokens[j].type == TK::OTHER &&
+                       !tokens[j].value.empty() && std::isspace((unsigned char)tokens[j].value[0])) j++;
+                size_t argStart = j;
+                int depth = 0;
+                while (j < tokens.size() && tokens[j].type != TK::END) {
+                    if (tokens[j].type == TK::LPAREN) depth++;
+                    else if (tokens[j].type == TK::RPAREN) { if (depth==0) break; depth--; }
+                    else if (depth==0 && tokens[j].type==TK::OTHER && tokens[j].value==",") break;
+                    j++;
+                }
+                size_t argEnd = j;
+                while (argEnd > argStart && tokens[argEnd-1].type == TK::OTHER &&
+                       !tokens[argEnd-1].value.empty() &&
+                       std::isspace((unsigned char)tokens[argEnd-1].value[0])) argEnd--;
+                ranges.push_back({argStart, argEnd});
+            } else {
+                j++;
+            }
+        }
+        endIdx = j;
+        return ranges;
+    }
+
 public:
-    Transpiler(const std::vector<Token>& toks, const std::unordered_set<std::string>& ns)
-        : tokens(toks), namespaces(ns) {}
+    Transpiler(const std::vector<Token>& toks,
+               const std::unordered_set<std::string>& ns,
+               const std::unordered_map<std::string, NSInfo>& fileInfo,
+               const std::unordered_set<std::string>& globalUserToString)
+        : tokens(toks), namespaces(ns), fileNSInfo(fileInfo), globalUserToStringNS(globalUserToString) {}
 
     std::string run() {
         std::string currentFuncName;
@@ -1072,6 +1261,14 @@ public:
 
         std::string paramListCallee;
         size_t paramListOpenIdx = 0;
+
+        // Emit uhc_tostring template base (guarded so multiple includes don't redefine it).
+        // Specializations are emitted after each self-namespace's closing brace.
+        preamble << "#include <stdio.h>\n"
+                 << "#ifndef UHC_TOSTRING_DEFINED\n"
+                 << "#define UHC_TOSTRING_DEFINED\n"
+                 << "template<typename T> inline const char* uhc_tostring(T&) { return \"[object]\"; }\n"
+                 << "#endif\n";
 
         size_t i = 0;
         while (i < tokens.size()) {
@@ -1092,6 +1289,11 @@ public:
                     recordFunctionParams(pi);
                     pendingFuncForBrace.clear();
                 }
+                // Track namespace name when entering a namespace block
+                if (globalBraceDepth == 1 && !pendingNamespaceName.empty()) {
+                    currentNamespace = pendingNamespaceName;
+                    pendingNamespaceName.clear();
+                }
 
                 out << tok.value; i++; continue;
             }
@@ -1104,8 +1306,51 @@ public:
                         scopeVars.clear();
                     }
                 }
+                // Before closing a namespace block, inject auto-generated toString if needed,
+                // then emit a uhc_tostring specialization after the closing brace.
+                std::string closingNS;
+                if (globalBraceDepth == 1 && !currentNamespace.empty()) {
+                    closingNS = currentNamespace;
+                    auto it = fileNSInfo.find(closingNS);
+                    if (it != fileNSInfo.end() && it->second.hasSelf &&
+                        !it->second.isTemplate &&
+                        !globalUserToStringNS.count(closingNS)) {
+                        const auto& fields = it->second.selfFields;
+                        if (fields.empty()) {
+                            out << "    static const char* toString(It& __self) {"
+                                << " (void)__self; return \"" << closingNS << "{}\"; }\n";
+                        } else {
+                            std::string fmt = closingNS + "{";
+                            std::string args;
+                            for (size_t fi = 0; fi < fields.size(); fi++) {
+                                if (fi > 0) { fmt += ", "; args += ", "; }
+                                fmt += fields[fi].name + ": " + fields[fi].fmtSpec;
+                                args += "__self." + fields[fi].name;
+                            }
+                            fmt += "}";
+                            // Rotating pool of 4 buffers so multiple %T in one printf call
+                            // don't clobber each other (each uhc_tostring() call gets its own slot).
+                            out << "    static const char* toString(It& __self) {"
+                                << " static char __pool[4][512]; static int __pi = 0;"
+                                << " __pi = (__pi + 1) & 3; char* __buf = __pool[__pi];"
+                                << " snprintf(__buf, 512, \"" << fmt << "\", " << args << ");"
+                                << " return __buf; }\n";
+                        }
+                    }
+                    currentNamespace.clear();
+                }
                 globalBraceDepth--;
-                out << tok.value; i++; continue;
+                out << tok.value;
+                if (!closingNS.empty()) {
+                    auto it = fileNSInfo.find(closingNS);
+                    if (it != fileNSInfo.end() && it->second.hasSelf && !it->second.isTemplate &&
+                        !emittedUhcToString.count(closingNS)) {
+                        emittedUhcToString.insert(closingNS);
+                        out << "\ninline const char* uhc_tostring(" << closingNS
+                            << "::It& v) { return " << closingNS << "::toString(v); }";
+                    }
+                }
+                i++; continue;
             }
 
             if (tok.type == TK::LPAREN) {
@@ -1199,6 +1444,36 @@ public:
                 out << tok.value; i++; continue;
             }
 
+            // Handle %T format specifier: rewrite to %s and wrap args with uhc_tostring()
+            if (tok.type == TK::STRING && parenDepth > 0 &&
+                tok.value.find("%T") != std::string::npos) {
+                auto tPositions = findTArgPositions(tok.value);
+                if (!tPositions.empty()) {
+                    size_t endIdx = i + 1;
+                    auto argRanges = collectFormatArgs(i + 1, endIdx);
+                    // Rewrite %T → %s in format string
+                    std::string newFmt = tok.value;
+                    size_t p = 0;
+                    while ((p = newFmt.find("%T", p)) != std::string::npos) {
+                        newFmt.replace(p, 2, "%s");
+                        p += 2;
+                    }
+                    out << newFmt;
+                    std::unordered_set<size_t> tSet(tPositions.begin(), tPositions.end());
+                    for (size_t ai = 0; ai < argRanges.size(); ai++) {
+                        auto [argStart, argEnd] = argRanges[ai];
+                        std::vector<Token> argToks(tokens.begin() + argStart,
+                                                    tokens.begin() + argEnd);
+                        out << ", ";
+                        if (tSet.count(ai)) out << "uhc_tostring(";
+                        out << transpileTokensToString(argToks);
+                        if (tSet.count(ai)) out << ")";
+                    }
+                    i = endIdx; // let normal loop handle the closing RPAREN
+                    continue;
+                }
+            }
+
             if (tok.type == TK::OTHER        ||
                 tok.type == TK::LINE_COMMENT ||
                 tok.type == TK::BLOCK_COMMENT||
@@ -1249,6 +1524,48 @@ public:
                         lastIdentAtDepth0 = v;
                     } else {
                         lastIdentAtDepth0.clear();
+                    }
+                }
+
+                if (v == "namespace" && globalBraceDepth == 0) {
+                    size_t j = nextNonWS(i + 1);
+                    if (j < tokens.size() && tokens[j].type == TK::IDENT)
+                        pendingNamespaceName = tokens[j].value;
+                }
+
+                // `return "fmt", args` sugar: rewrite to snprintf + return inside toString
+                if (v == "return" && globalBraceDepth > 0) {
+                    size_t n = nextNonWS(i + 1);
+                    if (n < tokens.size() && tokens[n].type == TK::STRING) {
+                        size_t m = nextNonWS(n + 1);
+                        if (m < tokens.size() && tokens[m].type == TK::OTHER &&
+                            tokens[m].value == ",") {
+                            std::string fmtStr = tokens[n].value;
+                            std::vector<Token> argToks;
+                            size_t j = m + 1;
+                            while (j < tokens.size()) {
+                                if (tokens[j].type == TK::END ||
+                                    tokens[j].type == TK::SEMICOLON) { j++; break; }
+                                argToks.push_back(tokens[j]);
+                                j++;
+                            }
+                            while (!argToks.empty() && argToks.front().type == TK::OTHER &&
+                                   !argToks.front().value.empty() &&
+                                   std::isspace((unsigned char)argToks.front().value[0]))
+                                argToks.erase(argToks.begin());
+                            while (!argToks.empty() && argToks.back().type == TK::OTHER &&
+                                   !argToks.back().value.empty() &&
+                                   std::isspace((unsigned char)argToks.back().value[0]))
+                                argToks.pop_back();
+                            out << "{ static char __pool[4][512]; static int __pi = 0;"
+                                << " __pi = (__pi + 1) & 3; char* __buf = __pool[__pi];"
+                                << " snprintf(__buf, 512, " << fmtStr;
+                            if (!argToks.empty())
+                                out << ", " << transpileTokensToString(argToks);
+                            out << "); return __buf; }";
+                            i = j;
+                            continue;
+                        }
                     }
                 }
 
@@ -1533,9 +1850,12 @@ public:
     }
 };
 
-std::string transpile(const std::vector<Token>& tokens, const std::unordered_set<std::string>& namespaces) {
+std::string transpile(const std::vector<Token>& tokens,
+                      const std::unordered_set<std::string>& namespaces,
+                      const std::unordered_map<std::string, NSInfo>& fileNSInfo,
+                      const std::unordered_set<std::string>& globalUserToStringNS) {
     auto processed = injectImplicitSemicolons(tokens);
-    return Transpiler(processed, namespaces).run();
+    return Transpiler(processed, namespaces, fileNSInfo, globalUserToStringNS).run();
 }
 
 static std::string readFile(const std::string& path) {
@@ -1628,6 +1948,7 @@ int main(int argc, char* argv[]) {
     inRoot = fs::canonical(inRoot);
 
     std::unordered_set<std::string> globalNS;
+    std::unordered_set<std::string> globalUserToStringNS;
 
     auto scanDir = [&](const fs::path& dir) {
         for (auto& entry : fs::recursive_directory_iterator(dir)) {
@@ -1639,6 +1960,9 @@ int main(int argc, char* argv[]) {
                 auto tokens = Lexer(src).tokenize();
                 auto ns     = collectNamespaces(tokens);
                 globalNS.insert(ns.begin(), ns.end());
+                auto info   = collectNSInfo(tokens);
+                for (auto& [name, ni] : info)
+                    if (ni.hasUserToString) globalUserToStringNS.insert(name);
             }
         }
     };
@@ -1660,9 +1984,10 @@ int main(int argc, char* argv[]) {
         fs::create_directories(outPath.parent_path());
 
         if (ext == ".uhc" || ext == ".uhh") {
-            auto src    = readFile(entry.path().string());
-            auto tokens = Lexer(src).tokenize();
-            auto output = transpile(tokens, globalNS);
+            auto src      = readFile(entry.path().string());
+            auto tokens   = Lexer(src).tokenize();
+            auto fileInfo = collectNSInfo(tokens);
+            auto output   = transpile(tokens, globalNS, fileInfo, globalUserToStringNS);
             writeFile(outPath.string(), output);
             if (verbose) std::cout << entry.path().string() << "  ->  " << outPath.string() << "\n";
         } else {

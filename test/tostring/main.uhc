@@ -1,0 +1,55 @@
+#include <uhcio.uhh>
+#include <uhcmath.uhh>
+
+namespace Color {
+    self {
+        U8 r = 0
+        U8 g = 0
+        U8 b = 0
+    }
+
+    Color create(U8 r, U8 g, U8 b)
+    const I8* toString(Color c)
+}
+
+namespace Color {
+    Color create(U8 r, U8 g, U8 b) {
+        Color col
+        col.r = r
+        col.g = g
+        col.b = b
+        return col
+    }
+
+    const I8* toString(Color c) {
+        return "rgb(%d, %d, %d)", c.r, c.g, c.b
+    }
+}
+
+I32 main() {
+    // Edge case 1: VectorF — has self, no user toString → auto-generated default
+    VectorF v
+    VectorF.set(v, 1.0f, 2.0f, 3.0f, 4.0f)
+    Log.info("VectorF default toString: %T", v)
+
+    // Edge case 2: VectorI — has self, no user toString → auto-generated default
+    VectorI vi
+    VectorI.set(vi, 10, 20, 30, 40)
+    Log.info("VectorI default toString: %T", vi)
+
+    // Edge case 3: user-defined toString with format sugar
+    Color c = Color.create(255, 128, 0)
+    Log.info("Color user toString: %T", c)
+
+    // Edge case 4: multiple %T in one call
+    VectorF a
+    VectorF b
+    VectorF.set(a, 1.0f, 0.0f, 0.0f, 0.0f)
+    VectorF.set(b, 0.0f, 1.0f, 0.0f, 0.0f)
+    Log.info("two vectors: a=%T b=%T", a, b)
+
+    // Edge case 5: mixed %T with other format specifiers
+    Log.info("mixed: label=%s vec=%T count=%d", "test", v, 42)
+
+    return 0
+}
