@@ -1,4 +1,6 @@
 #include <cctype>
+#include <chrono>
+#include <cstdlib>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -11,6 +13,12 @@
 #include <algorithm>
 
 namespace fs = std::filesystem;
+
+#ifndef UHC_COMMIT
+#define UHC_COMMIT dev
+#endif
+#define UHC_STR(x) #x
+#define UHC_VERSION(x) UHC_STR(x)
 
 enum class TK {
     IDENT,
@@ -1538,14 +1546,29 @@ static fs::path relativeOutputPath(const fs::path& file, const fs::path& inRoot,
 }
 
 int main(int argc, char* argv[]) {
-    std::vector<fs::path> includeDirs;
+    std::vector<fs::path>    includeDirs;
     std::vector<std::string> positional;
-    bool verbose = false;
+    std::vector<std::string> compilerFlags;
+    std::string outputBinary;
+    bool preserveSource = false;
+    bool verbose        = false;
+
+    static const std::unordered_set<std::string> twoArgFlags = {
+        "-framework", "-isystem", "-arch", "-target", "-x",
+        "-include", "-MF", "-MT", "-iframework", "-isysroot", "-rpath"
+    };
 
     for (int a = 1; a < argc; a++) {
         std::string arg = argv[a];
-        if (arg == "-v") {
+        if (arg == "--version") {
+            std::cout << "unholyc " UHC_VERSION(UHC_COMMIT) "\n";
+            return 0;
+        } else if (arg == "-v") {
             verbose = true;
+        } else if (arg == "--preserve-source") {
+            preserveSource = true;
+        } else if (arg == "-o" && a + 1 < argc) {
+            outputBinary = argv[++a];
         } else if (arg.size() >= 2 && arg[0] == '-' && arg[1] == 'I') {
             fs::path dir = arg.substr(2);
             if (!fs::is_directory(dir)) {
@@ -1553,26 +1576,43 @@ int main(int argc, char* argv[]) {
             } else {
                 includeDirs.push_back(dir);
             }
+            compilerFlags.push_back(arg);
+        } else if (!arg.empty() && arg[0] == '-') {
+            compilerFlags.push_back(arg);
+            if (twoArgFlags.count(arg) && a + 1 < argc)
+                compilerFlags.push_back(argv[++a]);
         } else {
             positional.push_back(arg);
         }
     }
 
-    if (positional.size() < 2) {
+    bool driverMode = !outputBinary.empty();
+
+    if (driverMode && positional.size() < 1) {
+        std::cerr << "Usage: unholyc <input_dir> -o <output> [flags...] [--preserve-source]\n";
+        return 1;
+    }
+    if (!driverMode && positional.size() < 2) {
         std::cerr << "Usage: unholyc <input_dir> <output_dir> [-I<include_dir> ...]\n";
         return 1;
     }
 
     fs::path inRoot  = positional[0];
-    fs::path outRoot = positional[1];
+    fs::path outRoot;
+    if (driverMode) {
+        auto ts  = std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::system_clock::now().time_since_epoch()).count();
+        outRoot  = fs::temp_directory_path() / ("uhc_" + std::to_string(ts));
+    } else {
+        outRoot  = fs::absolute(fs::path(positional[1]));
+    }
 
     if (!fs::is_directory(inRoot)) {
         std::cerr << "Error: " << inRoot << " is not a directory\n";
         return 1;
     }
 
-    inRoot  = fs::canonical(inRoot);
-    outRoot = fs::absolute(outRoot);
+    inRoot = fs::canonical(inRoot);
 
     std::unordered_set<std::string> globalNS;
 
@@ -1618,5 +1658,36 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    return 0;
+    if (!driverMode)
+        return 0;
+
+    // --- compiler driver ---
+    std::vector<std::string> sources;
+    std::ostringstream       autoIncludes;
+    autoIncludes << " -I\"" << outRoot.string() << "\"";
+    for (auto& e : fs::recursive_directory_iterator(outRoot)) {
+        if (e.is_directory())
+            autoIncludes << " -I\"" << e.path().string() << "\"";
+        else if (e.path().extension() == ".cc")
+            sources.push_back("\"" + e.path().string() + "\"");
+    }
+
+    const char* envCxx = std::getenv("CXX");
+    std::string cxx    = (envCxx && *envCxx) ? envCxx : "c++";
+
+    std::ostringstream cmd;
+    cmd << cxx << " -std=c++17";
+    cmd << autoIncludes.str();
+    for (auto& s : sources)      cmd << " " << s;
+    for (auto& f : compilerFlags) cmd << " " << f;
+    cmd << " -o \"" << outputBinary << "\"";
+
+    if (verbose) std::cout << cmd.str() << "\n";
+
+    int ret = std::system(cmd.str().c_str());
+
+    if (!preserveSource)
+        fs::remove_all(outRoot);
+
+    return ret == 0 ? 0 : 1;
 }
