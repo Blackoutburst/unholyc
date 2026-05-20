@@ -178,6 +178,18 @@ public:
                 continue;
             }
 
+            if (c == '+' && peek(1) == '+') {
+                advance(); advance();
+                tokens.push_back({ TK::OTHER, "++", l });
+                continue;
+            }
+
+            if (c == '-' && peek(1) == '-') {
+                advance(); advance();
+                tokens.push_back({ TK::OTHER, "--", l });
+                continue;
+            }
+
             advance();
             TK t = TK::OTHER;
             switch (c) {
@@ -283,8 +295,9 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
             case TK::IDENT:
                 return !NO_SEMI_KW.count(t.value);
             default:
-                // Array subscript closer ] also ends a statement
-                return t.type == TK::OTHER && t.value == "]";
+                // Array subscript closer ] and post-increment/decrement end a statement
+                return t.type == TK::OTHER &&
+                       (t.value == "]" || t.value == "++" || t.value == "--");
         }
     };
 

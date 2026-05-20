@@ -1,0 +1,34 @@
+#include <uhcio.uhh>
+#include <uhcmath.uhh>
+
+I32 main() {
+    F32 angle = Math.rad(90.0f)
+    Log.info("90 deg in radians = %f", angle)
+
+    Log.info("sign(-5)=%d  sign(0)=%d  sign(3)=%d", Math.sign(-5), Math.sign(0), Math.sign(3))
+    Log.info("fsign(-1.5)=%d  fsignf(-1.5)=%f", Math.fsign(-1.5f), Math.fsignf(-1.5f))
+
+    Log.info("clamp(150, 0, 100)=%d", Math.clamp(150, 0, 100))
+    Log.info("fclampf(1.8, 0.0, 1.0)=%f", Math.fclampf(1.8f, 0.0f, 1.0f))
+
+    VectorF a
+    VectorF b
+    VectorF.set(a, 1.0f, 0.0f, 0.0f, 0.0f)
+    VectorF.set(b, 0.0f, 1.0f, 0.0f, 0.0f)
+
+    F32 dot = VectorF.dot(a, b)
+    Log.info("dot(right, up) = %f", dot)
+
+    VectorF c
+    VectorF.cross(c, a, b)
+    Log.info("cross(right, up) = (%f, %f, %f)", c.x, c.y, c.z)
+
+    VectorF v
+    VectorF.set(v, 3.0f, 4.0f, 0.0f, 0.0f)
+    Log.info("length(3,4,0,0) = %f", VectorF.length(v))
+
+    VectorF.normalize(v)
+    Log.info("normalized = (%f, %f)", v.x, v.y)
+
+    return 0
+}

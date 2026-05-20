@@ -1,0 +1,56 @@
+#include <uhcio.uhh>
+#include <uhcmath.uhh>
+
+U0 printMat(Matrix mat) {
+    F32* v = mat.values
+    Log.msg("[ %6.3f %6.3f %6.3f %6.3f ]", v[M00], v[M01], v[M02], v[M03])
+    Log.msg("[ %6.3f %6.3f %6.3f %6.3f ]", v[M10], v[M11], v[M12], v[M13])
+    Log.msg("[ %6.3f %6.3f %6.3f %6.3f ]", v[M20], v[M21], v[M22], v[M23])
+    Log.msg("[ %6.3f %6.3f %6.3f %6.3f ]", v[M30], v[M31], v[M32], v[M33])
+}
+
+I32 main() {
+    Matrix identity
+    Log.msg("identity:")
+    printMat(identity)
+
+    Matrix scaled
+    Matrix.scale(scaled, 2.0f, 3.0f, 1.0f, 1.0f)
+    Log.msg("scale(2,3,1,1):")
+    printMat(scaled)
+
+    Matrix translated
+    Matrix.setIdentity(translated)
+    Matrix.translate(translated, 5.0f, 10.0f, 0.0f, 0.0f)
+    Log.msg("translate(5,10,0,0):")
+    printMat(translated)
+
+    Matrix rotated
+    Matrix.setIdentity(rotated)
+    Matrix.rotate(rotated, Math.rad(45.0f), 0.0f, 0.0f, 1.0f)
+    Log.msg("rotate(45 deg, Z):")
+    printMat(rotated)
+
+    Matrix mul
+    Matrix.multiply(mul, scaled, translated)
+    Log.msg("scale * translate:")
+    printMat(mul)
+
+    Matrix proj
+    Matrix.ortho2D(proj, 0.0f, 800.0f, 0.0f, 600.0f, -1.0f, 1.0f)
+    Log.msg("ortho2D(800x600):")
+    printMat(proj)
+
+    VectorF eye
+    VectorF center
+    VectorF up
+    VectorF.set(eye,    0.0f, 0.0f, 5.0f, 1.0f)
+    VectorF.set(center, 0.0f, 0.0f, 0.0f, 1.0f)
+    VectorF.set(up,     0.0f, 1.0f, 0.0f, 0.0f)
+    Matrix view
+    Matrix.lookAt(view, eye, center, up)
+    Log.msg("lookAt((0,0,5) -> origin):")
+    printMat(view)
+
+    return 0
+}

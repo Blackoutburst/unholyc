@@ -1,0 +1,40 @@
+#include <uhcio.uhh>
+
+namespace Counter {
+    self {
+        I32 value = 0
+        I32 step  = 1
+    }
+
+    Counter create(I32 step) {
+        Counter c
+        c.step = step
+        return c
+    }
+
+    U0 increment(Counter c) {
+        c.value += c.step
+    }
+
+    U0 reset(Counter c) {
+        c.value = 0
+    }
+
+    U0 print(Counter c) {
+        Log.info("counter = %d (step %d)", c.value, c.step)
+    }
+}
+
+I32 main() {
+    Counter c = Counter.create(5)
+
+    Counter.increment(c)
+    Counter.increment(c)
+    Counter.increment(c)
+    Counter.print(c)
+
+    Counter.reset(c)
+    Counter.print(c)
+
+    return 0
+}

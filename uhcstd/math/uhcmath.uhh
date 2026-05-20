@@ -95,7 +95,7 @@ namespace VectorF {
 /// Four-component integer vector (x, y, z, w)
 namespace VectorI {
     /// Integer vector object
-    struct It {
+    self {
         I32 x = 0
         I32 y = 0
         I32 z = 0
@@ -180,7 +180,7 @@ namespace VectorI {
 /// 4x4 row-major float matrix
 namespace Matrix {
     /// Matrix object (16 floats, initialized to identity)
-    struct It {
+    self {
         F32 values[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
     }
 

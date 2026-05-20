@@ -1,0 +1,37 @@
+#include <stdio.h>
+#include <uhcio.uhh>
+#include <uhcstd.uhh>
+
+Mutex gMutex
+I32 gCounter = 0
+
+U0* workerFn(U0* arg) {
+    I32 id = *(I32*)arg
+
+    for (I32 i = 0; i < 5; i++) {
+        Mutex.lock(gMutex)
+        gCounter++
+        Log.info("thread %d: counter = %d", id, gCounter)
+        Mutex.unlock(gMutex)
+    }
+
+    return NULL
+}
+
+I32 main() {
+    gMutex = Mutex.create()
+
+    I32 id1 = 1
+    I32 id2 = 2
+
+    Thread t1 = Thread.start(workerFn, &id1)
+    Thread t2 = Thread.start(workerFn, &id2)
+
+    Thread.join(t1)
+    Thread.join(t2)
+
+    Log.info("final counter = %d (expected 10)", gCounter)
+
+    Mutex.destroy(gMutex)
+    return 0
+}

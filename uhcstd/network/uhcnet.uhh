@@ -17,12 +17,12 @@
 namespace TcpClient {
     /// Platform-specific TCP client handle
 #if defined(_WIN32) || defined(_WIN64)
-    struct It {
+    self {
         SOCKET sockfd = INVALID_SOCKET
         Thread thread = {}
     }
 #else
-    struct It {
+    self {
         I32 sockfd = -1
         Thread thread = {}
     }
@@ -59,13 +59,13 @@ namespace TcpClient {
 namespace TcpServer {
     /// Platform-specific TCP server handle
 #if defined(_WIN32) || defined(_WIN64)
-    struct It {
+    self {
         SOCKET sockfd = INVALID_SOCKET
         U8 running = 0
         U16 slots = 0
     }
 #else
-    struct It {
+    self {
         I32 sockfd = -1
         U8 running = 0
         U16 slots = 0

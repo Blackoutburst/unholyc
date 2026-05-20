@@ -1,0 +1,52 @@
+#include <stdlib.h>
+#include <uhcio.uhh>
+#include <uhcstd.uhh>
+
+I32 main() {
+    U32 capacity = 64
+    U8* raw = (U8*)malloc(capacity)
+
+    Buffer buf
+    buf.handle = raw
+    buf.cursor = 0
+
+    Buffer.setOrder(buf, UHC_BIG_ENDIAN)
+
+    Buffer.putU8(buf,  0xAB)
+    Buffer.putI16(buf, -1000)
+    Buffer.putU32(buf, 123456789)
+    Buffer.putF32(buf, 3.14f)
+    Buffer.putI64(buf, -9000000000000LL)
+
+    Log.info("wrote %u bytes", buf.cursor)
+
+    Buffer.reset(buf)
+    Buffer.setOrder(buf, UHC_BIG_ENDIAN)
+
+    U8  v_u8  = Buffer.getU8(buf)
+    I16 v_i16 = Buffer.getI16(buf)
+    U32 v_u32 = Buffer.getU32(buf)
+    F32 v_f32 = Buffer.getF32(buf)
+    I64 v_i64 = Buffer.getI64(buf)
+
+    Log.info("U8  = %u",   v_u8)
+    Log.info("I16 = %d",   v_i16)
+    Log.info("U32 = %u",   v_u32)
+    Log.info("F32 = %f",   v_f32)
+    Log.info("I64 = %lld", v_i64)
+
+    Buffer le
+    U8* raw2 = (U8*)malloc(capacity)
+    le.handle = raw2
+    le.cursor = 0
+    Buffer.setOrder(le, UHC_LITTLE_ENDIAN)
+
+    Buffer.putU32(le, 0xDEADBEEF)
+    Buffer.reset(le)
+    Buffer.setOrder(le, UHC_LITTLE_ENDIAN)
+    Log.info("LE U32 = 0x%X", Buffer.getU32(le))
+
+    free(raw)
+    free(raw2)
+    return 0
+}

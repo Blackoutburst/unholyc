@@ -1,0 +1,37 @@
+#include <uhcio.uhh>
+#include <uhcstd.uhh>
+
+I32 main() {
+    List<I32> numbers
+
+    List.add(numbers, 10)
+    List.add(numbers, 20)
+    List.add(numbers, 30)
+    List.add(numbers, 40)
+
+    Log.info("size = %llu", List.size(numbers))
+
+    I32* first = List.first(numbers)
+    I32* last  = List.last(numbers)
+    Log.info("first=%d  last=%d", *first, *last)
+
+    I32* mid = List.get(numbers, 1)
+    Log.info("index 1 = %d", *mid)
+
+    List.set(numbers, 1, 99)
+    Log.info("after set index 1 = %d", *List.get(numbers, 1))
+
+    List.addAt(numbers, 5, 0)
+    Log.info("after addAt(5, 0): first=%d", *List.first(numbers))
+
+    List.remove(numbers, 99)
+    Log.info("after remove(99): size=%llu", List.size(numbers))
+
+    List.removeAt(numbers, 0)
+    Log.info("after removeAt(0): first=%d", *List.first(numbers))
+
+    List.clear(numbers)
+    Log.info("after clear: size=%llu", List.size(numbers))
+
+    return 0
+}

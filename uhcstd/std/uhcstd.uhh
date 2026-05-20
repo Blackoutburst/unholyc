@@ -16,18 +16,18 @@
 namespace Mutex {
     /// Platform-specific mutex handle
 #if defined(_WIN32) || defined(_WIN64)
-    struct It {
+    self {
         CRITICAL_SECTION handle
     }
 #else
-    struct It {
+    self {
         pthread_mutex_t handle
     }
 #endif
 
     /// Create and initialize a new mutex
     /// @returns Initialized mutex object
-    Mutex.It create()
+    Mutex create()
     /// Destroy a mutex and release its resources
     /// @param mutex The mutex to destroy
     U0 destroy(Mutex mutex)
@@ -47,7 +47,7 @@ namespace Mutex {
 /// Binary buffer with cursor-based reading and writing
 namespace Buffer {
     /// Buffer object
-    struct It {
+    self {
         U0* handle
         U8 order
         U32 cursor
@@ -149,11 +149,11 @@ namespace Thread {
 
     /// Platform-specific thread handle
 #if defined(_WIN32) || defined(_WIN64)
-    struct It {
+    self {
         HANDLE handle
     }
 #else
-    struct It {
+    self {
         pthread_t handle
     }
 #endif
@@ -162,7 +162,7 @@ namespace Thread {
     /// @param method The thread entry function
     /// @param arg Argument passed to the thread function
     /// @returns Thread handle — use with join
-    Thread.It start(Thread.Fn method, U0* arg)
+    Thread start(Thread.Fn method, U0* arg)
     /// Wait for a thread to finish
     /// @param thread The thread to wait on
     U0 join(Thread thread)
@@ -172,13 +172,13 @@ namespace Thread {
 namespace DynamicLibrary {
     /// Platform-specific dynamic library handle
 #if defined(_WIN32) || defined(_WIN64)
-    struct It {
+    self {
         HINSTANCE handle
         I8* name
         U8 isValid
     }
 #else
-    struct It {
+    self {
         U0* handle
         I8* name
         U8 isValid
@@ -188,7 +188,7 @@ namespace DynamicLibrary {
     /// Load a shared library by name or path
     /// @param name Library name or path
     /// @returns Library object — check isValid before use
-    DynamicLibrary.It load(const I8* name)
+    DynamicLibrary load(const I8* name)
     /// Retrieve a function pointer from a loaded library
     /// @param dll The dynamic library
     /// @param functionName The exported symbol name
@@ -204,7 +204,7 @@ namespace DynamicLibrary {
 namespace List {
     /// List container object
     template<typename T>
-    struct It {
+    self {
         std::list<T> handle
     }
 

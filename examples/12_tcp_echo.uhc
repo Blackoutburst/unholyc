@@ -1,0 +1,50 @@
+#include <stdio.h>
+#include <string.h>
+#include <uhcio.uhh>
+#include <uhcnet.uhh>
+
+#define PORT 9999
+#define MSG  "Hello from client!\n"
+
+U0 onClient(TcpClient client) {
+    I8 buf[256]
+    memset(buf, 0, 256)
+
+    if (TcpServer.readAll(client, buf, (U32)strlen(MSG))) {
+        Log.info("server received: %s", buf)
+        TcpServer.write(client, buf, (U32)strlen(MSG))
+    }
+}
+
+U0* serverThread(U0* unused_arg) {
+    TcpServer server = TcpServer.create(PORT, 4)
+    Log.info("server listening on port %d", PORT)
+    TcpServer.listen(server, onClient)
+    TcpServer.destroy(server)
+    return NULL
+}
+
+I32 main() {
+    Thread srv = Thread.start(serverThread, NULL)
+
+#if defined(_WIN32) || defined(_WIN64)
+    Sleep(500)
+#else
+    usleep(500000)
+#endif
+
+    TcpClient client = TcpClient.create((I8*)"127.0.0.1", PORT)
+    Log.info("client connected")
+
+    TcpClient.write(client, MSG, (U32)strlen(MSG))
+
+    I8 reply[256]
+    memset(reply, 0, 256)
+    TcpClient.readAll(client, reply, (U32)strlen(MSG))
+    Log.info("client received echo: %s", reply)
+
+    TcpClient.destroy(client)
+    Thread.join(srv)
+
+    return 0
+}

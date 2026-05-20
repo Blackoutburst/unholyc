@@ -12,9 +12,10 @@ A custom programming language that transpiles to C++. The transpiler is a single
 ## Directory Layout
 
 ```
-transpiler.cpp       Single-file transpiler (~1570 lines, C++17)
+transpiler.cpp       Single-file transpiler (~1700 lines, C++17)
 uhcstd/              Standard library (io, math, network, std)
 graphics/            Vulkan-based graphics library
+examples/            Runnable examples covering language + stdlib features
 docgen/              Node.js doc generator for uhclang.org
 dist/                Build output — do not edit manually
   bin/               Transpiler binary (unholyc.exe / unholyc)
@@ -46,28 +47,55 @@ state-machine/       Ignore (experimental, not in active use)
 Namespaces are the primary organization unit. Dot notation is used for everything:
 
 ```
-namespace Mutex {
-    struct It {
-        CRITICAL_SECTION handle
+namespace Counter {
+    self {
+        I32 value = 0
     }
-    Mutex.It create()
-    U0 lock(Mutex mutex)
+    Counter create()
+    U0 increment(Counter c)
 }
 ```
 
 ### `self` Keyword
 
-`self` allows using the same name for a struct and its namespace. A `namespace` + `struct It` + `self` pattern means:
-- `Mutex` refers to both the namespace and the struct type
-- Namespace-self-structs are **references by default** — no need to write `&`
+`self` replaces `struct It` — it declares the struct type for the namespace and makes the namespace name serve as both namespace and type:
+
+```
+namespace Mutex {
+    self {
+        pthread_mutex_t handle
+    }
+    Mutex create()       // returns Mutex, not Mutex.It
+    U0 lock(Mutex m)     // m is passed by reference automatically
+}
+```
+
+- `Mutex` is both the namespace and the struct type
+- Namespace-self-structs are **references by default** when passed as function parameters — no need to write `&`
 
 ### `lambda` Keyword
 
-Kotlin-style lambdas:
+Kotlin-style trailing lambdas. Two supported forms:
 
+**Lambda parameter in function signature:**
 ```
-lambda myLambda = (I32 x) -> { return x * 2 }
+U0 forEach(I32* arr, I32 len, lambda block(I32) -> U0) {
+    for (I32 i = 0; i < len; i++) { block(arr[i]) }
+}
 ```
+
+**Trailing lambda call syntax (must be inside the same namespace as the function):**
+```
+namespace MyNS {
+    U0 run() {
+        forEach(nums, 5) { (n) ->
+            Log.info("%d", n)
+        }
+    }
+}
+```
+
+The transpiler hoists each trailing lambda to a named top-level function and rewrites the call to pass it as a function pointer. Stored lambdas (`lambda x = ...`) and lambdas with non-void return types are not supported.
 
 ### `unused` Keyword
 
@@ -81,10 +109,11 @@ unused I32 y = someValue
 
 ### Other Syntax Notes
 
-- Semicolons are **optional**
+- Semicolons are **optional** — the transpiler inserts them automatically
+- `++` / `--` (post-increment/decrement) work as statements
 - Full C/C++ interop — `#include` of C headers is allowed
 - Cross-platform conditionals: `#if defined(_WIN32)` / `#if defined(__linux__)`
-- Templates supported: `template<typename T>`
+- Templates supported: `template<typename T>` (template-within-template method calls not supported)
 
 ## Build System
 
@@ -103,6 +132,23 @@ bash build-all.sh
 The script: compiles the transpiler → uses the fresh binary to transpile uhcstd + graphics → compiles everything to `.a` libs. With 4k+ lines of UHC going through the transpiler, errors surface immediately.
 
 Use the `/build` slash command to run this from within a Claude Code session.
+
+## Compiler Modes
+
+**Transpile only** (output `.cc` files for manual compilation):
+```
+unholyc <input_dir> <output_dir> [-I<include_dir> ...]
+```
+
+**Compiler driver** (transpile + compile to binary in one step):
+```
+unholyc <input_dir> -o <output_binary> [-I<include_dir> ...] [flags...]
+```
+Passes remaining flags directly to the C++ compiler (`$CXX`, defaults to `c++`). Generated `.cc` files are cleaned up automatically unless `--preserve-source` is passed.
+
+```
+unholyc --version
+```
 
 ## Coding Patterns
 

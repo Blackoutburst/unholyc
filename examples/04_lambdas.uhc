@@ -1,0 +1,40 @@
+#include <uhcio.uhh>
+
+namespace Calc {
+    U0 applyTwice(I32 x, lambda block(I32) -> U0) {
+        block(x)
+        block(x * 2)
+    }
+
+    U0 forEach(I32* arr, I32 len, lambda block(I32) -> U0) {
+        for (I32 i = 0; i < len; i++) {
+            block(arr[i])
+        }
+    }
+
+    U0 repeat(I32 times, lambda block(I32) -> U0) {
+        for (I32 i = 0; i < times; i++) {
+            block(i)
+        }
+    }
+
+    U0 run() {
+        applyTwice(10) { (v) ->
+            Log.info("applyTwice: %d", v)
+        }
+
+        I32 nums[5] = {3, 1, 4, 1, 5}
+        forEach(nums, 5) { (n) ->
+            Log.msg("  item: %d", n)
+        }
+
+        repeat(3) { (i) ->
+            Log.msg("hello #%d", i + 1)
+        }
+    }
+}
+
+I32 main() {
+    Calc.run()
+    return 0
+}

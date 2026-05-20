@@ -1,0 +1,24 @@
+#include <uhcio.uhh>
+
+I32 main() {
+    U8  a = 255
+    U16 b = 65535
+    U32 c = 4294967295
+    U64 d = 1000000000000
+
+    I8  e = -128
+    I16 f = -32768
+    I32 g = -2147483648
+    I64 h = -9000000000000
+
+    F32 x = 3.14f
+    F64 y = 2.718281828
+
+    Log.info("U8=%u  U16=%u  U32=%u  U64=%llu", a, b, c, d)
+    Log.info("I8=%d  I16=%d  I32=%d  I64=%lld", e, f, g, h)
+    Log.info("F32=%f  F64=%lf", x, y)
+
+    unused I32 ignored = 42
+
+    return 0
+}

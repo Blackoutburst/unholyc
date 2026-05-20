@@ -1,0 +1,10 @@
+#include <uhcio.uhh>
+
+I32 main() {
+    Log.info("Hello, UnholyC!")
+    Log.debug("debug message")
+    Log.warn("warning message")
+    Log.error("error message")
+    Log.msg("raw: %d + %d = %d", 1, 2, 3)
+    return 0
+}

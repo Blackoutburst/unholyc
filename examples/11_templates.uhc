@@ -1,0 +1,48 @@
+#include <uhcio.uhh>
+#include <uhcstd.uhh>
+
+namespace Stack {
+    self {
+        List<I32> data
+    }
+
+    U0 push(Stack s, I32 value) {
+        List.add(s.data, value)
+    }
+
+    I32 pop(Stack s) {
+        I32* top = List.last(s.data)
+        I32 val = *top
+        List.removeAt(s.data, (I32)List.size(s.data) - 1)
+        return val
+    }
+
+    I32* peek(Stack s) {
+        return List.last(s.data)
+    }
+
+    U64 size(Stack s) {
+        return List.size(s.data)
+    }
+}
+
+I32 main() {
+    Stack s
+
+    Stack.push(s, 10)
+    Stack.push(s, 20)
+    Stack.push(s, 30)
+
+    Log.info("size = %llu", Stack.size(s))
+    Log.info("peek = %d",   *Stack.peek(s))
+
+    I32 top = Stack.pop(s)
+    Log.info("pop  = %d", top)
+    Log.info("peek = %d", *Stack.peek(s))
+
+    while (Stack.size(s) > 0) {
+        Log.info("pop = %d", Stack.pop(s))
+    }
+
+    return 0
+}
