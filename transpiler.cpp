@@ -429,6 +429,7 @@ struct CallFrame {
     std::string calleeName;
     int         parenDepthAtOpen;
     size_t      outLenAtArgStart;
+    bool        hasLambdaParam = false;
 };
 
 static uint32_t fnv1a32(const std::string& s) {
@@ -562,6 +563,8 @@ class Transpiler {
                 retCType = parseCType(i);
             }
         }
+
+        if (!callStack.empty()) callStack.back().hasLambdaParam = true;
 
         std::string regKey = calleeName + "::" + lambdaParamName;
         LambdaReg reg;
@@ -724,11 +727,39 @@ class Transpiler {
             preamble << capType << " " << capName;
         }
 
-        preamble << ") {\n";
+        std::string bodyStr = transpileTokensToString(bodyTokens);
 
-        preamble << transpileTokensToString(bodyTokens);
+        // Split into lines, strip common leading indent, re-apply one level
+        {
+            // collect lines
+            std::vector<std::string> lines;
+            std::istringstream ss(bodyStr);
+            std::string ln;
+            while (std::getline(ss, ln)) lines.push_back(ln);
 
-        preamble << "}\n\n";
+            // find min indent among non-blank lines
+            size_t minIndent = std::string::npos;
+            for (auto& l : lines) {
+                size_t first = l.find_first_not_of(" \t");
+                if (first == std::string::npos) continue;
+                if (minIndent == std::string::npos || first < minIndent) minIndent = first;
+            }
+            if (minIndent == std::string::npos) minIndent = 0;
+
+            // rebuild with single indent level
+            std::ostringstream norm;
+            bool any = false;
+            for (auto& l : lines) {
+                size_t first = l.find_first_not_of(" \t");
+                if (first == std::string::npos) continue; // skip blank lines
+                if (any) norm << "\n";
+                norm << "    " << l.substr(minIndent);
+                any = true;
+            }
+            bodyStr = norm.str();
+        }
+
+        preamble << ") {\n" << bodyStr << "\n}\n\n";
     }
 
     std::string transpileTokensToString(const std::vector<Token>& toks) {
@@ -1093,7 +1124,7 @@ public:
                     if (parenDepth == frame.parenDepthAtOpen - 1) {
                         size_t peek = nextNonWS(i + 1);
                         if (peek < tokens.size() && tokens[peek].type == TK::LBRACE &&
-                            globalBraceDepth > 0) {
+                            !frame.hasLambdaParam && globalBraceDepth > 0) {
                             std::string calleeName      = frame.calleeName;
                             size_t      outLenAtArgStart = frame.outLenAtArgStart;
                             callStack.pop_back();
@@ -1456,7 +1487,28 @@ public:
 
         std::string outStr = applyPatches(out.str());
 
-        return preamble.str() + outStr;
+        std::string lambdaStr = preamble.str();
+        if (lambdaStr.empty()) return outStr;
+
+        // Find insertion point: after all leading preprocessor lines (includes, #if guards, etc.)
+        // Insert lambdas there so they come after includes but before C++ code.
+        size_t insertPos = 0;
+        size_t pos = 0;
+        while (pos < outStr.size()) {
+            size_t lineEnd = outStr.find('\n', pos);
+            if (lineEnd == std::string::npos) lineEnd = outStr.size();
+            size_t nonWS = pos;
+            while (nonWS < lineEnd && std::isspace((unsigned char)outStr[nonWS])) nonWS++;
+            if (nonWS < lineEnd && outStr[nonWS] == '#') {
+                insertPos = lineEnd + 1;
+                pos = lineEnd + 1;
+                continue;
+            }
+            if (nonWS >= lineEnd) { pos = lineEnd + 1; continue; } // blank line
+            break; // first non-empty non-preprocessor line: stop
+        }
+        outStr.insert(insertPos, lambdaStr);
+        return outStr;
     }
 };
 

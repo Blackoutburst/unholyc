@@ -19,12 +19,12 @@ namespace TcpClient {
 #if defined(_WIN32) || defined(_WIN64)
     struct It {
         SOCKET sockfd = INVALID_SOCKET
-        HANDLE thread = NULL
+        Thread thread = {}
     }
 #else
     struct It {
         I32 sockfd = -1
-        pthread_t thread = NULL
+        Thread thread = {}
     }
 #endif
     /// Create a TCP client and connect to a server
@@ -40,7 +40,7 @@ namespace TcpClient {
     /// @param buffer Data to send
     /// @param size Number of bytes to send
     /// @returns Non-zero on success
-    U8 write(TcpClient client, I8* buffer, U32 size)
+    U8 write(TcpClient client, const I8* buffer, U32 size)
     /// Read data from the server (non-blocking, may be partial)
     /// @param client The TCP client
     /// @param buffer Receive buffer
@@ -83,13 +83,13 @@ namespace TcpServer {
     /// Start accepting connections, calling a callback for each new client
     /// @param server The TCP server
     /// @param callback Function called with each new client
-    U0 listen(TcpServer server, U0 (*callback)(TcpClient*))
+    U0 listen(TcpServer server, U0 (*callback)(TcpClient))
     /// Send data to a specific client
     /// @param client Target client
     /// @param buffer Data to send
     /// @param size Number of bytes to send
     /// @returns Non-zero on success
-    U8 write(TcpClient client, I8* buffer, U32 size)
+    U8 write(TcpClient client, const I8* buffer, U32 size)
     /// Read data from a client (non-blocking, may be partial)
     /// @param client Source client
     /// @param buffer Receive buffer
@@ -106,5 +106,5 @@ namespace TcpServer {
     /// @param clients List of clients to send to
     /// @param buffer Data to broadcast
     /// @param size Number of bytes to send
-    U0 broadcast(List<TcpClient> clients, I8* buffer, U32 size)
+    U0 broadcast(List<TcpClient> clients, const I8* buffer, U32 size)
 }

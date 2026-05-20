@@ -48,7 +48,7 @@ namespace TcpClient {
         WSACleanup()
     }
 
-    U8 write(TcpClient client, I8* buffer, U32 size) {
+    U8 write(TcpClient client, const I8* buffer, U32 size) {
         if (client.sockfd == INVALID_SOCKET) return 1
         send(client.sockfd, buffer, size, 0)
 
@@ -113,7 +113,7 @@ namespace TcpClient {
         client.sockfd = -1
     }
 
-    U8 write(TcpClient client, I8* buffer, U32 size) {
+    U8 write(TcpClient client, const I8* buffer, U32 size) {
         if (client.sockfd < 0) return 0
         
         send(client.sockfd, buffer, size, 0)

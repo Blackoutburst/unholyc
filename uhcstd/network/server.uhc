@@ -43,7 +43,7 @@ namespace TcpServer {
         server.running = 0
     }
 
-    U0 listen(TcpServer server, U0 (*callback)(TcpClient*)) {
+    U0 listen(TcpServer server, U0 (*callback)(TcpClient)) {
         if (::listen(server.sockfd, server.slots) == SOCKET_ERROR) {
             Log.warn("Server listen failed")
             destroy(server)
@@ -52,21 +52,23 @@ namespace TcpServer {
 
         while (server.running) {
             struct sockaddr_in clientAddress
-            socklen_t clientLength
-            TcpClient client
+            socklen_t clientLength = sizeof(clientAddress)
+            TcpClient* clientPtr = (TcpClient*)malloc(sizeof(TcpClient))
+            memset(clientPtr, 0, sizeof(TcpClient))
+            clientPtr->sockfd = INVALID_SOCKET
 
-            clientLength = sizeof(clientAddress)
-            client.sockfd = accept(server.sockfd, (struct sockaddr *)&clientAddress, &clientLength)
-            if (client.sockfd == INVALID_SOCKET) {
+            clientPtr->sockfd = accept(server.sockfd, (struct sockaddr *)&clientAddress, &clientLength)
+            if (clientPtr->sockfd == INVALID_SOCKET) {
                 Log.warn("Client accept failed")
+                free(clientPtr)
                 continue
             }
 
-            callback(&client)
+            clientPtr->thread = Thread.start((Thread.Fn)callback, clientPtr)
         }
     }
 
-    U8 write(TcpClient client, I8* buffer, U32 size) {
+    U8 write(TcpClient client, const I8* buffer, U32 size) {
         if (client.sockfd == INVALID_SOCKET) return 0
         
         send(client.sockfd, (I8*)buffer, size, 0)
@@ -74,7 +76,7 @@ namespace TcpServer {
         return 1
     }
 
-    U0 broadcast(List<TcpClient> clients, I8* buffer, U32 size) {
+    U0 broadcast(List<TcpClient> clients, const I8* buffer, U32 size) {
         U64 clientSize = List.size(clients)
 
         for (U64 i = 0; i < clientSize; i++) {
@@ -137,7 +139,7 @@ namespace TcpServer {
         server.running = 0
     }
 
-    U0 listen(TcpServer server, U0 (*callback)(TcpClient*)) {
+    U0 listen(TcpServer server, U0 (*callback)(TcpClient)) {
         if (::listen(server.sockfd, server.slots) < 0) {
             Log.warn("Server listen failed")
             destroy(server)
@@ -146,17 +148,19 @@ namespace TcpServer {
 
         while (server.running) {
             struct sockaddr_in clientAddress
-            socklen_t clientLength
-            TcpClient client
+            socklen_t clientLength = sizeof(clientAddress)
+            TcpClient* clientPtr = (TcpClient*)malloc(sizeof(TcpClient))
+            memset(clientPtr, 0, sizeof(TcpClient))
+            clientPtr->sockfd = -1
 
-            clientLength = sizeof(clientAddress)
-            client.sockfd = accept(server.sockfd, (struct sockaddr *)&clientAddress, &clientLength)
-            if (client.sockfd < 0) {
+            clientPtr->sockfd = accept(server.sockfd, (struct sockaddr *)&clientAddress, &clientLength)
+            if (clientPtr->sockfd < 0) {
                 Log.warn("Client accept failed")
+                free(clientPtr)
                 continue
             }
 
-            callback(&client)
+            clientPtr->thread = Thread.start((Thread.Fn)callback, clientPtr)
         }
     }
 
@@ -168,7 +172,7 @@ namespace TcpServer {
         return 1
     }
 
-    U0 broadcast(List<TcpClient> clients, I8* buffer, U32 size) {
+    U0 broadcast(List<TcpClient> clients, const I8* buffer, U32 size) {
         U64 clientSize = List.size(clients)
 
         for (U64 i = 0; i < clientSize; i++) {

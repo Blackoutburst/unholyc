@@ -1,0 +1,17 @@
+#include <stdio.h>
+#include <string.h>
+#include <uhcio.uhh>
+
+namespace Test {
+    U0 merge(I32 a, I32 b, lambda block(I32) -> U0) {
+        return block(a + b)
+    }
+            
+    U0 run() {
+        merge(5, 3) { (res) ->
+            Log.msg("%d", res)
+        }
+
+        return 0
+    }
+}
