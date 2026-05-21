@@ -9,7 +9,7 @@ https://www.uhclang.org/
 ## Build & Install
 
 ```bash
-bash build-all.sh   # compiles transpiler + stdlib + graphics into dist/
+bash build-all.sh   # compiles transpiler + stdlib into dist/
 bash install.sh     # installs to $HOME/.local and adds to PATH
 ```
 
