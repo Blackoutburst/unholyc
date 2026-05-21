@@ -71,6 +71,12 @@ namespace Rect {
         r.w *= 2
         r.h *= 2
     }
+
+    // Using plain `It` in param — should also get & (same namespace scope)
+    U0 tripleSize(It r) {
+        r.w *= 3
+        r.h *= 3
+    }
 }
 
 I32 main() {
@@ -195,6 +201,13 @@ I32 main() {
     I32 explicitResult = Rect.areaExplicit(r2)
     if (explicitResult != 80) {
         printf("FAIL: areaExplicit expected 80, got %d\n", explicitResult)
+        return 1
+    }
+
+    // 13. Plain `It` param also gets & — mutation visible
+    Rect.tripleSize(r2)
+    if (r2.w != 60 || r2.h != 12) {
+        printf("FAIL: tripleSize via It ref expected 60x12, got %dx%d\n", r2.w, r2.h)
         return 1
     }
 

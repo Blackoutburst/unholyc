@@ -2402,6 +2402,18 @@ public:
                     }
                 }
 
+                // `It` used as a type inside a namespace function param list
+                // → add & so the struct is passed by reference, consistent with
+                //   using the namespace name directly (e.g. `Box f` → `Box::It& f`).
+                if (v == "It" && parenDepth > 0 && !inFunctionBody) {
+                    out << v; i++;
+                    size_t ni = nextNonWS(i);
+                    if (ni >= tokens.size() ||
+                        (tokens[ni].value != "*" && tokens[ni].value != "&"))
+                        out << "&";
+                    continue;
+                }
+
                 out << v; i++; continue;
             }
 
