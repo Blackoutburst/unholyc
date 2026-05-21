@@ -31,7 +31,7 @@ namespace TcpClient {
     /// @param ip Server IP address
     /// @param port Server port number
     /// @returns Connected client object
-    TcpClient create(I8* ip, I16 port)
+    TcpClient create(String ip, I16 port)
     /// Destroy a TCP client and close the connection
     /// @param client The TCP client
     U0 destroy(TcpClient client)

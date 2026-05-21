@@ -1,10 +1,10 @@
 #include "uhcio.uhh"
 
 namespace File {
-    File open(const I8* filePath) {
+    File open(String filePath) {
         File file
-        
-        FILE* handle = fopen(filePath, "rb")
+
+        FILE* handle = fopen(String.c(filePath), "rb")
         if (!handle) {
             Log.warn("Couldn't find file")
             return file
@@ -25,12 +25,14 @@ namespace File {
         fclose(file.handle)
     }
 
-    I8* read(File file) {
+    String read(File file) {
+        String empty
+
         if (!file.size) {
             Log.warn("File size error")
             fclose(file.handle)
             file.handle = NULL
-            return NULL
+            return empty
         }
 
         I8* buffer = (I8*)malloc(file.size + 1)
@@ -38,7 +40,7 @@ namespace File {
             Log.warn("File allocation failed")
             fclose(file.handle)
             file.handle = NULL
-            return NULL
+            return empty
         }
 
         I64 data = fread(buffer, 1, file.size, file.handle)
@@ -47,13 +49,15 @@ namespace File {
             free(buffer)
             fclose(file.handle)
             file.handle = NULL
-            return NULL
+            return empty
         }
 
         buffer[file.size] = 0x00
         fclose(file.handle)
         file.handle = NULL
 
-        return buffer
+        String result = String.from(buffer)
+        free(buffer)
+        return result
     }
 }

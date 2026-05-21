@@ -3,9 +3,9 @@
 
 namespace TcpClient {
 #if defined(_WIN32) || defined(_WIN64)
-    TcpClient create(I8* ip, I16 port) {
+    TcpClient create(String ip, I16 port) {
         TcpClient client
-        
+
         struct sockaddr_in server_addr
 
         WSADATA wsaData
@@ -26,7 +26,7 @@ namespace TcpClient {
         server_addr.sin_family      = AF_INET
         server_addr.sin_port        = htons(port)
 
-        if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
+        if (inet_pton(AF_INET, String.c(ip), &server_addr.sin_addr) <= 0) {
             Log.warn("Invalid server address")
             destroy(client)
             return client
@@ -77,9 +77,9 @@ namespace TcpClient {
         return 1
     }
 #else
-    TcpClient create(I8* ip, I16 port) {
+    TcpClient create(String ip, I16 port) {
         TcpClient client
-        
+
         struct sockaddr_in server_addr
 
         client.sockfd = socket(AF_INET, SOCK_STREAM, 0)
@@ -92,7 +92,7 @@ namespace TcpClient {
         server_addr.sin_family = AF_INET
         server_addr.sin_port = htons(port)
 
-        if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
+        if (inet_pton(AF_INET, String.c(ip), &server_addr.sin_addr) <= 0) {
             Log.warn("Invalid server address")
             destroy(client)
             return client

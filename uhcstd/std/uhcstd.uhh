@@ -170,38 +170,6 @@ namespace Thread {
     U0 join(Thread thread)
 }
 
-/// Cross-platform shared library loader
-namespace DynamicLibrary {
-    /// Platform-specific dynamic library handle
-#if defined(_WIN32) || defined(_WIN64)
-    self {
-        HINSTANCE handle
-        I8* name
-        U8 isValid
-    }
-#else
-    self {
-        U0* handle
-        I8* name
-        U8 isValid
-    }
-#endif
-
-    /// Load a shared library by name or path
-    /// @param name Library name or path
-    /// @returns Library object — check isValid before use
-    DynamicLibrary load(const I8* name)
-    /// Retrieve a function pointer from a loaded library
-    /// @param dll The dynamic library
-    /// @param functionName The exported symbol name
-    /// @returns Raw function pointer — cast before calling
-    U0* get(DynamicLibrary dll, const I8* functionName)
-    /// Unload a dynamic library and free its resources
-    /// @param dll The dynamic library
-    U0 unload(DynamicLibrary dll)
-}
-
-
 /// Generic doubly-linked list
 namespace List {
     /// List container object
@@ -469,6 +437,37 @@ namespace String {
     /// @param s Source string
     /// @returns Read-only C string pointer
     const I8* toString(const String s)
+}
+
+/// Cross-platform shared library loader
+namespace DynamicLibrary {
+    /// Platform-specific dynamic library handle
+#if defined(_WIN32) || defined(_WIN64)
+    self {
+        HINSTANCE handle
+        String name
+        U8 isValid
+    }
+#else
+    self {
+        U0* handle
+        String name
+        U8 isValid
+    }
+#endif
+
+    /// Load a shared library by name or path
+    /// @param name Library name or path
+    /// @returns Library object — check isValid before use
+    DynamicLibrary load(String name)
+    /// Retrieve a function pointer from a loaded library
+    /// @param dll The dynamic library
+    /// @param functionName The exported symbol name
+    /// @returns Raw function pointer — cast before calling
+    U0* get(DynamicLibrary dll, String functionName)
+    /// Unload a dynamic library and free its resources
+    /// @param dll The dynamic library
+    U0 unload(DynamicLibrary dll)
 }
 
 /// Cross-platform time utilities

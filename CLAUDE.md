@@ -197,3 +197,4 @@ Explicit `-I` / `-L` / `-luhc` flags still work and take precedence.
 - Keep structs flat; behavior lives in the namespace, not the struct
 - Avoid creating new files unless necessary; prefer extending existing `.uhc` files
 - Headers (`.uhh`) declare the public API; implementations go in `.uhc`
+- Use `String` for text data (file paths, names, IPs, identifiers); use `I8*`/`U8*` only for binary buffers or variadic format strings (`const I8* fmt, ...` required by `va_list`)

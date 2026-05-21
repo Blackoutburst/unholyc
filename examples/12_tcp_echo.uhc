@@ -33,7 +33,7 @@ I32 main() {
     usleep(500000)
 #endif
 
-    TcpClient client = TcpClient.create((I8*)"127.0.0.1", PORT)
+    TcpClient client = TcpClient.create("127.0.0.1", PORT)
     Log.info("client connected")
 
     TcpClient.write(client, MSG, (U32)strlen(MSG))

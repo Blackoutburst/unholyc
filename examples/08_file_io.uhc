@@ -3,27 +3,22 @@
 #include <uhcio.uhh>
 
 I32 main() {
-    const I8* path = "examples/08_file_io.uhc"
+    String path = "examples/08_file_io.uhc"
 
     File f = File.open(path)
     if (f.handle == NULL) {
-        Log.error("failed to open: %s", path)
+        Log.error("failed to open: %T", path)
         return 1
     }
 
-    Log.info("opened '%s' (%lld bytes)", path, f.size)
+    Log.info("opened '%T' (%lld bytes)", path, f.size)
 
-    I8* contents = File.read(f)
-    if (contents != NULL) {
+    String contents = File.read(f)
+    if (!String.isEmpty(contents)) {
         Log.msg("--- first 80 chars ---")
-        I8 preview[81]
         I32 len = (I32)f.size < 80 ? (I32)f.size : 80
-        for (I32 i = 0; i < len; i++) {
-            preview[i] = contents[i]
-        }
-        preview[len] = '\0'
-        Log.msg("%s", preview)
-        free(contents)
+        String preview = String.substring(contents, 0, len)
+        Log.msg("%T", preview)
     }
 
     File.close(f)

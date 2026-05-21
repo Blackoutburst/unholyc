@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "uhcstd.uhh"
 
 /// Leveled logger with colored console output
 namespace Log {
@@ -50,12 +51,12 @@ namespace File {
     /// Open a file for reading
     /// @param filePath Path to the file
     /// @returns The file
-    File open(const I8* filePath)
+    File open(String filePath)
     /// Close an open file
     /// @param file The file
     U0 close(File file)
-    /// Read the entire file contents into a heap-allocated string
+    /// Read the entire file contents into a String
     /// @param file The file
-    /// @returns Null-terminated file contents — caller must free
-    I8* read(File file)
+    /// @returns File contents, or empty string on error
+    String read(File file)
 }
