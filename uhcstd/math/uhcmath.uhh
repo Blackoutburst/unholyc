@@ -51,6 +51,13 @@ namespace VectorF {
         F32 y = 0.0f
         F32 z = 0.0f
         F32 w = 0.0f
+        bool operator==(const It& o) { return x==o.x && y==o.y && z==o.z && w==o.w; }
+        It operator+(const It& o) { return {x+o.x, y+o.y, z+o.z, w+o.w}; }
+        It operator-(const It& o) { return {x-o.x, y-o.y, z-o.z, w-o.w}; }
+        It operator-() { return {-x, -y, -z, -w}; }
+        It operator*(const It& o) { return {x*o.x, y*o.y, z*o.z, w*o.w}; }
+        It operator*(float s) { return {x*s, y*s, z*s, w*s}; }
+        It operator/(float s) { return {x/s, y/s, z/s, w/s}; }
     }
 
     /// Test whether two float vectors are component-wise equal
@@ -85,11 +92,31 @@ namespace VectorF {
     /// @param a First vector
     /// @param b Second vector
     U0 cross(VectorF result, VectorF a, VectorF b)
+    /// Add two float vectors component-wise
+    /// @param result Vector to store the result
+    /// @param a First vector
+    /// @param b Second vector
+    U0 add(VectorF result, VectorF a, VectorF b)
     /// Subtract one float vector from another
     /// @param result Vector to store the result
     /// @param a Minuend vector
     /// @param b Subtrahend vector
     U0 sub(VectorF result, VectorF a, VectorF b)
+    /// Multiply two float vectors component-wise
+    /// @param result Vector to store the result
+    /// @param a First vector
+    /// @param b Second vector
+    U0 mul(VectorF result, VectorF a, VectorF b)
+    /// Multiply a float vector by a scalar
+    /// @param result Vector to store the result
+    /// @param a Source vector
+    /// @param s Scalar factor
+    U0 scale(VectorF result, VectorF a, F32 s)
+    /// Divide a float vector by a scalar
+    /// @param result Vector to store the result
+    /// @param a Source vector
+    /// @param s Scalar divisor
+    U0 div(VectorF result, VectorF a, F32 s)
 }
 
 /// Four-component integer vector (x, y, z, w)
@@ -100,6 +127,13 @@ namespace VectorI {
         I32 y = 0
         I32 z = 0
         I32 w = 0
+        bool operator==(const It& o) { return x==o.x && y==o.y && z==o.z && w==o.w; }
+        It operator+(const It& o) { return {x+o.x, y+o.y, z+o.z, w+o.w}; }
+        It operator-(const It& o) { return {x-o.x, y-o.y, z-o.z, w-o.w}; }
+        It operator-() { return {-x, -y, -z, -w}; }
+        It operator*(const It& o) { return {x*o.x, y*o.y, z*o.z, w*o.w}; }
+        It operator*(int s) { return {x*s, y*s, z*s, w*s}; }
+        It operator/(int s) { return {x/s, y/s, z/s, w/s}; }
     }
 
     /// Test whether two integer vectors are component-wise equal
@@ -134,11 +168,31 @@ namespace VectorI {
     /// @param a First vector
     /// @param b Second vector
     U0 cross(VectorI result, VectorI a, VectorI b)
+    /// Add two integer vectors component-wise
+    /// @param result Vector to store the result
+    /// @param a First vector
+    /// @param b Second vector
+    U0 add(VectorI result, VectorI a, VectorI b)
     /// Subtract one integer vector from another
     /// @param result Vector to store the result
     /// @param a Minuend vector
     /// @param b Subtrahend vector
     U0 sub(VectorI result, VectorI a, VectorI b)
+    /// Multiply two integer vectors component-wise
+    /// @param result Vector to store the result
+    /// @param a First vector
+    /// @param b Second vector
+    U0 mul(VectorI result, VectorI a, VectorI b)
+    /// Multiply an integer vector by a scalar
+    /// @param result Vector to store the result
+    /// @param a Source vector
+    /// @param s Scalar factor
+    U0 scale(VectorI result, VectorI a, I32 s)
+    /// Divide an integer vector by a scalar
+    /// @param result Vector to store the result
+    /// @param a Source vector
+    /// @param s Scalar divisor
+    U0 div(VectorI result, VectorI a, I32 s)
 }
 
 /// Row 0, column 0 matrix index

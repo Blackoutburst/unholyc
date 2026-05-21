@@ -41,10 +41,38 @@ namespace VectorF {
         result.w = 0.0f
     }
 
+    U0 add(VectorF result, VectorF a, VectorF b) {
+        result.x = a.x + b.x
+        result.y = a.y + b.y
+        result.z = a.z + b.z
+        result.w = a.w + b.w
+    }
+
     U0 sub(VectorF result, VectorF a, VectorF b) {
         result.x = a.x - b.x
         result.y = a.y - b.y
         result.z = a.z - b.z
         result.w = a.w - b.w
+    }
+
+    U0 mul(VectorF result, VectorF a, VectorF b) {
+        result.x = a.x * b.x
+        result.y = a.y * b.y
+        result.z = a.z * b.z
+        result.w = a.w * b.w
+    }
+
+    U0 scale(VectorF result, VectorF a, F32 s) {
+        result.x = a.x * s
+        result.y = a.y * s
+        result.z = a.z * s
+        result.w = a.w * s
+    }
+
+    U0 div(VectorF result, VectorF a, F32 s) {
+        result.x = a.x / s
+        result.y = a.y / s
+        result.z = a.z / s
+        result.w = a.w / s
     }
 }

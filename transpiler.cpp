@@ -775,6 +775,33 @@ class Transpiler {
 
     std::vector<CallSiteCapture> callSiteCaptures;
     bool needsFunctional = false;
+    bool needsTypeTraits = false;
+
+    static bool isSwizzleIdent(const std::string& s) {
+        if (s.size() < 2 || s.size() > 4) return false;
+        for (char c : s)
+            if (c != 'x' && c != 'y' && c != 'z' && c != 'w' &&
+                c != 'r' && c != 'g' && c != 'b' && c != 'a')
+                return false;
+        return true;
+    }
+    static char swizzleComp(char c) {
+        if (c == 'r') return 'x';
+        if (c == 'g') return 'y';
+        if (c == 'b') return 'z';
+        if (c == 'a') return 'w';
+        return c;
+    }
+    void emitSwizzle(std::ostringstream& dst, const std::string& varName, const std::string& sw) {
+        needsTypeTraits = true;
+        dst << "std::remove_reference_t<decltype(" << varName << ")>{";
+        for (int ci = 0; ci < 4; ci++) {
+            if (ci > 0) dst << ", ";
+            if ((size_t)ci < sw.size()) dst << varName << "." << swizzleComp(sw[ci]);
+            else                        dst << "0";
+        }
+        dst << "}";
+    }
 
     // Track position of the closing > of the most recent template<...> so we can
     // inject extra typename Block params when a lambda parameter is encountered.
@@ -1368,6 +1395,20 @@ class Transpiler {
                         }
                         // Standalone namespace name → expand to Namespace::It
                         buf << v << "::It"; i++; continue;
+                    }
+                }
+
+                // Swizzle: ident.xyzw / ident.rgba (2-4 chars from {x,y,z,w,r,g,b,a})
+                {
+                    size_t j = nextNonWSLocal(i + 1);
+                    if (j < toks.size() && toks[j].type == TK::DOT) {
+                        size_t k = nextNonWSLocal(j + 1);
+                        if (k < toks.size() && toks[k].type == TK::IDENT &&
+                            isSwizzleIdent(toks[k].value)) {
+                            emitSwizzle(buf, v, toks[k].value);
+                            i = k + 1;
+                            continue;
+                        }
                     }
                 }
 
@@ -2207,6 +2248,20 @@ public:
                     }
                 }
 
+                // Swizzle: ident.xyzw / ident.rgba (2-4 chars from {x,y,z,w,r,g,b,a})
+                {
+                    size_t j = nextNonWS(i + 1);
+                    if (j < tokens.size() && tokens[j].type == TK::DOT) {
+                        size_t k = nextNonWS(j + 1);
+                        if (k < tokens.size() && tokens[k].type == TK::IDENT &&
+                            isSwizzleIdent(tokens[k].value)) {
+                            emitSwizzle(out, v, tokens[k].value);
+                            i = k + 1;
+                            continue;
+                        }
+                    }
+                }
+
                 out << v; i++; continue;
             }
 
@@ -2215,6 +2270,9 @@ public:
 
         std::string outStr = applyPatches(out.str());
 
+        if (needsTypeTraits) {
+            outStr = "#include <type_traits>\n" + outStr;
+        }
         if (needsFunctional) {
             outStr = "#include <functional>\n" + outStr;
         }

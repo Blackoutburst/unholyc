@@ -41,10 +41,38 @@ namespace VectorI {
         result.w = 0
     }
 
+    U0 add(VectorI result, VectorI a, VectorI b) {
+        result.x = a.x + b.x
+        result.y = a.y + b.y
+        result.z = a.z + b.z
+        result.w = a.w + b.w
+    }
+
     U0 sub(VectorI result, VectorI a, VectorI b) {
         result.x = a.x - b.x
         result.y = a.y - b.y
         result.z = a.z - b.z
         result.w = a.w - b.w
+    }
+
+    U0 mul(VectorI result, VectorI a, VectorI b) {
+        result.x = a.x * b.x
+        result.y = a.y * b.y
+        result.z = a.z * b.z
+        result.w = a.w * b.w
+    }
+
+    U0 scale(VectorI result, VectorI a, I32 s) {
+        result.x = a.x * s
+        result.y = a.y * s
+        result.z = a.z * s
+        result.w = a.w * s
+    }
+
+    U0 div(VectorI result, VectorI a, I32 s) {
+        result.x = a.x / s
+        result.y = a.y / s
+        result.z = a.z / s
+        result.w = a.w / s
     }
 }
