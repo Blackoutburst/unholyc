@@ -322,44 +322,152 @@ namespace String {
         U8 operator!=(const It& o) { return handle != o.handle ? 1 : 0; }
     }
 
-    /// Wrap a C string (null → empty string)
+    /// Create a String from a C string literal or pointer — null becomes empty string
+    /// @param s Source C string (may be null)
+    /// @returns New String value
     String from(const I8* s)
-    /// Number → String conversions
+    /// Create a String from a signed 32-bit integer
+    /// @param n Integer to convert
+    /// @returns Decimal string representation
     String fromI32(I32 n)
+    /// Create a String from a signed 64-bit integer
+    /// @param n Integer to convert
+    /// @returns Decimal string representation
     String fromI64(I64 n)
+    /// Create a String from a 32-bit float
+    /// @param f Float to convert
+    /// @returns Decimal string representation
     String fromF32(F32 f)
+    /// Create a String from a 64-bit float
+    /// @param f Float to convert
+    /// @returns Decimal string representation
     String fromF64(F64 f)
-    /// Underlying C string pointer — valid while String is alive
-    const I8* c(const String s)
-    /// Byte length (not Unicode code points)
+    /// Return the underlying C string pointer — valid only while the String is alive
+    /// @param s Source string
+    /// @returns Read-only C string pointer
+    const I8* toCStr(const String s)
+    /// Return the number of bytes in the string (not Unicode code points)
+    /// @param s Source string
+    /// @returns Byte count
     U64 length(const String s)
+    /// Return 1 if the string has zero bytes, 0 otherwise
+    /// @param s Source string
+    /// @returns 1 if empty, 0 if not
     U8 isEmpty(const String s)
+    /// Return the byte at the given index — no bounds checking
+    /// @param s Source string
+    /// @param i Zero-based byte index
+    /// @returns Byte value at that position
     I8 charAt(const String s, I32 i)
+    /// Return 1 if both strings have identical content
+    /// @param a First string
+    /// @param b Second string
+    /// @returns 1 if equal, 0 if not
     U8 equals(const String a, const String b)
+    /// Return 1 if sub appears anywhere inside s
+    /// @param s String to search in
+    /// @param sub Substring to find
+    /// @returns 1 if found, 0 if not
     U8 contains(const String s, const String sub)
+    /// Return 1 if s begins with prefix
+    /// @param s String to test
+    /// @param prefix Prefix to look for
+    /// @returns 1 if s starts with prefix, 0 if not
     U8 startsWith(const String s, const String prefix)
+    /// Return 1 if s ends with suffix
+    /// @param s String to test
+    /// @param suffix Suffix to look for
+    /// @returns 1 if s ends with suffix, 0 if not
     U8 endsWith(const String s, const String suffix)
-    /// Returns -1 if not found
+    /// Return the byte offset of the first occurrence of sub, or -1 if not found
+    /// @param s String to search in
+    /// @param sub Substring to find
+    /// @returns Zero-based offset, or -1
     I64 indexOf(const String s, const String sub)
+    /// Return the byte offset of the last occurrence of sub, or -1 if not found
+    /// @param s String to search in
+    /// @param sub Substring to find
+    /// @returns Zero-based offset, or -1
     I64 lastIndexOf(const String s, const String sub)
+    /// Return a copy of s with all ASCII letters uppercased
+    /// @param s Source string
+    /// @returns Uppercased string
     String toUpperCase(const String s)
+    /// Return a copy of s with all ASCII letters lowercased
+    /// @param s Source string
+    /// @returns Lowercased string
     String toLowerCase(const String s)
+    /// Return a copy of s with leading and trailing ASCII whitespace removed
+    /// @param s Source string
+    /// @returns Trimmed string
     String trim(const String s)
+    /// Return a copy of s with leading ASCII whitespace removed
+    /// @param s Source string
+    /// @returns Left-trimmed string
     String trimStart(const String s)
+    /// Return a copy of s with trailing ASCII whitespace removed
+    /// @param s Source string
+    /// @returns Right-trimmed string
     String trimEnd(const String s)
+    /// Return a copy of s with every occurrence of from replaced by to
+    /// @param s Source string
+    /// @param from Substring to find
+    /// @param to Replacement value
+    /// @returns Modified string
     String replace(const String s, const String from, const String to)
+    /// Return the substring from start to the end of the string
+    /// @param s Source string
+    /// @param start Zero-based start index (inclusive)
+    /// @returns Substring
     String substring(const String s, I32 start)
+    /// Return the substring from start (inclusive) to end (exclusive)
+    /// @param s Source string
+    /// @param start Zero-based start index (inclusive)
+    /// @param end Zero-based end index (exclusive)
+    /// @returns Substring
     String substring(const String s, I32 start, I32 end)
+    /// Return the string repeated n times
+    /// @param s Source string
+    /// @param n Number of repetitions
+    /// @returns Repeated string
     String repeat(const String s, I32 n)
+    /// Return a copy of s with its bytes in reverse order
+    /// @param s Source string
+    /// @returns Reversed string
     String reverse(const String s)
+    /// Parse the string as a signed 32-bit integer — throws on failure
+    /// @param s Source string
+    /// @returns Parsed integer
     I32 toI32(const String s)
+    /// Parse the string as a signed 64-bit integer — throws on failure
+    /// @param s Source string
+    /// @returns Parsed integer
     I64 toI64(const String s)
+    /// Parse the string as a 32-bit float — throws on failure
+    /// @param s Source string
+    /// @returns Parsed float
     F32 toF32(const String s)
+    /// Parse the string as a 64-bit float — throws on failure
+    /// @param s Source string
+    /// @returns Parsed float
     F64 toF64(const String s)
-    /// sprintf-style: String.format("Hello %s!", name)
+    /// Build a String using printf-style formatting
+    /// @param fmt Format string (same specifiers as printf)
+    /// @returns Formatted string (capped at 4096 bytes)
     String format(const I8* fmt, ...)
+    /// Split s on every occurrence of delim and return all parts as a list
+    /// @param s Source string
+    /// @param delim Delimiter to split on
+    /// @returns List of substrings (always at least one element)
     List<String> split(const String s, const String delim)
+    /// Concatenate all strings in parts, inserting sep between each pair
+    /// @param parts List of strings to join
+    /// @param sep Separator inserted between elements
+    /// @returns Joined string
     String join(List<String> parts, const String sep)
+    /// Return the underlying C string pointer — used by %T format specifier
+    /// @param s Source string
+    /// @returns Read-only C string pointer
     const I8* toString(const String s)
 }
 
