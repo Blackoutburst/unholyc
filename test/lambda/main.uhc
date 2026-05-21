@@ -1,0 +1,40 @@
+#include <uhcio.uhh>
+#include <uhcstd.uhh>
+#include <lambda.uhh>
+
+I32 main() {
+    List<I32> nums
+
+    List.add(nums, 1)
+    List.add(nums, 2)
+    List.add(nums, 3)
+    List.add(nums, 4)
+    List.add(nums, 5)
+
+    // --- forEach ---
+    Log.info("forEach:")
+    forEach(nums) { (n) ->
+        Log.msg("  %d", n)
+    }
+
+    // --- filter: keep even numbers ---
+    List<I32> evens = filter(nums) { (n) ->
+        return n % 2 == 0
+    }
+    Log.info("filter (even):")
+    forEach(evens) { (n) ->
+        Log.msg("  %d", n)
+    }
+
+    // --- map: multiply each value by 10 ---
+    I32 factor = 10
+    List<I32> scaled = map(nums) { (n) ->
+        return n * factor
+    }
+    Log.info("map (x10):")
+    forEach(scaled) { (n) ->
+        Log.msg("  %d", n)
+    }
+
+    return 0
+}

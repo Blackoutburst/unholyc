@@ -63,6 +63,17 @@
         { "name": "Mutex",          "slug": "mutex"          },
         { "name": "Thread",         "slug": "thread"         }
       ]
+    },
+    {
+      "id": "lambda",
+      "title": "Lambda",
+      "description": "Higher-order list operations: forEach, filter, map",
+      "header": {
+        "uhc": "#include <lambda.uhh>",
+        "cpp": "#include <lambda.hh>"
+      },
+      "sourceFile": "uhcstd/lambda/lambda.uhh",
+      "namespaces": []
     }
   ]
 }

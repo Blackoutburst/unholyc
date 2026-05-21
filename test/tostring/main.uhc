@@ -1,6 +1,7 @@
 #include <uhcio.uhh>
 #include <uhcmath.uhh>
 #include <uhcstd.uhh>
+#include <lambda.uhh>
 
 namespace Color {
     self {

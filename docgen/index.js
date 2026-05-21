@@ -426,6 +426,31 @@ function parseHeader(source) {
       continue;
     }
 
+    // Free template function at file scope
+    if (t.startsWith('template<')) {
+      const doc = consumeDoc();
+      const templatePrefix = t;
+      i++;
+      while (i < lines.length && lines[i].trim() === '') i++;
+      const sigLine = lines[i] ? lines[i].trim() : '';
+      i++;
+      const fnName = extractFunctionName(sigLine);
+      let bodyStart = i - 1;
+      let sigFull = sigLine;
+      if (sigLine && !sigLine.includes('{')) {
+        while (i < lines.length && !lines[i].includes('{')) {
+          sigFull += ' ' + lines[i].trim();
+          i++;
+        }
+        bodyStart = i;
+      }
+      i = skipBody(bodyStart);
+      const cleanSig = sigFull.replace(/\s*\{.*$/, '').trim();
+      const rawSig = `${templatePrefix}\n${cleanSig};`;
+      fileScopeItems.push({ kind: 'template_function', name: fnName, raw: rawSig, doc, afterNs: namespaces.length });
+      continue;
+    }
+
     pendingDocLines = [];
     i++;
   }
@@ -740,11 +765,24 @@ function renderSectionIndexPage(section, parsedSections) {
       'M20','M21','M22','M23','M30','M31','M32','M33',
     ]);
 
-    const topDefines = fileScopeItems.filter(d => !matrixDefineNames.has(d.name));
+    const topDefines = fileScopeItems.filter(d => !matrixDefineNames.has(d.name) && d.kind === 'define');
     const matrixDefines = fileScopeItems.filter(d => matrixDefineNames.has(d.name));
+    const freeFunctions = fileScopeItems.filter(d => d.kind === 'template_function' || d.kind === 'function');
 
     for (const d of topDefines) {
       parts.push(`#define ${d.name} ${d.value}`);
+    }
+
+    for (const fn of freeFunctions) {
+      if (fn.kind === 'template_function') {
+        const rawLines = fn.raw.split('\n');
+        const sig = rawLines.length > 1 ? rawLines[1] : rawLines[0];
+        const out = isUhc ? sig : transpile(sig);
+        parts.push(out);
+      } else {
+        const out = isUhc ? fn.raw : transpile(fn.raw);
+        parts.push(out);
+      }
     }
 
     if (parts.length > 0) parts.push('');

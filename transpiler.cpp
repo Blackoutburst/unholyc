@@ -1071,18 +1071,6 @@ class Transpiler {
     {
         std::string bodyStr = transpileTokensToString(bodyTokens);
 
-        // When arg types are unknown (registry from compiled .hh), emit a generic
-        // lambda object (C++14) so the block can be passed to template Block params.
-        if (argCTypes.empty() && !headerParams.empty()) {
-            preamble << "auto " << name << " = [](";
-            for (size_t k = 0; k < headerParams.size(); k++) {
-                if (k > 0) preamble << ", ";
-                preamble << "auto " << headerParams[k];
-            }
-            preamble << ") {" << bodyStr << "};\n";
-            return;
-        }
-
         // Collect template type parameters used in arg/ret types (e.g. T, U, K, V).
         // A token is a template param if it's a short all-uppercase identifier that
         // isn't a known C++ keyword or type.
@@ -1113,6 +1101,19 @@ class Transpiler {
         for (auto& ct : argCTypes)
             for (auto& p : extractTemplateParams(ct)) tmplParamSet.insert(p);
         for (auto& p : extractTemplateParams(retCType)) tmplParamSet.insert(p);
+
+        // When arg types are unknown (registry from compiled .hh) or contain template
+        // type params (T, U, …), emit as a generic auto lambda object (C++14) so the
+        // block can be passed to __Block_xxx template params without deduction issues.
+        if ((argCTypes.empty() || !tmplParamSet.empty()) && !headerParams.empty()) {
+            preamble << "auto " << name << " = [](";
+            for (size_t k = 0; k < headerParams.size(); k++) {
+                if (k > 0) preamble << ", ";
+                preamble << "auto " << headerParams[k];
+            }
+            preamble << ") {" << bodyStr << "};\n";
+            return;
+        }
 
         if (!tmplParamSet.empty()) {
             preamble << "template<";
@@ -1772,7 +1773,12 @@ public:
                                     out << captures[ci].first;
                                 }
                                 out << "](";
-                                for (size_t k = 0; k < reg->argCTypes.size(); k++) {
+                                // argCTypes may be empty when registry came from a compiled .hh;
+                                // fall back to headerParams count so params are still emitted.
+                                size_t paramCount = reg->argCTypes.empty()
+                                    ? eb.headerParams.size()
+                                    : reg->argCTypes.size();
+                                for (size_t k = 0; k < paramCount; k++) {
                                     if (k > 0) out << ", ";
                                     out << "auto";
                                     if (k < eb.headerParams.size()) out << " " << eb.headerParams[k];
@@ -2177,7 +2183,12 @@ public:
                                     out << captures[ci].first;
                                 }
                                 out << "](";
-                                for (size_t k = 0; k < reg->argCTypes.size(); k++) {
+                                // argCTypes may be empty when registry came from a compiled .hh;
+                                // fall back to headerParams count so params are still emitted.
+                                size_t paramCount = reg->argCTypes.empty()
+                                    ? eb.headerParams.size()
+                                    : reg->argCTypes.size();
+                                for (size_t k = 0; k < paramCount; k++) {
                                     if (k > 0) out << ", ";
                                     out << "auto";
                                     if (k < eb.headerParams.size()) out << " " << eb.headerParams[k];

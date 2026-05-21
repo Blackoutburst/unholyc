@@ -1,0 +1,45 @@
+#pragma once
+
+#include "uhcstd.uhh"
+
+/// Iterate over every element of a list, calling the block for each one
+/// @param list Source list
+/// @param block Called with each element in order
+template<typename T>
+U0 forEach(List<T> list, lambda block(T) -> U0) {
+    U32 size = (U32)List.size(list)
+    for (U32 i = 0; i < size; i++) {
+        block(*List.get(list, i))
+    }
+}
+
+/// Keep only elements for which the predicate returns non-zero
+/// @param list Source list
+/// @param pred Called with each element; non-zero means keep
+/// @returns New list containing only the matching elements
+template<typename T>
+List<T> filter(List<T> list, lambda pred(T) -> U8) {
+    List<T> result
+    U32 size = (U32)List.size(list)
+    for (U32 i = 0; i < size; i++) {
+        T* item = List.get(list, i)
+        if (pred(*item)) {
+            List.add(result, *item)
+        }
+    }
+    return result
+}
+
+/// Transform every element using the block, returning a new list of the same type
+/// @param list Source list
+/// @param block Called with each element; its return value is placed in the output list
+/// @returns New list of the same type with transformed values
+template<typename T>
+List<T> map(List<T> list, lambda block(T) -> T) {
+    List<T> result
+    U32 size = (U32)List.size(list)
+    for (U32 i = 0; i < size; i++) {
+        List.add(result, block(*List.get(list, i)))
+    }
+    return result
+}

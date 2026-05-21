@@ -1,6 +1,7 @@
 #include "uhcstd.uhh"
 #include "uhcnet.uhh"
 #include "uhcio.uhh"
+#include "lambda.uhh"
 
 namespace TcpServer {
 #if defined(_WIN32) || defined(_WIN64)
