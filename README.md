@@ -6,37 +6,44 @@ UnholyC (UHC) is a custom programming language that transpiles to C++.
 
 https://www.uhclang.org/
 
-## Build
+## Build & Install
 
 ```bash
-bash build-all.sh
+bash build-all.sh   # compiles transpiler + stdlib + graphics into dist/
+bash install.sh     # installs to $HOME/.local and adds to PATH
 ```
 
-Compiles the transpiler, then transpiles and builds the standard library and graphics library into `dist/`.
+Windows:
+```bat
+build-all.bat
+install.bat
+```
+
+A custom prefix can be passed as the first argument:
+```bash
+bash install.sh /usr/local        # system-wide (needs sudo)
+install.bat C:\unholyc
+```
+
+The install script copies the binary, headers, and libraries to the prefix and adds the `bin/` directory to your shell's PATH automatically.
 
 ## Usage
 
-### Transpile to C++
-
-```bash
-unholyc <input_dir> <output_dir> [-I<include_dir> ...]
-```
-
-```bash
-unholyc src/ out/ -Idist/include
-```
-
 ### Compiler driver — transpile and compile in one step
 
-```bash
-unholyc <input_dir> -o <output_binary> [-I<include_dir> ...] [flags...]
-```
+After installing, the stdlib is found automatically — no flags needed:
 
 ```bash
-unholyc src/ -o myapp -Idist/include -Ldist/lib -luhc
+unholyc src/ -o myapp
 ```
 
 Extra flags are forwarded to the C++ compiler (`$CXX`, defaults to `c++`). The intermediate `.cc` files are deleted automatically; pass `--preserve-source` to keep them.
+
+### Transpile to C++ only
+
+```bash
+unholyc <input_dir> <output_dir>
+```
 
 ### Flags
 
@@ -48,6 +55,15 @@ Extra flags are forwarded to the C++ compiler (`$CXX`, defaults to `c++`). The i
 | `-v` | Verbose — print each file transpiled and the compiler command |
 | `--preserve-source` | Keep generated `.cc` files after compilation |
 | `--version` | Print version and exit |
+
+### Stdlib auto-detection
+
+The transpiler searches for the stdlib in this order and uses the first match:
+
+1. `$UHC_HOME` environment variable
+2. Sibling of the binary (`<binary>/../`)
+3. `$HOME/.local` (Linux/macOS) or `%USERPROFILE%\.local` (Windows)
+4. `/usr/local`
 
 ## Examples
 

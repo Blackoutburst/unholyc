@@ -2388,6 +2388,52 @@ int main(int argc, char* argv[]) {
 
     bool driverMode = !outputBinary.empty();
 
+    // Auto-detect UHC stdlib prefix: UHC_HOME env > binary sibling > $HOME/.local > /usr/local
+    {
+        auto probePrefix = [](const fs::path& p) {
+            return fs::exists(p / "lib" / "libuhc.a");
+        };
+        fs::path prefix;
+        const char* uhcHomeEnv = std::getenv("UHC_HOME");
+        if (!prefix.empty()) {
+            // already set
+        } else if (uhcHomeEnv && *uhcHomeEnv) {
+            fs::path p = uhcHomeEnv;
+            if (probePrefix(p)) prefix = p;
+        }
+        if (prefix.empty()) {
+            try {
+                fs::path bin = fs::canonical(argv[0]);
+                fs::path candidate = bin.parent_path().parent_path();
+                if (probePrefix(candidate)) prefix = candidate;
+            } catch (...) {}
+        }
+        if (prefix.empty()) {
+            const char* home = std::getenv("HOME");
+#if defined(_WIN32)
+            if (!home) home = std::getenv("USERPROFILE");
+#endif
+            if (home && *home) {
+                fs::path p = fs::path(home) / ".local";
+                if (probePrefix(p)) prefix = p;
+            }
+        }
+        if (prefix.empty() && probePrefix("/usr/local")) prefix = "/usr/local";
+
+        if (!prefix.empty()) {
+            fs::path incDir = prefix / "include";
+            fs::path libDir = prefix / "lib";
+            if (fs::is_directory(incDir))
+                includeDirs.push_back(incDir);
+            if (driverMode) {
+                bool hasLuhc = std::find(compilerFlags.begin(), compilerFlags.end(), "-luhc") != compilerFlags.end();
+                compilerFlags.insert(compilerFlags.begin(), "-I" + incDir.string());
+                compilerFlags.insert(compilerFlags.begin() + 1, "-L" + libDir.string());
+                if (!hasLuhc) compilerFlags.push_back("-luhc");
+            }
+        }
+    }
+
     if (driverMode && positional.size() < 1) {
         std::cerr << "Usage: unholyc <input_dir_or_file> -o <output> [flags...] [--preserve-source]\n";
         return 1;
@@ -2434,8 +2480,14 @@ int main(int argc, char* argv[]) {
                 auto ns     = collectNamespaces(tokens);
                 globalNS.insert(ns.begin(), ns.end());
                 auto info   = collectNSInfo(tokens);
-                for (auto& [name, ni] : info)
-                    if (ni.hasUserToString) globalUserToStringNS.insert(name);
+                // Only treat toString as user-defined when found in UHC source files
+                // (.uhh/.uhc). Compiled .hh headers may contain auto-generated toString
+                // methods from a previous build — scanning those would incorrectly suppress
+                // toString auto-generation for the same namespace in the current build.
+                if (ext == ".uhh" || ext == ".uhc") {
+                    for (auto& [name, ni] : info)
+                        if (ni.hasUserToString) globalUserToStringNS.insert(name);
+                }
             }
         }
     };

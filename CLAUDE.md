@@ -146,35 +146,50 @@ After any edit to `transpiler.cpp`, `uhcstd/`, or `graphics/`:
 **Windows:**
 ```
 build-all.bat
+install.bat
 ```
 
 **Linux / macOS:**
 ```
 bash build-all.sh
+bash install.sh
 ```
 
 The script: compiles the transpiler → uses the fresh binary to transpile uhcstd + graphics → compiles everything to `.a` libs. With 4k+ lines of UHC going through the transpiler, errors surface immediately.
 
+`install.sh` / `install.bat` copies `dist/` to `$HOME/.local` (or a custom prefix) and adds the binary to PATH.
+
 Use the `/build` slash command to run this from within a Claude Code session.
 
 ## Compiler Modes
+
+**Compiler driver** (transpile + compile to binary in one step):
+```
+unholyc <input_dir> -o <output_binary> [flags...]
+```
+The stdlib is auto-detected — no `-I` or `-L` flags needed after installing. Passes remaining flags directly to the C++ compiler (`$CXX`, defaults to `c++`). Generated `.cc` files are cleaned up automatically unless `--preserve-source` is passed.
 
 **Transpile only** (output `.cc` files for manual compilation):
 ```
 unholyc <input_dir> <output_dir> [-I<include_dir> ...]
 ```
 
-**Compiler driver** (transpile + compile to binary in one step):
-```
-unholyc <input_dir> -o <output_binary> [-I<include_dir> ...] [-L<libdir> ...] [flags...]
-```
-Passes remaining flags directly to the C++ compiler (`$CXX`, defaults to `c++`). Generated `.cc` files are cleaned up automatically unless `--preserve-source` is passed.
-
 Both `-Ipath` and `-I path` (space) forms are accepted for `-I` and `-L`.
 
 ```
 unholyc --version
 ```
+
+## Stdlib Auto-Detection
+
+The transpiler probes these locations in order and uses the first that contains `lib/libuhc.a`:
+
+1. `$UHC_HOME` env var
+2. Sibling of the binary (`<binary>/../`)
+3. `$HOME/.local` (Linux/macOS) / `%USERPROFILE%\.local` (Windows)
+4. `/usr/local`
+
+Explicit `-I` / `-L` / `-luhc` flags still work and take precedence.
 
 ## Coding Patterns
 
