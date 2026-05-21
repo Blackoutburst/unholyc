@@ -23,3 +23,10 @@ __pycache__/
 
 ### Build ###
 build/
+
+### Tests ###
+test/*.o
+test/uhc_test_runner
+test/transpiler/**/_compile.log
+test/transpiler/**/_run.log
+test/transpiler/**/_bin

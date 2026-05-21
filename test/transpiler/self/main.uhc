@@ -1,0 +1,133 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+// Test: self keyword declares both namespace and struct type
+// Namespace-self params are passed by reference automatically
+
+namespace Counter {
+    self {
+        I32 value
+        I32 step
+    }
+
+    Counter create(I32 step) {
+        Counter c
+        c.value = 0
+        c.step = step
+        return c
+    }
+
+    U0 increment(Counter c) {
+        c.value += c.step
+    }
+
+    U0 add(Counter c, I32 n) {
+        c.value += n
+    }
+
+    I32 get(Counter c) {
+        return c.value
+    }
+
+    U0 reset(Counter c) {
+        c.value = 0
+    }
+}
+
+// Test nested namespaces both using self
+namespace Point {
+    self {
+        F64 x
+        F64 y
+    }
+
+    Point create(F64 x, F64 y) {
+        Point p
+        p.x = x
+        p.y = y
+        return p
+    }
+
+    U0 translate(Point p, F64 dx, F64 dy) {
+        p.x += dx
+        p.y += dy
+    }
+
+    F64 sumCoords(Point p) {
+        return p.x + p.y
+    }
+}
+
+I32 main() {
+    // --- Counter tests ---
+    Counter c = Counter.create(3)
+
+    if (c.value != 0) {
+        printf("FAIL: initial value should be 0, got %d\n", c.value)
+        return 1
+    }
+
+    Counter.increment(c)
+    if (c.value != 3) {
+        printf("FAIL: after increment(step=3), expected 3, got %d\n", c.value)
+        return 1
+    }
+
+    Counter.increment(c)
+    Counter.increment(c)
+    if (c.value != 9) {
+        printf("FAIL: after 3 increments, expected 9, got %d\n", c.value)
+        return 1
+    }
+
+    Counter.add(c, 10)
+    if (c.value != 19) {
+        printf("FAIL: after add(10), expected 19, got %d\n", c.value)
+        return 1
+    }
+
+    Counter.reset(c)
+    if (c.value != 0) {
+        printf("FAIL: after reset, expected 0, got %d\n", c.value)
+        return 1
+    }
+
+    // Verify get() works via reference too
+    Counter.increment(c)
+    if (Counter.get(c) != 3) {
+        printf("FAIL: get() expected 3, got %d\n", Counter.get(c))
+        return 1
+    }
+
+    // Multiple independent instances
+    Counter a = Counter.create(1)
+    Counter b = Counter.create(100)
+    Counter.increment(a)
+    Counter.increment(b)
+    if (a.value != 1 || b.value != 100) {
+        printf("FAIL: independent counters: a=%d b=%d\n", a.value, b.value)
+        return 1
+    }
+
+    // --- Point tests ---
+    Point p = Point.create(1.0, 2.0)
+    if (p.x != 1.0 || p.y != 2.0) {
+        printf("FAIL: Point create x=%f y=%f\n", p.x, p.y)
+        return 1
+    }
+
+    Point.translate(p, 3.0, 4.0)
+    if (p.x != 4.0 || p.y != 6.0) {
+        printf("FAIL: Point translate x=%f y=%f\n", p.x, p.y)
+        return 1
+    }
+
+    F64 sum = Point.sumCoords(p)
+    if (sum != 10.0) {
+        printf("FAIL: sumCoords expected 10.0, got %f\n", sum)
+        return 1
+    }
+
+    printf("self: all tests passed\n")
+    return 0
+}

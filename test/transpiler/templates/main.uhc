@@ -1,0 +1,127 @@
+#include <stdio.h>
+
+// Test: template functions and trailing lambda with explicit template args
+
+template<typename T>
+T identity(T x) {
+    return x
+}
+
+template<typename T>
+T maxOf(T a, T b) {
+    if (a > b) return a
+    return b
+}
+
+template<typename T>
+T clampT(T val, T lo, T hi) {
+    if (val < lo) return lo
+    if (val > hi) return hi
+    return val
+}
+
+template<typename T>
+T sumArr(T* arr, I32 len) {
+    T s = 0
+    for (I32 i = 0; i < len; i++) s += arr[i]
+    return s
+}
+
+// Template function with trailing lambda param
+template<typename T>
+U0 forEachArr(T* arr, I32 len, lambda block(T) -> U0) {
+    for (I32 i = 0; i < len; i++) {
+        block(arr[i])
+    }
+}
+
+I32 main() {
+    // identity
+    if (identity<I32>(42) != 42) {
+        printf("FAIL: identity<I32>\n")
+        return 1
+    }
+    if (identity<F32>(3.14f) != 3.14f) {
+        printf("FAIL: identity<F32>\n")
+        return 1
+    }
+
+    // maxOf
+    if (maxOf<I32>(3, 7) != 7) {
+        printf("FAIL: maxOf<I32>(3,7)\n")
+        return 1
+    }
+    if (maxOf<I32>(9, 2) != 9) {
+        printf("FAIL: maxOf<I32>(9,2)\n")
+        return 1
+    }
+    if (maxOf<F32>(1.5f, 2.5f) != 2.5f) {
+        printf("FAIL: maxOf<F32>\n")
+        return 1
+    }
+
+    // clampT
+    if (clampT<I32>(5, 1, 10) != 5) {
+        printf("FAIL: clampT in range\n")
+        return 1
+    }
+    if (clampT<I32>(-3, 0, 10) != 0) {
+        printf("FAIL: clampT below min\n")
+        return 1
+    }
+    if (clampT<I32>(15, 0, 10) != 10) {
+        printf("FAIL: clampT above max\n")
+        return 1
+    }
+
+    // sumArr
+    I32 arr[5]
+    arr[0] = 1
+    arr[1] = 2
+    arr[2] = 3
+    arr[3] = 4
+    arr[4] = 5
+
+    I32 total = sumArr<I32>(arr, 5)
+    if (total != 15) {
+        printf("FAIL: sumArr expected 15, got %d\n", total)
+        return 1
+    }
+
+    // forEachArr with trailing lambda + captured variable
+    I32 product = 1
+    forEachArr<I32>(arr, 5) { (n) ->
+        product *= n
+    }
+    if (product != 120) {
+        printf("FAIL: forEachArr product expected 120, got %d\n", product)
+        return 1
+    }
+
+    // forEachArr with F32
+    F32 farr[3]
+    farr[0] = 1.0f
+    farr[1] = 2.0f
+    farr[2] = 3.0f
+    F32 fsum = 0.0f
+    forEachArr<F32>(farr, 3) { (f) ->
+        fsum += f
+    }
+    if (fsum != 6.0f) {
+        printf("FAIL: forEachArr<F32> sum expected 6.0, got %f\n", fsum)
+        return 1
+    }
+
+    // Template with no captures
+    I32 count = 0
+    forEachArr<I32>(arr, 5) { (n) ->
+        count++
+    }
+    if (count != 5) {
+        printf("FAIL: forEachArr count expected 5, got %d\n", count)
+        return 1
+    }
+
+    printf("templates: all tests passed\n")
+    return 0
+}

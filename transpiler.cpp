@@ -458,11 +458,12 @@ static std::string uhcTypeToFmt(const std::string& t, bool ptr) {
 // Also extracts primitive fields from self blocks for auto-generated toString formatting.
 static std::unordered_map<std::string, NSInfo> collectNSInfo(const std::vector<Token>& tokens) {
     std::unordered_map<std::string, NSInfo> result;
-    int         depth        = 0;
+    int         depth          = 0;
     std::string curNS;
-    bool        seenTemplate = false; // persists through <typename T>; consumed by namespace/self/struct/{
-    bool        pendingSelf  = false; // seen `self`, waiting for its opening {
-    bool        inSelfBlock  = false;
+    bool        seenTemplate   = false; // persists through <typename T>; consumed by namespace/self/struct/{
+    bool        pendingSelf    = false; // seen `self`, waiting for its opening {
+    bool        inSelfBlock    = false;
+    int         selfParenDepth = 0;    // paren depth inside self block; skip field parsing when > 0
 
     for (size_t i = 0; i < tokens.size(); i++) {
         const Token& tok = tokens[i];
@@ -470,7 +471,7 @@ static std::unordered_map<std::string, NSInfo> collectNSInfo(const std::vector<T
         if (tok.type == TK::LBRACE) {
             seenTemplate = false;
             depth++;
-            if (pendingSelf && depth == 2) { inSelfBlock = true; }
+            if (pendingSelf && depth == 2) { inSelfBlock = true; selfParenDepth = 0; }
             pendingSelf = false;
             continue;
         }
@@ -479,6 +480,11 @@ static std::unordered_map<std::string, NSInfo> collectNSInfo(const std::vector<T
             depth--;
             if (depth == 0) curNS.clear();
             continue;
+        }
+        // Track paren depth inside self block to avoid treating function params as fields
+        if (inSelfBlock) {
+            if (tok.type == TK::LPAREN) { selfParenDepth++; continue; }
+            if (tok.type == TK::RPAREN) { selfParenDepth--; continue; }
         }
         if (tok.type != TK::IDENT) continue;
 
@@ -509,7 +515,7 @@ static std::unordered_map<std::string, NSInfo> collectNSInfo(const std::vector<T
         }
 
         // Parse primitive fields inside the self block
-        if (inSelfBlock && !curNS.empty() && !result[curNS].isTemplate) {
+        if (inSelfBlock && selfParenDepth == 0 && !curNS.empty() && !result[curNS].isTemplate) {
             // Skip 'const' prefix
             if (tok.value == "const") continue;
 
@@ -523,10 +529,13 @@ static std::unordered_map<std::string, NSInfo> collectNSInfo(const std::vector<T
                 }
                 if (j < tokens.size() && tokens[j].type == TK::IDENT) {
                     std::string fieldName = tokens[j].value;
+                    // Skip operator overloads (e.g. `U8 operator==(...)`)
+                    if (fieldName == "operator") continue;
                     size_t k = skipWSIdx(tokens, j + 1);
                     bool isArray = (k < tokens.size() &&
                                    tokens[k].type == TK::OTHER && tokens[k].value == "[");
-                    if (!isArray) {
+                    bool isFunc  = (k < tokens.size() && tokens[k].type == TK::LPAREN);
+                    if (!isArray && !isFunc) {
                         std::string fmt = uhcTypeToFmt(typeName, isPointer);
                         if (!fmt.empty())
                             result[curNS].selfFields.push_back({fieldName, fmt});
@@ -1020,6 +1029,77 @@ class Transpiler {
             }
         }
         return captures;
+    }
+
+    // Returns the set of names from `captures` that are written to in `bodyTokens`.
+    // A variable is written if it appears as the target of =, +=, -=, *=, /=, %=, etc.,
+    // or as the operand of ++ / -- (prefix or postfix).
+    // Note: compound assignment operators like += are lexed as two tokens (+ then =).
+    std::unordered_set<std::string> detectWrittenCaptures(
+        const std::vector<std::pair<std::string,std::string>>& captures,
+        const std::vector<Token>& bodyTokens)
+    {
+        std::unordered_set<std::string> captureNames;
+        for (auto& [n, _] : captures) captureNames.insert(n);
+
+        // Helper: skip whitespace tokens
+        auto skipWS = [&](size_t start) -> size_t {
+            while (start < bodyTokens.size() && bodyTokens[start].type == TK::OTHER &&
+                   (bodyTokens[start].value == " "  || bodyTokens[start].value == "\t" ||
+                    bodyTokens[start].value == "\r" || bodyTokens[start].value == "\n"))
+                start++;
+            return start;
+        };
+
+        std::unordered_set<std::string> written;
+        for (size_t i = 0; i < bodyTokens.size(); i++) {
+            const Token& t = bodyTokens[i];
+            // Prefix ++ / -- before an ident
+            if (t.type == TK::OTHER && (t.value == "++" || t.value == "--")) {
+                size_t j = skipWS(i + 1);
+                if (j < bodyTokens.size() && bodyTokens[j].type == TK::IDENT &&
+                    captureNames.count(bodyTokens[j].value))
+                    written.insert(bodyTokens[j].value);
+                continue;
+            }
+            if (t.type != TK::IDENT) continue;
+            if (!captureNames.count(t.value)) continue;
+            // Skip whitespace after variable name
+            size_t j = skipWS(i + 1);
+            if (j >= bodyTokens.size() || bodyTokens[j].type != TK::OTHER) continue;
+            const std::string& op = bodyTokens[j].value;
+            // Postfix ++ or --
+            if (op == "++" || op == "--") { written.insert(t.value); continue; }
+            // Plain assignment: `name =` (but not `name ==`)
+            if (op == "=") {
+                size_t k = skipWS(j + 1);
+                if (k >= bodyTokens.size() || bodyTokens[k].value != "=")
+                    written.insert(t.value);
+                continue;
+            }
+            // Compound assignment: lexed as two tokens e.g. + then =  or ++ (already handled)
+            // Operators that can precede =: + - * / % & | ^ << >>
+            static const std::string compoundOps = "+-*/%&|^";
+            if (compoundOps.find(op) != std::string::npos) {
+                size_t k = skipWS(j + 1);
+                if (k < bodyTokens.size() && bodyTokens[k].value == "=")
+                    written.insert(t.value);
+            }
+        }
+        return written;
+    }
+
+    void emitCaptureList(std::ostringstream& dst,
+                         const std::vector<std::pair<std::string,std::string>>& captures,
+                         const std::unordered_set<std::string>& written)
+    {
+        dst << "[";
+        for (size_t ci = 0; ci < captures.size(); ci++) {
+            if (ci > 0) dst << ", ";
+            if (written.count(captures[ci].first)) dst << "&";
+            dst << captures[ci].first;
+        }
+        dst << "]";
     }
 
     struct ExtractedBody {
@@ -1808,12 +1888,9 @@ public:
                             if (!captures.empty()) {
                                 // Inline C++ lambda with capture list; use auto params
                                 // so template type params (e.g. T) don't leak into scope.
-                                out << "[";
-                                for (size_t ci = 0; ci < captures.size(); ci++) {
-                                    if (ci > 0) out << ", ";
-                                    out << captures[ci].first;
-                                }
-                                out << "](";
+                                auto written = detectWrittenCaptures(captures, eb.bodyTokens);
+                                emitCaptureList(out, captures, written);
+                                out << "(";
                                 // argCTypes may be empty when registry came from a compiled .hh;
                                 // fall back to headerParams count so params are still emitted.
                                 size_t paramCount = reg->argCTypes.empty()
@@ -1880,6 +1957,52 @@ public:
                 tok.type == TK::CHAR_LIT     ||
                 tok.type == TK::SEMICOLON)
             {
+                // Preserve lastIdentAtDepth0 through explicit template args like foo<int>(...)
+                // so that trailing-lambda detection still works for calls like foo<T>(...) { ... }
+                // Requires lookahead to distinguish from comparison operators (e.g. `diff < 0`).
+                if (parenDepth == 0 && tok.type == TK::OTHER && tok.value == "<" &&
+                    !lastIdentAtDepth0.empty()) {
+                    // Lookahead: find matching '>' then check next token is '('
+                    size_t la = i + 1;
+                    int laDepth = 1;
+                    bool isTmplCall = false;
+                    while (la < tokens.size() && laDepth > 0) {
+                        if (tokens[la].type == TK::OTHER && tokens[la].value == "<") laDepth++;
+                        else if (tokens[la].type == TK::OTHER && tokens[la].value == ">") {
+                            laDepth--;
+                            if (laDepth == 0) {
+                                size_t after = nextNonWS(la + 1);
+                                isTmplCall = (after < tokens.size() &&
+                                              tokens[after].type == TK::LPAREN);
+                            }
+                        } else if (tokens[la].type == TK::SEMICOLON ||
+                                   tokens[la].type == TK::LBRACE  ||
+                                   tokens[la].type == TK::RBRACE) {
+                            break; // definitely not template args
+                        }
+                        la++;
+                    }
+                    if (isTmplCall) {
+                        // Emit <...> with type translation, preserving lastIdentAtDepth0
+                        out << tok.value; i++;
+                        int tmplDepth = 1;
+                        while (i < tokens.size() && tmplDepth > 0) {
+                            if (tokens[i].type == TK::OTHER && tokens[i].value == "<")
+                                { tmplDepth++; out << "<"; i++; }
+                            else if (tokens[i].type == TK::OTHER && tokens[i].value == ">") {
+                                tmplDepth--;
+                                out << ">"; i++;
+                            } else if (tokens[i].type == TK::IDENT) {
+                                auto tm = TYPE_MAP.find(tokens[i].value);
+                                out << (tm != TYPE_MAP.end() ? tm->second : tokens[i].value);
+                                i++;
+                            } else {
+                                out << tokens[i].value; i++;
+                            }
+                        }
+                        continue; // lastIdentAtDepth0 preserved
+                    }
+                }
                 if (parenDepth == 0 &&
                     !tok.value.empty() && !std::isspace((unsigned char)tok.value[0])) {
                     lastIdentAtDepth0.clear();
@@ -2218,12 +2341,9 @@ public:
                             if (!captures.empty()) {
                                 // Inline C++ lambda with capture list; use auto params
                                 // so template type params (e.g. T) don't leak into scope.
-                                out << "[";
-                                for (size_t ci = 0; ci < captures.size(); ci++) {
-                                    if (ci > 0) out << ", ";
-                                    out << captures[ci].first;
-                                }
-                                out << "](";
+                                auto written = detectWrittenCaptures(captures, eb.bodyTokens);
+                                emitCaptureList(out, captures, written);
+                                out << "(";
                                 // argCTypes may be empty when registry came from a compiled .hh;
                                 // fall back to headerParams count so params are still emitted.
                                 size_t paramCount = reg->argCTypes.empty()

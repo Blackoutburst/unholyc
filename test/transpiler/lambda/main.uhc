@@ -1,0 +1,129 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <uhcstd.uhh>
+#include <lambda.uhh>
+
+// Test: lambda edge cases
+// - captures (single, multi)
+// - chained forEach/filter/map
+// - lambda modifying outer variable
+// - empty list
+// - lambda with conditional
+
+I32 main() {
+    // --- Basic forEach ---
+    List<I32> nums
+    for (I32 i = 1; i <= 5; i++) {
+        List.add(nums, i)
+    }
+
+    I32 sum = 0
+    forEach(nums) { (n) ->
+        sum += n
+    }
+    if (sum != 15) {
+        printf("FAIL: forEach sum expected 15, got %d\n", sum)
+        return 1
+    }
+
+    // --- Capture of outer variable ---
+    I32 multiplier = 3
+    I32 product = 0
+    forEach(nums) { (n) ->
+        product += n * multiplier
+    }
+    if (product != 45) {
+        printf("FAIL: capture multiplier expected 45, got %d\n", product)
+        return 1
+    }
+
+    // --- Multi-capture ---
+    I32 base = 10
+    I32 factor = 2
+    I32 acc = 0
+    forEach(nums) { (n) ->
+        acc += base + n * factor
+    }
+    // each: 10+1*2=12, 10+2*2=14, 10+3*2=16, 10+4*2=18, 10+5*2=20 → sum=80
+    if (acc != 80) {
+        printf("FAIL: multi-capture expected 80, got %d\n", acc)
+        return 1
+    }
+
+    // --- filter ---
+    List<I32> evens = filter(nums) { (n) ->
+        return n % 2 == 0
+    }
+    if (List.size(evens) != 2) {
+        printf("FAIL: filter evens size expected 2, got %llu\n", List.size(evens))
+        return 1
+    }
+    if (*List.get(evens, 0) != 2 || *List.get(evens, 1) != 4) {
+        printf("FAIL: filter evens content: %d %d\n", *List.get(evens, 0), *List.get(evens, 1))
+        return 1
+    }
+
+    // --- map ---
+    List<I32> doubled = map(nums) { (n) ->
+        return n * 2
+    }
+    if (List.size(doubled) != 5) {
+        printf("FAIL: map doubled size expected 5, got %llu\n", List.size(doubled))
+        return 1
+    }
+    I32 mapSum = 0
+    forEach(doubled) { (n) ->
+        mapSum += n
+    }
+    if (mapSum != 30) {
+        printf("FAIL: map doubled sum expected 30, got %d\n", mapSum)
+        return 1
+    }
+
+    // --- chained: filter then map ---
+    List<I32> odds = filter(nums) { (n) ->
+        return n % 2 != 0
+    }
+    List<I32> filteredMapped = map(odds) { (n) ->
+        return n * 10
+    }
+    // odds: 1,3,5 → *10 → 10,30,50
+    if (List.size(filteredMapped) != 3) {
+        printf("FAIL: chained size expected 3, got %llu\n", List.size(filteredMapped))
+        return 1
+    }
+    if (*List.get(filteredMapped, 0) != 10 || *List.get(filteredMapped, 1) != 30 || *List.get(filteredMapped, 2) != 50) {
+        printf("FAIL: chained content: %d %d %d\n",
+            *List.get(filteredMapped, 0), *List.get(filteredMapped, 1), *List.get(filteredMapped, 2))
+        return 1
+    }
+
+    // --- empty list ---
+    List<I32> empty
+    I32 emptyCalled = 0
+    forEach(empty) { (n) ->
+        emptyCalled++
+    }
+    if (emptyCalled != 0) {
+        printf("FAIL: empty forEach should not call lambda, called %d times\n", emptyCalled)
+        return 1
+    }
+    List<I32> emptyFiltered = filter(empty) { (n) -> return 1 }
+    if (List.size(emptyFiltered) != 0) {
+        printf("FAIL: empty filter size expected 0, got %llu\n", List.size(emptyFiltered))
+        return 1
+    }
+
+    // --- lambda modifying outer via capture ---
+    I32 counter = 0
+    forEach(nums) { (n) ->
+        if (n > 3) counter++
+    }
+    if (counter != 2) {
+        printf("FAIL: conditional capture counter expected 2, got %d\n", counter)
+        return 1
+    }
+
+    printf("lambda: all tests passed\n")
+    return 0
+}

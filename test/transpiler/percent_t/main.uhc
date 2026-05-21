@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <string.h>
+#include <uhcstd.uhh>
+#include <uhcio.uhh>
+#include <uhcmath.uhh>
+#include <lambda.uhh>
+
+// Test: %T format specifier
+// - Namespaces with toString get a specialization
+// - Namespaces without toString fall back to "[object]"
+// - uhc_tostring() called directly
+// - %T inside Log.info (smoke test)
+// - %T inside lambda body
+
+namespace Color {
+    self {
+        U8 r
+        U8 g
+        U8 b
+    }
+
+    Color create(U8 r, U8 g, U8 b) {
+        Color c
+        c.r = r
+        c.g = g
+        c.b = b
+        return c
+    }
+
+    const I8* toString(Color c) {
+        static I8 buf[64]
+        snprintf(buf, 64, "rgb(%d,%d,%d)", c.r, c.g, c.b)
+        return buf
+    }
+}
+
+// Namespace without toString — should fall back to [object]
+namespace NoStr {
+    self {
+        I32 x
+    }
+
+    NoStr create(I32 x) {
+        NoStr n
+        n.x = x
+        return n
+    }
+}
+
+I32 main() {
+    Color red = Color.create(255, 0, 0)
+    Color green = Color.create(0, 128, 0)
+
+    // Direct uhc_tostring call
+    const I8* redStr = uhc_tostring(red)
+    if (strcmp(redStr, "rgb(255,0,0)") != 0) {
+        printf("FAIL: Color toString expected 'rgb(255,0,0)', got '%s'\n", redStr)
+        return 1
+    }
+
+    const I8* greenStr = uhc_tostring(green)
+    if (strcmp(greenStr, "rgb(0,128,0)") != 0) {
+        printf("FAIL: Color toString expected 'rgb(0,128,0)', got '%s'\n", greenStr)
+        return 1
+    }
+
+    // NoStr has no user toString but transpiler auto-generates one for self blocks
+    // Expected format: "NoStr{x: <value>}"
+    NoStr n = NoStr.create(42)
+    const I8* nStr = uhc_tostring(n)
+    if (nStr == NULL || strlen(nStr) == 0) {
+        printf("FAIL: NoStr uhc_tostring returned empty\n")
+        return 1
+    }
+    // Auto-generated toString should contain the type name and field value
+    if (strstr(nStr, "42") == NULL) {
+        printf("FAIL: NoStr toString should contain '42', got '%s'\n", nStr)
+        return 1
+    }
+
+    // VectorF has built-in toString
+    VectorF v
+    v.x = 1.0f
+    v.y = 2.0f
+    v.z = 3.0f
+    v.w = 4.0f
+    const I8* vStr = uhc_tostring(v)
+    if (vStr == NULL || strlen(vStr) == 0) {
+        printf("FAIL: VectorF uhc_tostring returned empty\n")
+        return 1
+    }
+
+    // %T smoke test via Log
+    Log.info("Color: %T", red)
+    Log.info("VectorF: %T", v)
+    Log.info("NoStr: %T", n)
+
+    // %T inside lambda
+    List<Color> colors
+    List.add(colors, red)
+    List.add(colors, green)
+
+    I32 lambdaCount = 0
+    forEach(colors) { (c) ->
+        const I8* s = uhc_tostring(c)
+        if (strlen(s) > 0) lambdaCount++
+    }
+    if (lambdaCount != 2) {
+        printf("FAIL: %%T in lambda, expected 2 valid strings, got %d\n", lambdaCount)
+        return 1
+    }
+
+    printf("percent_t: all tests passed\n")
+    return 0
+}

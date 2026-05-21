@@ -163,11 +163,11 @@ namespace TcpServer {
         }
     }
 
-    U8 write(TcpClient client, I8* buffer, U32 size) {
+    U8 write(TcpClient client, const I8* buffer, U32 size) {
         if (client.sockfd < 0) return 0
-        
+
         send(client.sockfd, buffer, size, MSG_NOSIGNAL)
-        
+
         return 1
     }
 

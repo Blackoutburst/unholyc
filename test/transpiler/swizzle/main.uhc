@@ -1,0 +1,113 @@
+#include <stdio.h>
+#include <uhcstd.uhh>
+#include <uhcmath.uhh>
+
+// Swizzle always produces a full 4-component value.
+// Missing components are padded with 0.
+// rgba → xyzw aliases.
+
+U8 feq(F32 a, F32 b) {
+    F32 diff = a - b
+    if (diff < 0) diff = -diff
+    return diff < 0.0001f
+}
+
+I32 main() {
+    VectorF v
+    v.x = 1.0f
+    v.y = 2.0f
+    v.z = 3.0f
+    v.w = 4.0f
+
+    // .xxxx — all components become x
+    VectorF xxxx = v.xxxx
+    if (!feq(xxxx.x, 1) || !feq(xxxx.y, 1) || !feq(xxxx.z, 1) || !feq(xxxx.w, 1)) {
+        printf("FAIL: .xxxx got %f %f %f %f\n", xxxx.x, xxxx.y, xxxx.z, xxxx.w)
+        return 1
+    }
+
+    // .yyyy
+    VectorF yyyy = v.yyyy
+    if (!feq(yyyy.x, 2) || !feq(yyyy.y, 2) || !feq(yyyy.z, 2) || !feq(yyyy.w, 2)) {
+        printf("FAIL: .yyyy got %f %f %f %f\n", yyyy.x, yyyy.y, yyyy.z, yyyy.w)
+        return 1
+    }
+
+    // .wzyx — reverse order
+    VectorF wzyx = v.wzyx
+    if (!feq(wzyx.x, 4) || !feq(wzyx.y, 3) || !feq(wzyx.z, 2) || !feq(wzyx.w, 1)) {
+        printf("FAIL: .wzyx got %f %f %f %f\n", wzyx.x, wzyx.y, wzyx.z, wzyx.w)
+        return 1
+    }
+
+    // .rgba — aliases for .xyzw
+    VectorF rgba = v.rgba
+    if (!feq(rgba.x, 1) || !feq(rgba.y, 2) || !feq(rgba.z, 3) || !feq(rgba.w, 4)) {
+        printf("FAIL: .rgba got %f %f %f %f\n", rgba.x, rgba.y, rgba.z, rgba.w)
+        return 1
+    }
+
+    // .rrrr — all become x (r→x)
+    VectorF rrrr = v.rrrr
+    if (!feq(rrrr.x, 1) || !feq(rrrr.y, 1) || !feq(rrrr.z, 1) || !feq(rrrr.w, 1)) {
+        printf("FAIL: .rrrr got %f %f %f %f\n", rrrr.x, rrrr.y, rrrr.z, rrrr.w)
+        return 1
+    }
+
+    // .xy — 2-component swizzle, z and w padded to 0
+    VectorF xy = v.xy
+    if (!feq(xy.x, 1) || !feq(xy.y, 2) || !feq(xy.z, 0) || !feq(xy.w, 0)) {
+        printf("FAIL: .xy got %f %f %f %f\n", xy.x, xy.y, xy.z, xy.w)
+        return 1
+    }
+
+    // .xyz — 3-component, w padded to 0
+    VectorF xyz = v.xyz
+    if (!feq(xyz.x, 1) || !feq(xyz.y, 2) || !feq(xyz.z, 3) || !feq(xyz.w, 0)) {
+        printf("FAIL: .xyz got %f %f %f %f\n", xyz.x, xyz.y, xyz.z, xyz.w)
+        return 1
+    }
+
+    // .wzwz — interleaved repeat pattern
+    VectorF wzwz = v.wzwz
+    if (!feq(wzwz.x, 4) || !feq(wzwz.y, 3) || !feq(wzwz.z, 4) || !feq(wzwz.w, 3)) {
+        printf("FAIL: .wzwz got %f %f %f %f\n", wzwz.x, wzwz.y, wzwz.z, wzwz.w)
+        return 1
+    }
+
+    // .xwxw
+    VectorF xwxw = v.xwxw
+    if (!feq(xwxw.x, 1) || !feq(xwxw.y, 4) || !feq(xwxw.z, 1) || !feq(xwxw.w, 4)) {
+        printf("FAIL: .xwxw got %f %f %f %f\n", xwxw.x, xwxw.y, xwxw.z, xwxw.w)
+        return 1
+    }
+
+    // .abgr — reverse rgba order: a→w=4, b→z=3, g→y=2, r→x=1
+    VectorF abgr = v.abgr
+    if (!feq(abgr.x, 4) || !feq(abgr.y, 3) || !feq(abgr.z, 2) || !feq(abgr.w, 1)) {
+        printf("FAIL: .abgr got %f %f %f %f\n", abgr.x, abgr.y, abgr.z, abgr.w)
+        return 1
+    }
+
+    // swizzle on modified vector
+    VectorF u
+    u.x = 10.0f
+    u.y = 20.0f
+    u.z = 30.0f
+    u.w = 40.0f
+    VectorF ux = u.xx
+    if (!feq(ux.x, 10) || !feq(ux.y, 10) || !feq(ux.z, 0) || !feq(ux.w, 0)) {
+        printf("FAIL: u.xx got %f %f %f %f\n", ux.x, ux.y, ux.z, ux.w)
+        return 1
+    }
+
+    // .zw — 2-component with later fields
+    VectorF zw = v.zw
+    if (!feq(zw.x, 3) || !feq(zw.y, 4) || !feq(zw.z, 0) || !feq(zw.w, 0)) {
+        printf("FAIL: .zw got %f %f %f %f\n", zw.x, zw.y, zw.z, zw.w)
+        return 1
+    }
+
+    printf("swizzle: all tests passed\n")
+    return 0
+}

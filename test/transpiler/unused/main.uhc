@@ -1,0 +1,65 @@
+#include <stdio.h>
+
+// Test: unused keyword in function params and variable bodies
+
+I32 addOne(unused I32 ignored, I32 x) {
+    return x + 1
+}
+
+I32 constant(unused I32 a, unused I32 b, unused I32 c) {
+    return 42
+}
+
+// unused in body
+I32 bodyUnused() {
+    unused I32 noise = 9999
+    I32 result = 10
+    return result
+}
+
+// unused param + unused body var together
+I32 mixed(unused I32 param, I32 used) {
+    unused I32 junk = 777
+    return used * 2
+}
+
+// unused in loop context (variable declared but only assigned once)
+I32 loopUnused() {
+    I32 sum = 0
+    for (I32 i = 0; i < 5; i++) {
+        unused I32 tmp = i * i
+        sum += i
+    }
+    return sum
+}
+
+I32 main() {
+    if (addOne(999, 4) != 5) {
+        printf("FAIL: addOne\n")
+        return 1
+    }
+
+    if (constant(1, 2, 3) != 42) {
+        printf("FAIL: constant\n")
+        return 1
+    }
+
+    if (bodyUnused() != 10) {
+        printf("FAIL: bodyUnused\n")
+        return 1
+    }
+
+    if (mixed(0, 7) != 14) {
+        printf("FAIL: mixed\n")
+        return 1
+    }
+
+    // 0+1+2+3+4 = 10
+    if (loopUnused() != 10) {
+        printf("FAIL: loopUnused\n")
+        return 1
+    }
+
+    printf("unused: all tests passed\n")
+    return 0
+}
