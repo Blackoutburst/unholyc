@@ -12,7 +12,7 @@ A custom programming language that transpiles to C++. The transpiler is a single
 ## Directory Layout
 
 ```
-transpiler.cpp       Single-file transpiler (~1700 lines, C++17)
+transpiler.cpp       Single-file transpiler (~2450 lines, C++17)
 uhcstd/              Standard library (io, math, network, std)
 graphics/            Vulkan-based graphics library
 examples/            Runnable examples covering language + stdlib features
@@ -84,18 +84,42 @@ U0 forEach(I32* arr, I32 len, lambda block(I32) -> U0) {
 }
 ```
 
-**Trailing lambda call syntax (must be inside the same namespace as the function):**
+Template types in lambda params are fully supported — the transpiler injects a `typename __Block_<name>` into the `template<>` declaration automatically:
 ```
-namespace MyNS {
-    U0 run() {
-        forEach(nums, 5) { (n) ->
-            Log.info("%d", n)
-        }
-    }
+template<typename T>
+U0 forEach(List<T> list, lambda block(T) -> U0) { ... }
+```
+
+**Trailing lambda call syntax:**
+```
+forEach(nums, 5) { (n) ->
+    Log.info("%d", n)
 }
 ```
 
-The transpiler hoists each trailing lambda to a named top-level function and rewrites the call to pass it as a function pointer. Stored lambdas (`lambda x = ...`) and lambdas with non-void return types are not supported.
+Works anywhere — top-level, inside namespaces, and cross-file. The transpiler pre-scans `.uhh` source headers and compiled `.hh` headers to register lambda-accepting functions before transpiling call sites.
+
+If the lambda body captures local variables, the transpiler emits an inline C++ lambda with a capture list. Otherwise it hoists to a named generic lambda object (`auto __lambda_xxx = [](auto param) { ... }`).
+
+Stored lambdas (`lambda x = ...`) and lambdas with non-void return types are not supported.
+
+### `%T` Format Specifier
+
+`%T` in any format string (Log calls, etc.) is rewritten to `%s` and the corresponding argument is wrapped in `uhc_tostring(...)`. Works both in regular code and inside lambda bodies.
+
+The transpiler auto-generates a `uhc_tostring` specialization for every namespace that defines a `toString` method. Namespaces without `toString` fall back to `"[object]"`.
+
+```
+namespace Color {
+    self { U8 r; U8 g; U8 b }
+    const I8* toString(Color c) {
+        return "rgb(%d, %d, %d)", c.r, c.g, c.b
+    }
+}
+
+Color c = {255, 128, 0}
+Log.info("%T", c)  // → [INFO] rgb(255, 128, 0)
+```
 
 ### `unused` Keyword
 
@@ -142,9 +166,11 @@ unholyc <input_dir> <output_dir> [-I<include_dir> ...]
 
 **Compiler driver** (transpile + compile to binary in one step):
 ```
-unholyc <input_dir> -o <output_binary> [-I<include_dir> ...] [flags...]
+unholyc <input_dir> -o <output_binary> [-I<include_dir> ...] [-L<libdir> ...] [flags...]
 ```
 Passes remaining flags directly to the C++ compiler (`$CXX`, defaults to `c++`). Generated `.cc` files are cleaned up automatically unless `--preserve-source` is passed.
+
+Both `-Ipath` and `-I path` (space) forms are accepted for `-I` and `-L`.
 
 ```
 unholyc --version

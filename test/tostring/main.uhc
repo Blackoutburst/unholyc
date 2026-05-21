@@ -1,5 +1,6 @@
 #include <uhcio.uhh>
 #include <uhcmath.uhh>
+#include <uhcstd.uhh>
 
 namespace Color {
     self {
@@ -18,7 +19,20 @@ I32 main() {
     Color c = {255, 128, 0}
     Log.info("Manual: %T", c)
 
-    VectorF v = { 1.0f, 2.0f, 3.0f, 4.0f }
-    Log.debug("Auto: %T", v)
+    VectorF v1 = { 1.0f, 1.0f, 1.0f, 1.0f }
+    VectorF v2 = { 2.0f, 2.0f, 2.0f, 2.0f }
+    VectorF v3 = { 3.0f, 3.0f, 3.0f, 3.0f }
+    VectorF v4 = { 4.0f, 4.0f, 4.0f, 4.0f }
+
+    List<VectorF> vecs
+    List.add(vecs, v1)
+    List.add(vecs, v2)
+    List.add(vecs, v3)
+    List.add(vecs, v4)
+
+    forEach(vecs) { (v) ->
+        Log.info("Auto: %T", v)
+    }
+    
     return 0
 }

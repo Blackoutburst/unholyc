@@ -575,6 +575,179 @@ struct CallFrame {
     bool        hasLambdaParam = false;
 };
 
+// Scan tokens for lambda parameter declarations and return a registry usable as
+// seed data for files that include this one (cross-file trailing-lambda support).
+static std::unordered_map<std::string, LambdaReg>
+collectLambdaDecls(const std::vector<Token>& tokens) {
+    std::unordered_map<std::string, LambdaReg> result;
+
+    auto skipWS = [&](size_t i) {
+        while (i < tokens.size() && tokens[i].type == TK::OTHER &&
+               !tokens[i].value.empty() && std::isspace((unsigned char)tokens[i].value[0]))
+            i++;
+        return i;
+    };
+
+    // Resolve UHC type names to C++ equivalents.
+    auto resolveT = [&](const std::string& v) -> std::string {
+        auto it = TYPE_MAP.find(v);
+        return (it != TYPE_MAP.end()) ? it->second : v;
+    };
+
+    // Parse a C type (including template args) starting at i; advance i past it.
+    std::function<std::string(size_t&)> parseCT = [&](size_t& i) -> std::string {
+        i = skipWS(i);
+        if (i >= tokens.size()) return "";
+        std::string result;
+        if (tokens[i].type == TK::IDENT) {
+            std::string base = tokens[i].value;
+            size_t j = skipWS(i + 1);
+            if (j < tokens.size() && tokens[j].type == TK::DOT) {
+                size_t k = skipWS(j + 1);
+                if (k < tokens.size() && tokens[k].type == TK::IDENT) {
+                    result = base + "::" + tokens[k].value;
+                    i = k + 1;
+                } else { result = resolveT(base); i++; }
+            } else { result = resolveT(base); i++; }
+        } else { result = tokens[i].value; i++; }
+        // template args
+        size_t j = skipWS(i);
+        if (j < tokens.size() && tokens[j].type == TK::OTHER && tokens[j].value == "<") {
+            result += "<"; i = j + 1; int depth = 1;
+            while (i < tokens.size() && depth > 0) {
+                const std::string& v = tokens[i].value;
+                if (tokens[i].type == TK::OTHER && v == "<")  { depth++; result += v; i++; }
+                else if (tokens[i].type == TK::OTHER && v == ">") { depth--; result += ">"; i++; }
+                else if (tokens[i].type == TK::IDENT) { result += resolveT(v); i++; }
+                else { result += v; i++; }
+            }
+        }
+        // pointer/ref suffixes
+        while (true) {
+            size_t k = skipWS(i);
+            if (k < tokens.size() && tokens[k].type == TK::OTHER &&
+                (tokens[k].value == "*" || tokens[k].value == "&")) {
+                result += tokens[k].value; i = k + 1;
+            } else break;
+        }
+        return result;
+    };
+
+    for (size_t i = 0; i < tokens.size(); i++) {
+        // Look for IDENT followed by LPAREN — a function declaration.
+        if (tokens[i].type != TK::IDENT) continue;
+        std::string funcName = tokens[i].value;
+        size_t j = skipWS(i + 1);
+        if (j >= tokens.size() || tokens[j].type != TK::LPAREN) continue;
+        j++; // past (
+
+        // Scan inside the param list for a 'lambda' keyword at depth 1.
+        int depth = 1;
+        while (j < tokens.size() && depth > 0) {
+            if (tokens[j].type == TK::LPAREN)  { depth++; j++; continue; }
+            if (tokens[j].type == TK::RPAREN)  { depth--; j++; continue; }
+            if (depth == 1 && tokens[j].type == TK::IDENT && tokens[j].value == "lambda") {
+                j++;
+                j = skipWS(j);
+                if (j >= tokens.size() || tokens[j].type != TK::IDENT) { j++; continue; }
+                std::string paramName = tokens[j].value;
+                j++;
+                j = skipWS(j);
+                if (j >= tokens.size() || tokens[j].type != TK::LPAREN) continue;
+                j++; // past (
+
+                std::vector<std::string> argCTypes;
+                while (true) {
+                    j = skipWS(j);
+                    if (j >= tokens.size()) break;
+                    if (tokens[j].type == TK::RPAREN) { j++; break; }
+                    if (tokens[j].type == TK::OTHER && tokens[j].value == ",") { j++; continue; }
+                    std::string ct = parseCT(j);
+                    if (!ct.empty()) argCTypes.push_back(ct);
+                    // skip optional variable name
+                    size_t k = skipWS(j);
+                    if (k < tokens.size() && tokens[k].type == TK::IDENT &&
+                        tokens[k].value != "," ) {
+                        // only skip if next after that is , or )
+                        size_t k2 = skipWS(k + 1);
+                        if (k2 < tokens.size() &&
+                            (tokens[k2].value == "," || tokens[k2].type == TK::RPAREN))
+                            j = k + 1;
+                    }
+                }
+
+                std::string retCType = "void";
+                j = skipWS(j);
+                if (j < tokens.size() && tokens[j].value == "-") {
+                    j++;
+                    j = skipWS(j);
+                    if (j < tokens.size() && tokens[j].value == ">") {
+                        j++;
+                        retCType = parseCT(j);
+                    }
+                }
+
+                LambdaReg reg;
+                reg.lambdaParamName = paramName;
+                reg.calleeName      = funcName;
+                reg.argCTypes       = argCTypes;
+                reg.retCType        = retCType;
+                result[funcName + "::" + paramName] = reg;
+                result[paramName] = reg;
+                result[funcName]  = reg; // allow lookup by callee name alone
+            } else {
+                j++;
+            }
+        }
+    }
+    return result;
+}
+
+// Scan a compiled .hh file for __Block_<name> parameters — these signal that the
+// function accepts a trailing lambda.  argCTypes is left empty (call site uses auto).
+static std::unordered_map<std::string, LambdaReg>
+collectLambdaDeclsFromHH(const std::vector<Token>& tokens) {
+    std::unordered_map<std::string, LambdaReg> result;
+
+    auto skipWS = [&](size_t i) {
+        while (i < tokens.size() && tokens[i].type == TK::OTHER &&
+               !tokens[i].value.empty() && std::isspace((unsigned char)tokens[i].value[0]))
+            i++;
+        return i;
+    };
+
+    for (size_t i = 0; i < tokens.size(); i++) {
+        // Look for IDENT followed by LPAREN
+        if (tokens[i].type != TK::IDENT) continue;
+        std::string funcName = tokens[i].value;
+        size_t j = skipWS(i + 1);
+        if (j >= tokens.size() || tokens[j].type != TK::LPAREN) continue;
+        j++;
+
+        // Scan params for __Block_<name>
+        int depth = 1;
+        while (j < tokens.size() && depth > 0) {
+            if (tokens[j].type == TK::LPAREN)  { depth++; j++; continue; }
+            if (tokens[j].type == TK::RPAREN)  { depth--; j++; continue; }
+            if (depth == 1 && tokens[j].type == TK::IDENT) {
+                const std::string& v = tokens[j].value;
+                if (v.size() > 8 && v.substr(0, 8) == "__Block_") {
+                    std::string paramName = v.substr(8); // strip __Block_ prefix
+                    LambdaReg reg;
+                    reg.lambdaParamName = paramName;
+                    reg.calleeName      = funcName;
+                    reg.retCType        = "void";
+                    result[funcName + "::" + paramName] = reg;
+                    result[paramName] = reg;
+                    result[funcName]  = reg;
+                }
+            }
+            j++;
+        }
+    }
+    return result;
+}
+
 static uint32_t fnv1a32(const std::string& s) {
     uint32_t h = 2166136261u;
     for (unsigned char c : s) {
@@ -596,13 +769,22 @@ class Transpiler {
     std::unordered_map<std::string, LambdaReg> lambdaRegistry;
 
     std::vector<PatchSite> patchSites;
+    // Template typename patches: insert ", typename Block" at template > offset.
+    struct TemplatePatch { size_t offset; std::string insertion; };
+    std::vector<TemplatePatch> templatePatches;
 
     std::vector<CallSiteCapture> callSiteCaptures;
+    bool needsFunctional = false;
+
+    // Track position of the closing > of the most recent template<...> so we can
+    // inject extra typename Block params when a lambda parameter is encountered.
+    size_t lastTemplateCloseOffset = SIZE_MAX;
 
     std::vector<ScopeVar> scopeVars;
-    bool inFunctionBody    = false;
-    int  braceDepth        = 0;
-    int  globalBraceDepth  = 0;
+    bool inFunctionBody       = false;
+    int  braceDepth           = 0;
+    int  globalBraceDepth     = 0;
+    int  funcBodyStartDepth   = -1; // globalBraceDepth when function body opens
 
     std::vector<CallFrame> callStack;
 
@@ -654,6 +836,31 @@ class Transpiler {
         } else {
             result = tokens[i].value;
             i++;
+        }
+
+        // Consume template argument list: Foo<Bar, Baz<T>>
+        {
+            size_t j = nextNonWS(i);
+            if (j < tokens.size() && tokens[j].type == TK::OTHER && tokens[j].value == "<") {
+                result += "<";
+                i = j + 1;
+                int depth = 1;
+                while (i < tokens.size() && depth > 0) {
+                    const std::string& v = tokens[i].value;
+                    if (tokens[i].type == TK::OTHER && v == "<") { depth++; result += v; i++; }
+                    else if (tokens[i].type == TK::OTHER && v == ">") {
+                        depth--;
+                        result += ">";
+                        i++;
+                    } else if (tokens[i].type == TK::IDENT) {
+                        result += resolveType(v);
+                        i++;
+                    } else {
+                        result += v;
+                        i++;
+                    }
+                }
+            }
         }
 
         while (true) {
@@ -724,18 +931,20 @@ class Transpiler {
         lambdaRegistry[regKey] = reg;
         lambdaRegistry[lambdaParamName] = reg;
 
-        out << retCType << " (*" << lambdaParamName << ")(";
-        for (size_t k = 0; k < argCTypes.size(); k++) {
-            if (k > 0) out << ", ";
-            out << argCTypes[k];
+        // Emit as a deduced template Block type so any callable (including
+        // capturing lambdas) can be passed.  Patch the preceding template<...>
+        // to insert the extra typename.
+        std::string blockTypeName = "__Block_" + lambdaParamName;
+        if (lastTemplateCloseOffset != SIZE_MAX) {
+            templatePatches.push_back({lastTemplateCloseOffset,
+                                       ", typename " + blockTypeName});
         }
-        size_t fptrInnerClose = out.str().size();
-        out << ")";
+        out << blockTypeName << " " << lambdaParamName;
 
         PatchSite ps;
         ps.calleeName            = calleeName;
         ps.lambdaParamName       = lambdaParamName;
-        ps.fptrInnerCloseOffset  = fptrInnerClose;
+        ps.fptrInnerCloseOffset  = SIZE_MAX;
         ps.outputByteOffset      = SIZE_MAX;
         patchSites.push_back(ps);
     }
@@ -860,14 +1069,79 @@ class Transpiler {
         const std::vector<Token>& bodyTokens,
         const std::vector<std::pair<std::string,std::string>>& captures)
     {
+        std::string bodyStr = transpileTokensToString(bodyTokens);
+
+        // When arg types are unknown (registry from compiled .hh), emit a generic
+        // lambda object (C++14) so the block can be passed to template Block params.
+        if (argCTypes.empty() && !headerParams.empty()) {
+            preamble << "auto " << name << " = [](";
+            for (size_t k = 0; k < headerParams.size(); k++) {
+                if (k > 0) preamble << ", ";
+                preamble << "auto " << headerParams[k];
+            }
+            preamble << ") {" << bodyStr << "};\n";
+            return;
+        }
+
+        // Collect template type parameters used in arg/ret types (e.g. T, U, K, V).
+        // A token is a template param if it's a short all-uppercase identifier that
+        // isn't a known C++ keyword or type.
+        static const std::unordered_set<std::string> NOT_TMPL = {
+            "int","long","short","char","void","float","double","bool",
+            "unsigned","signed","const","auto","nullptr","NULL"
+        };
+        auto extractTemplateParams = [&](const std::string& t) {
+            std::vector<std::string> params;
+            size_t i = 0;
+            while (i < t.size()) {
+                if (std::isalpha((unsigned char)t[i]) || t[i] == '_') {
+                    size_t start = i;
+                    while (i < t.size() && (std::isalnum((unsigned char)t[i]) || t[i] == '_')) i++;
+                    std::string tok = t.substr(start, i - start);
+                    // treat as template param if all-uppercase, length 1-3, not a known type
+                    bool allUpper = true;
+                    for (char c : tok) if (!std::isupper((unsigned char)c)) { allUpper = false; break; }
+                    if (allUpper && tok.size() <= 3 && !NOT_TMPL.count(tok))
+                        params.push_back(tok);
+                } else {
+                    i++;
+                }
+            }
+            return params;
+        };
+        std::unordered_set<std::string> tmplParamSet;
+        for (auto& ct : argCTypes)
+            for (auto& p : extractTemplateParams(ct)) tmplParamSet.insert(p);
+        for (auto& p : extractTemplateParams(retCType)) tmplParamSet.insert(p);
+
+        if (!tmplParamSet.empty()) {
+            preamble << "template<";
+            bool ft = true;
+            for (auto& p : tmplParamSet) {
+                if (!ft) preamble << ", ";
+                ft = false;
+                preamble << "typename " << p;
+            }
+            preamble << ">\n";
+        }
+
         preamble << retCType << " " << name << "(";
 
         bool first = true;
-        for (size_t k = 0; k < argCTypes.size(); k++) {
-            if (!first) preamble << ", ";
-            first = false;
-            preamble << argCTypes[k];
-            if (k < headerParams.size()) preamble << " " << headerParams[k];
+        if (!argCTypes.empty()) {
+            for (size_t k = 0; k < argCTypes.size(); k++) {
+                if (!first) preamble << ", ";
+                first = false;
+                preamble << argCTypes[k];
+                if (k < headerParams.size()) preamble << " " << headerParams[k];
+            }
+        } else {
+            // argCTypes unknown (from compiled .hh registry) — emit auto for each header param
+            for (size_t k = 0; k < headerParams.size(); k++) {
+                if (!first) preamble << ", ";
+                first = false;
+                preamble << "auto " << headerParams[k];
+            }
         }
 
         for (auto& [capName, capType] : captures) {
@@ -875,8 +1149,6 @@ class Transpiler {
             first = false;
             preamble << capType << " " << capName;
         }
-
-        std::string bodyStr = transpileTokensToString(bodyTokens);
 
         // Split into lines, strip common leading indent, re-apply one level
         {
@@ -929,6 +1201,77 @@ class Transpiler {
 
             //if (tok.type == TK::LPAREN)  { pd++; buf << tok.value; i++; continue; }
             //if (tok.type == TK::RPAREN)  { pd--; buf << tok.value; i++; continue; }
+
+            // %T rewriting inside lambda bodies
+            if (tok.type == TK::STRING && tok.value.find("%T") != std::string::npos) {
+                auto tPositions = findTArgPositions(tok.value);
+                if (!tPositions.empty()) {
+                    // Collect comma-separated arg token ranges until matching RPAREN
+                    auto collectArgsLocal = [&](size_t start, size_t& endOut)
+                        -> std::vector<std::pair<size_t,size_t>>
+                    {
+                        std::vector<std::pair<size_t,size_t>> ranges;
+                        size_t j = start;
+                        while (j < toks.size() && toks[j].type != TK::END) {
+                            if (toks[j].type == TK::RPAREN) { endOut = j; return ranges; }
+                            if (toks[j].type == TK::OTHER && toks[j].value == ",") {
+                                j++;
+                                while (j < toks.size() && toks[j].type == TK::OTHER &&
+                                       !toks[j].value.empty() &&
+                                       std::isspace((unsigned char)toks[j].value[0])) j++;
+                                size_t argStart = j;
+                                int depth = 0;
+                                while (j < toks.size() && toks[j].type != TK::END) {
+                                    if (toks[j].type == TK::LPAREN) depth++;
+                                    else if (toks[j].type == TK::RPAREN) {
+                                        if (depth == 0) break;
+                                        depth--;
+                                    } else if (toks[j].type == TK::OTHER &&
+                                               toks[j].value == "," && depth == 0) break;
+                                    j++;
+                                }
+                                size_t argEnd = j;
+                                while (argEnd > argStart && toks[argEnd-1].type == TK::OTHER &&
+                                       !toks[argEnd-1].value.empty() &&
+                                       std::isspace((unsigned char)toks[argEnd-1].value[0])) argEnd--;
+                                ranges.push_back({argStart, argEnd});
+                            } else { j++; }
+                        }
+                        endOut = j;
+                        return ranges;
+                    };
+
+                    size_t endIdx = i + 1;
+                    auto argRanges = collectArgsLocal(i + 1, endIdx);
+                    std::string newFmt = tok.value;
+                    size_t p = 0;
+                    while ((p = newFmt.find("%T", p)) != std::string::npos) {
+                        newFmt.replace(p, 2, "%s"); p += 2;
+                    }
+                    buf << newFmt;
+                    std::unordered_set<size_t> tSet(tPositions.begin(), tPositions.end());
+                    for (size_t ai = 0; ai < argRanges.size(); ai++) {
+                        auto [argStart, argEnd] = argRanges[ai];
+                        std::vector<Token> argToks(toks.begin() + argStart, toks.begin() + argEnd);
+                        std::string argStr;
+                        for (auto& at : argToks) {
+                            if (namespaces.count(at.value) && at.type == TK::IDENT) {
+                                argStr += at.value + "::It"; // basic namespace→It expansion
+                            } else if (at.type == TK::DOT) {
+                                argStr += "::";
+                            } else {
+                                auto tm = TYPE_MAP.find(at.value);
+                                argStr += (tm != TYPE_MAP.end()) ? tm->second : at.value;
+                            }
+                        }
+                        if (tSet.count(ai)) buf << ", uhc_tostring(" << argStr << ")";
+                        else               buf << ", " << argStr;
+                    }
+                    i = endIdx; // stop before the RPAREN — caller emits it
+                    continue;
+                }
+                buf << tok.value; i++; continue;
+            }
 
             if (tok.type == TK::OTHER        ||
                 tok.type == TK::LINE_COMMENT ||
@@ -1037,6 +1380,15 @@ class Transpiler {
     }
 
     std::string applyPatches(std::string outStr) {
+        // Inject template Block type params into template<...> declarations.
+        if (!templatePatches.empty()) {
+            auto sorted = templatePatches;
+            std::sort(sorted.begin(), sorted.end(),
+                      [](auto& a, auto& b) { return a.offset > b.offset; });
+            for (auto& p : sorted)
+                if (p.offset <= outStr.size()) outStr.insert(p.offset, p.insertion);
+        }
+
         if (callSiteCaptures.empty()) return outStr;
 
         std::unordered_map<std::string, std::vector<std::pair<std::string,std::string>>> calleeCaps;
@@ -1129,36 +1481,22 @@ class Transpiler {
                 continue;
             }
 
+            // skip const/unsigned/signed qualifiers
+            if (tokens[i].type == TK::IDENT &&
+                (tokens[i].value == "const" || tokens[i].value == "unsigned" ||
+                 tokens[i].value == "signed")) {
+                i++;
+                continue;
+            }
+
             if (tokens[i].type != TK::IDENT) { i++; continue; }
 
-            std::string typePart;
-
-            size_t j = nextNonWS(i + 1);
-            if (j < tokens.size() && tokens[j].type == TK::DOT) {
-                size_t k = nextNonWS(j + 1);
-                if (k < tokens.size() && tokens[k].type == TK::IDENT) {
-                    typePart = tokens[i].value + "::" + tokens[k].value;
-                    i = k + 1;
-                } else {
-                    typePart = resolveType(tokens[i].value);
-                    i++;
-                }
-            } else {
-                typePart = resolveType(tokens[i].value);
-                i++;
-            }
-
-            while (true) {
-                size_t jj = nextNonWS(i);
-                if (jj < tokens.size() && tokens[jj].type == TK::OTHER &&
-                    (tokens[jj].value == "*" || tokens[jj].value == "&")) {
-                    typePart += tokens[jj].value;
-                    i = jj + 1;
-                } else break;
-            }
+            // Use parseCType to handle templates like List<T> and pointer/ref suffixes.
+            std::string typePart = parseCType(i);
 
             i = nextNonWS(i);
-            if (i < tokens.size() && tokens[i].type == TK::IDENT) {
+            if (i < tokens.size() && tokens[i].type == TK::IDENT &&
+                tokens[i].value != "const" && tokens[i].value != "unsigned") {
                 scopeVars.push_back({tokens[i].value, typePart});
                 i++;
             }
@@ -1252,8 +1590,11 @@ public:
     Transpiler(const std::vector<Token>& toks,
                const std::unordered_set<std::string>& ns,
                const std::unordered_map<std::string, NSInfo>& fileInfo,
-               const std::unordered_set<std::string>& globalUserToString)
-        : tokens(toks), namespaces(ns), fileNSInfo(fileInfo), globalUserToStringNS(globalUserToString) {}
+               const std::unordered_set<std::string>& globalUserToString,
+               const std::unordered_map<std::string, LambdaReg>& externalLambdas = {})
+        : tokens(toks), namespaces(ns), fileNSInfo(fileInfo), globalUserToStringNS(globalUserToString) {
+        lambdaRegistry = externalLambdas;
+    }
 
     std::string run() {
         std::string currentFuncName;
@@ -1280,14 +1621,19 @@ public:
                 globalBraceDepth++;
                 if (inFunctionBody) braceDepth++;
 
-                if (globalBraceDepth == 1 && !pendingFuncForBrace.empty()) {
-                    currentFuncName = pendingFuncForBrace;
-                    inFunctionBody  = true;
-                    braceDepth      = 1;
+                // Only enter function body if this { is not a namespace/struct {
+                if (!inFunctionBody && !pendingFuncForBrace.empty() &&
+                    pendingNamespaceName.empty()) {
+                    currentFuncName    = pendingFuncForBrace;
+                    inFunctionBody     = true;
+                    braceDepth         = 1;
+                    funcBodyStartDepth = globalBraceDepth;
                     scopeVars.clear();
                     size_t pi = pendingFuncParamIdx + 1;
                     recordFunctionParams(pi);
                     pendingFuncForBrace.clear();
+                } else if (!pendingFuncForBrace.empty() && !pendingNamespaceName.empty()) {
+                    pendingFuncForBrace.clear(); // namespace { consumed the brace, not a function
                 }
                 // Track namespace name when entering a namespace block
                 if (globalBraceDepth == 1 && !pendingNamespaceName.empty()) {
@@ -1378,7 +1724,7 @@ public:
                             ps.outputByteOffset = out.str().size();
                         }
                     }
-                    if (globalBraceDepth == 0) {
+                    if (!inFunctionBody) {
                         pendingFuncForBrace = paramListCallee;
                         pendingFuncParamIdx = paramListOpenIdx;
                     }
@@ -1409,29 +1755,34 @@ public:
                             ExtractedBody eb = extractBody(bodyStart);
                             i = bodyStart;
 
-                            std::string lambdaName = generateLambdaName(eb.bodyTokens);
-
                             auto captures = detectCaptures(eb.headerParams, eb.bodyTokens);
-
-                            emitLambdaFunction(lambdaName, reg->retCType, reg->argCTypes,
-                                               eb.headerParams, eb.bodyTokens, captures);
-
-                            if (!captures.empty()) {
-                                CallSiteCapture csc;
-                                csc.calleeName = calleeName;
-                                csc.sourceLine = tok.line;
-                                csc.captures   = captures;
-                                callSiteCaptures.push_back(csc);
-                            }
 
                             {
                                 std::string argsSoFar = out.str().substr(outLenAtArgStart + 1);
                                 bool hasArgs = argsSoFar.find_first_not_of(" \t\r\n") != std::string::npos;
                                 if (hasArgs) out << ", ";
                             }
-                            out << lambdaName;
-                            for (auto& [capName, capType] : captures) {
-                                out << ", " << capName;
+
+                            if (!captures.empty()) {
+                                // Inline C++ lambda with capture list; use auto params
+                                // so template type params (e.g. T) don't leak into scope.
+                                out << "[";
+                                for (size_t ci = 0; ci < captures.size(); ci++) {
+                                    if (ci > 0) out << ", ";
+                                    out << captures[ci].first;
+                                }
+                                out << "](";
+                                for (size_t k = 0; k < reg->argCTypes.size(); k++) {
+                                    if (k > 0) out << ", ";
+                                    out << "auto";
+                                    if (k < eb.headerParams.size()) out << " " << eb.headerParams[k];
+                                }
+                                out << ") {" << transpileTokensToString(eb.bodyTokens) << "}";
+                            } else {
+                                std::string lambdaName = generateLambdaName(eb.bodyTokens);
+                                emitLambdaFunction(lambdaName, reg->retCType, reg->argCTypes,
+                                                   eb.headerParams, eb.bodyTokens, captures);
+                                out << lambdaName;
                             }
                             out << tok.value;
                             continue;
@@ -1525,6 +1876,28 @@ public:
                     } else {
                         lastIdentAtDepth0.clear();
                     }
+                }
+
+                if (v == "template") {
+                    out << v; i++;
+                    // Emit the <typename ...> block and record where the closing > is.
+                    size_t j = nextNonWS(i);
+                    if (j < tokens.size() && tokens[j].type == TK::OTHER && tokens[j].value == "<") {
+                        out << tokens[j].value; i = j + 1;
+                        int depth = 1;
+                        while (i < tokens.size() && depth > 0) {
+                            const std::string& cv = tokens[i].value;
+                            if (tokens[i].type == TK::OTHER && cv == "<") { depth++; out << cv; i++; }
+                            else if (tokens[i].type == TK::OTHER && cv == ">") {
+                                depth--;
+                                if (depth == 0) {
+                                    lastTemplateCloseOffset = out.str().size(); // before >
+                                    out << cv; i++;
+                                } else { out << cv; i++; }
+                            } else { out << tokens[i].value; i++; }
+                        }
+                    }
+                    continue;
                 }
 
                 if (v == "namespace" && globalBraceDepth == 0) {
@@ -1792,23 +2165,29 @@ public:
                             ExtractedBody eb = extractBody(bodyStart);
                             i = bodyStart;
 
-                            std::string lambdaName = generateLambdaName(eb.bodyTokens);
                             auto captures = detectCaptures(eb.headerParams, eb.bodyTokens);
 
-                            emitLambdaFunction(lambdaName, reg->retCType, reg->argCTypes,
-                                               eb.headerParams, eb.bodyTokens, captures);
-
+                            out << v << "(";
                             if (!captures.empty()) {
-                                CallSiteCapture csc;
-                                csc.calleeName = v;
-                                csc.sourceLine = tok.line;
-                                csc.captures   = captures;
-                                callSiteCaptures.push_back(csc);
-                            }
-
-                            out << v << "(" << lambdaName;
-                            for (auto& [capName, capType] : captures) {
-                                out << ", " << capName;
+                                // Inline C++ lambda with capture list; use auto params
+                                // so template type params (e.g. T) don't leak into scope.
+                                out << "[";
+                                for (size_t ci = 0; ci < captures.size(); ci++) {
+                                    if (ci > 0) out << ", ";
+                                    out << captures[ci].first;
+                                }
+                                out << "](";
+                                for (size_t k = 0; k < reg->argCTypes.size(); k++) {
+                                    if (k > 0) out << ", ";
+                                    out << "auto";
+                                    if (k < eb.headerParams.size()) out << " " << eb.headerParams[k];
+                                }
+                                out << ") {" << transpileTokensToString(eb.bodyTokens) << "}";
+                            } else {
+                                std::string lambdaName = generateLambdaName(eb.bodyTokens);
+                                emitLambdaFunction(lambdaName, reg->retCType, reg->argCTypes,
+                                                   eb.headerParams, eb.bodyTokens, captures);
+                                out << lambdaName;
                             }
                             out << ")";
                             lastIdentAtDepth0.clear();
@@ -1824,6 +2203,10 @@ public:
         }
 
         std::string outStr = applyPatches(out.str());
+
+        if (needsFunctional) {
+            outStr = "#include <functional>\n" + outStr;
+        }
 
         std::string lambdaStr = preamble.str();
         if (lambdaStr.empty()) return outStr;
@@ -1853,9 +2236,10 @@ public:
 std::string transpile(const std::vector<Token>& tokens,
                       const std::unordered_set<std::string>& namespaces,
                       const std::unordered_map<std::string, NSInfo>& fileNSInfo,
-                      const std::unordered_set<std::string>& globalUserToStringNS) {
+                      const std::unordered_set<std::string>& globalUserToStringNS,
+                      const std::unordered_map<std::string, LambdaReg>& externalLambdas = {}) {
     auto processed = injectImplicitSemicolons(tokens);
-    return Transpiler(processed, namespaces, fileNSInfo, globalUserToStringNS).run();
+    return Transpiler(processed, namespaces, fileNSInfo, globalUserToStringNS, externalLambdas).run();
 }
 
 static std::string readFile(const std::string& path) {
@@ -1903,13 +2287,27 @@ int main(int argc, char* argv[]) {
         } else if (arg == "-o" && a + 1 < argc) {
             outputBinary = argv[++a];
         } else if (arg.size() >= 2 && arg[0] == '-' && arg[1] == 'I') {
-            fs::path dir = arg.substr(2);
+            std::string dirStr = arg.substr(2);
+            if (dirStr.empty() && a + 1 < argc) {
+                dirStr = argv[++a];
+                compilerFlags.push_back("-I" + dirStr);
+            } else {
+                compilerFlags.push_back(arg);
+            }
+            fs::path dir = dirStr;
             if (!fs::is_directory(dir)) {
                 std::cerr << "Warning: -I path is not a directory: " << dir << "\n";
             } else {
                 includeDirs.push_back(dir);
             }
-            compilerFlags.push_back(arg);
+        } else if (arg.size() >= 2 && arg[0] == '-' && arg[1] == 'L') {
+            std::string dirStr = arg.substr(2);
+            if (dirStr.empty() && a + 1 < argc) {
+                dirStr = argv[++a];
+                compilerFlags.push_back("-L" + dirStr);
+            } else {
+                compilerFlags.push_back(arg);
+            }
         } else if (!arg.empty() && arg[0] == '-') {
             compilerFlags.push_back(arg);
             if (twoArgFlags.count(arg) && a + 1 < argc)
@@ -1971,6 +2369,28 @@ int main(int argc, char* argv[]) {
     for (auto& incDir : includeDirs)
         scanDir(incDir);
 
+    // Pre-collect lambda declarations from all .uhh files so trailing-lambda
+    // syntax works when the function is defined in an included header.
+    std::unordered_map<std::string, LambdaReg> globalLambdas;
+    auto scanLambdas = [&](const fs::path& dir) {
+        for (auto& entry : fs::recursive_directory_iterator(dir)) {
+            if (!entry.is_regular_file()) continue;
+            auto ext = entry.path().extension().string();
+            auto src    = readFile(entry.path().string());
+            auto tokens = Lexer(src).tokenize();
+            if (ext == ".uhh") {
+                auto decls = collectLambdaDecls(tokens);
+                globalLambdas.insert(decls.begin(), decls.end());
+            } else if (ext == ".hh") {
+                auto decls = collectLambdaDeclsFromHH(tokens);
+                globalLambdas.insert(decls.begin(), decls.end());
+            }
+        }
+    };
+    scanLambdas(inRoot);
+    for (auto& incDir : includeDirs)
+        scanLambdas(incDir);
+
     static const std::unordered_set<std::string> copyExts = {
         ".c", ".cpp", ".cc", ".h", ".hpp", ".hh"
     };
@@ -1987,7 +2407,7 @@ int main(int argc, char* argv[]) {
             auto src      = readFile(entry.path().string());
             auto tokens   = Lexer(src).tokenize();
             auto fileInfo = collectNSInfo(tokens);
-            auto output   = transpile(tokens, globalNS, fileInfo, globalUserToStringNS);
+            auto output   = transpile(tokens, globalNS, fileInfo, globalUserToStringNS, globalLambdas);
             writeFile(outPath.string(), output);
             if (verbose) std::cout << entry.path().string() << "  ->  " << outPath.string() << "\n";
         } else {

@@ -43,7 +43,8 @@ Extra flags are forwarded to the C++ compiler (`$CXX`, defaults to `c++`). The i
 | Flag | Description |
 |------|-------------|
 | `-o <file>` | Enable compiler driver mode, set output binary |
-| `-I<dir>` | Add include directory (passed to both transpiler and compiler) |
+| `-I<dir>` or `-I <dir>` | Add include directory (passed to both transpiler and compiler) |
+| `-L<dir>` or `-L <dir>` | Add library search path (forwarded to compiler) |
 | `-v` | Verbose — print each file transpiled and the compiler command |
 | `--preserve-source` | Keep generated `.cc` files after compilation |
 | `--version` | Print version and exit |
@@ -53,7 +54,8 @@ Extra flags are forwarded to the C++ compiler (`$CXX`, defaults to `c++`). The i
 See the [`examples/`](examples/) directory for runnable examples covering:
 
 - Types, namespaces, `self` structs
-- Lambdas (trailing lambda syntax)
+- Lambdas (trailing lambda syntax, cross-file, template types, captures)
+- `%T` format specifier — auto-calls namespace `toString` methods
 - `List<T>`, `Buffer`, `Matrix`, `VectorF`
 - Threads, mutexes
 - TCP client/server

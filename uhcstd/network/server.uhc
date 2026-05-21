@@ -1,3 +1,4 @@
+#include "uhcstd.uhh"
 #include "uhcnet.uhh"
 #include "uhcio.uhh"
 
@@ -77,10 +78,7 @@ namespace TcpServer {
     }
 
     U0 broadcast(List<TcpClient> clients, const I8* buffer, U32 size) {
-        U64 clientSize = List.size(clients)
-
-        for (U64 i = 0; i < clientSize; i++) {
-            TcpClient client = *List.get(clients, i)
+        forEach(clients) { (client) ->
             TcpServer.write(client, buffer, size)
         }
     }
@@ -173,10 +171,7 @@ namespace TcpServer {
     }
 
     U0 broadcast(List<TcpClient> clients, const I8* buffer, U32 size) {
-        U64 clientSize = List.size(clients)
-
-        for (U64 i = 0; i < clientSize; i++) {
-            TcpClient client = *List.get(clients, i)
+        forEach(clients) { (client) ->
             TcpServer.write(client, buffer, size)
         }
     }
