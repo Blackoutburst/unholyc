@@ -206,6 +206,9 @@ namespace List {
     template<typename T>
     self {
         std::list<T> handle
+        It() = default;
+        It(std::initializer_list<T> init) : handle(init) {}
+        T& operator[](int idx) { auto it = handle.begin(); std::advance(it, idx); return *it; }
     }
 
     /// Append a value to the end of the list
