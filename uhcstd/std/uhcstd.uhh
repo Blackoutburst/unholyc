@@ -345,7 +345,7 @@ namespace String {
     /// Return the underlying C string pointer — valid only while the String is alive
     /// @param s Source string
     /// @returns Read-only C string pointer
-    const I8* toCStr(const String s)
+    const I8* c(const String s)
     /// Return the number of bytes in the string (not Unicode code points)
     /// @param s Source string
     /// @returns Byte count
