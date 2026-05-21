@@ -253,15 +253,15 @@ namespace List {
         list.handle.erase(it)
     }
 
-    /// Get a pointer to the element at a specific index
+    /// Get a reference to the element at a specific index
     /// @param list Target list
     /// @param index Zero-based position
-    /// @returns Pointer to the element
+    /// @returns Reference to the element
     template<typename T>
-    T* get(List<T> list, I32 index) {
+    T& get(List<T> list, I32 index) {
         auto it = list.handle.begin()
         std::advance(it, index)
-        return &(*it)
+        return *it
     }
 
     /// Set the value of an element at a specific index
@@ -275,22 +275,20 @@ namespace List {
         *it = value
     }
 
-    /// Get a pointer to the first element
+    /// Get a reference to the first element
     /// @param list Target list
-    /// @returns Pointer to first element, or NULL if empty
+    /// @returns Reference to first element (undefined behavior if empty)
     template<typename T>
-    T* first(List<T> list) {
-        if (list.handle.empty()) return NULL
-        return &list.handle.front()
+    T& first(List<T> list) {
+        return list.handle.front()
     }
 
-    /// Get a pointer to the last element
+    /// Get a reference to the last element
     /// @param list Target list
-    /// @returns Pointer to last element, or NULL if empty
+    /// @returns Reference to last element (undefined behavior if empty)
     template<typename T>
-    T* last(List<T> list) {
-        if (list.handle.empty()) return NULL
-        return &list.handle.back()
+    T& last(List<T> list) {
+        return list.handle.back()
     }
 
     /// Get the number of elements in the list
