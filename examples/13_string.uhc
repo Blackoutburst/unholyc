@@ -12,13 +12,13 @@ I32 main() {
 
     // Length and empty check
     Log.info("length: %llu", String.length(greeting))
-    Log.info("isEmpty: %d", String.isEmpty(String.from("")))
+    Log.info("isEmpty: %d", String.isEmpty(""))
 
     // Queries
-    Log.info("contains 'World': %d", String.contains(greeting, String.from("World")))
-    Log.info("startsWith 'Hello': %d", String.startsWith(greeting, String.from("Hello")))
-    Log.info("endsWith '!': %d", String.endsWith(greeting, String.from("!")))
-    Log.info("indexOf 'World': %lld", String.indexOf(greeting, String.from("World")))
+    Log.info("contains 'World': %d", String.contains(greeting, "World"))
+    Log.info("startsWith 'Hello': %d", String.startsWith(greeting, "Hello"))
+    Log.info("endsWith '!': %d", String.endsWith(greeting, "!"))
+    Log.info("indexOf 'World': %lld", String.indexOf(greeting, "World"))
 
     // Transforms
     String upper = String.toUpperCase(greeting)
@@ -26,10 +26,10 @@ I32 main() {
     Log.info("upper: %T", upper)
     Log.info("lower: %T", lower)
 
-    String padded = String.from("   trim me   ")
+    String padded = "   trim me   "
     Log.info("trimmed: '%T'", String.trim(padded))
 
-    String replaced = String.replace(greeting, String.from("World"), String.from("UnholyC"))
+    String replaced = String.replace(greeting, "World", "UnholyC")
     Log.info("replaced: %T", replaced)
 
     // Substring
@@ -37,9 +37,9 @@ I32 main() {
     Log.info("substring(7,12): %T", sub)
 
     // Repeat and reverse
-    String bang = String.repeat(String.from("na"), 4)
+    String bang = String.repeat("na", 4)
     Log.info("repeat: %T", bang)
-    String rev = String.reverse(String.from("stressed"))
+    String rev = String.reverse("stressed")
     Log.info("reverse: %T", rev)
 
     // Number conversions
@@ -53,16 +53,16 @@ I32 main() {
     Log.info("format: %T", msg)
 
     // Split and join
-    String csv = String.from("one,two,three,four")
-    List<String> parts = String.split(csv, String.from(","))
+    String csv = "one,two,three,four"
+    List<String> parts = String.split(csv, ",")
     Log.info("split size: %llu", List.size(parts))
     Log.info("parts[1]: %T", List.get(parts, 1))
 
-    String joined = String.join(parts, String.from(" | "))
+    String joined = String.join(parts, " | ")
     Log.info("joined: %T", joined)
 
     // Literal + String concat (transpiler rewrite)
-    String name = String.from("UnholyC")
+    String name = "UnholyC"
     String welcome = "Welcome to " + name + "!"
     Log.info("%T", welcome)
 
