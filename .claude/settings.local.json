@@ -38,7 +38,12 @@
       "Bash(xargs ls -la)",
       "Bash(git show *)",
       "Bash(git commit *)",
-      "Bash(/tmp/test_tostring *)"
+      "Bash(/tmp/test_tostring *)",
+      "Bash(brew list *)",
+      "Bash(pkg-config --exists catch2)",
+      "Read(//usr/local/include/**)",
+      "Read(//opt/homebrew/include/**)",
+      "Read(//usr/local/**)"
     ]
   }
 }
