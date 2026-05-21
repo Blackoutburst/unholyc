@@ -1,0 +1,197 @@
+#include <stdio.h>
+#include <string.h>
+
+// ─── namespace with `self` ────────────────────────────────────────────────────
+
+namespace Box {
+    self {
+        I32 width
+        I32 height
+    }
+
+    Box create(I32 w, I32 h) {
+        Box b
+        b.width = w
+        b.height = h
+        return b
+    }
+
+    // param uses namespace name → auto-ref → mutation visible to caller
+    U0 scale(Box b, I32 factor) {
+        b.width  *= factor
+        b.height *= factor
+    }
+
+    I32 area(Box b) {
+        return b.width * b.height
+    }
+}
+
+// ─── namespace with manual struct It (no self keyword) ───────────────────────
+
+namespace Rect {
+    struct It {
+        I32 x
+        I32 y
+        I32 w
+        I32 h
+    }
+
+    // Return type: namespace name without self still expands to Rect::It
+    Rect create(I32 x, I32 y, I32 w, I32 h) {
+        Rect r
+        r.x = x
+        r.y = y
+        r.w = w
+        r.h = h
+        return r
+    }
+
+    I32 area(Rect r) {
+        return r.w * r.h
+    }
+
+    // Using It directly inside the namespace (valid C++ - same scope)
+    It createFromIt(I32 w, I32 h) {
+        It r
+        r.x = 0
+        r.y = 0
+        r.w = w
+        r.h = h
+        return r
+    }
+
+    // Using Rect::It explicitly in param (no auto-ref added — bypasses expansion)
+    I32 areaExplicit(Rect::It r) {
+        return r.w * r.h
+    }
+}
+
+I32 main() {
+    // ── Box: self keyword ──────────────────────────────────────────────────────
+
+    // 1. Declare using namespace name alone (auto-expands)
+    Box b1 = Box.create(4, 5)
+    if (b1.width != 4 || b1.height != 5) {
+        printf("FAIL: Box b1 create, got %d %d\n", b1.width, b1.height)
+        return 1
+    }
+
+    // 2. Declare using Namespace::It explicitly
+    Box::It b2
+    b2.width  = 3
+    b2.height = 6
+    if (Box.area(b2) != 18) {
+        printf("FAIL: Box::It b2 area expected 18, got %d\n", Box.area(b2))
+        return 1
+    }
+
+    // 3. Declare using Namespace.It (dot-notation type)
+    Box.It b3 = Box.create(2, 7)
+    if (b3.width != 2 || b3.height != 7) {
+        printf("FAIL: Box.It b3, got %d %d\n", b3.width, b3.height)
+        return 1
+    }
+
+    // 4. Mutation via auto-ref param
+    Box.scale(b1, 3)
+    if (b1.width != 12 || b1.height != 15) {
+        printf("FAIL: Box.scale (auto-ref), got %d %d\n", b1.width, b1.height)
+        return 1
+    }
+
+    // 5. %T on Box — self → auto-generated toString with field names
+    const I8* bStr = uhc_tostring(b1)
+    if (bStr == NULL || strlen(bStr) == 0) {
+        printf("FAIL: Box uhc_tostring empty\n")
+        return 1
+    }
+    if (strstr(bStr, "width") == NULL) {
+        printf("FAIL: Box toString missing 'width', got '%s'\n", bStr)
+        return 1
+    }
+    if (strstr(bStr, "12") == NULL) {
+        printf("FAIL: Box toString missing value '12', got '%s'\n", bStr)
+        return 1
+    }
+
+    // ── Rect: manual struct It ─────────────────────────────────────────────────
+
+    // 6. Declare using namespace name (Rect is in collectNamespaces → still expands)
+    Rect r1 = Rect.create(0, 0, 6, 7)
+    if (Rect.area(r1) != 42) {
+        printf("FAIL: Rect r1 area expected 42, got %d\n", Rect.area(r1))
+        return 1
+    }
+
+    // 7. Declare using Rect::It explicitly
+    Rect::It r2
+    r2.x = 0
+    r2.y = 0
+    r2.w = 5
+    r2.h = 8
+    if (Rect.areaExplicit(r2) != 40) {
+        printf("FAIL: Rect::It r2 areaExplicit expected 40, got %d\n", Rect.areaExplicit(r2))
+        return 1
+    }
+
+    // 8. createFromIt — uses `It` directly inside namespace
+    Rect r3 = Rect.createFromIt(9, 3)
+    if (r3.w != 9 || r3.h != 3) {
+        printf("FAIL: Rect.createFromIt, got %d %d\n", r3.w, r3.h)
+        return 1
+    }
+
+    // 9. %T on Rect — no self → no toString → falls back to [object]
+    const I8* rStr = uhc_tostring(r1)
+    if (strcmp(rStr, "[object]") != 0) {
+        printf("FAIL: Rect uhc_tostring expected '[object]', got '%s'\n", rStr)
+        return 1
+    }
+
+    // ── Namespace.It used as function return type / param type ─────────────────
+
+    // 10. Box.It as return type (function defined inline here to test)
+    // Already tested above via Box.create which returns Box → Box::It
+
+    // 11. Calling Box.area on a Box::It declared with explicit type — no auto-ref
+    //     Area still works since it reads only
+    if (Box.area(b2) != 18) {
+        printf("FAIL: Box.area on Box::It (explicit) expected 18\n")
+        return 1
+    }
+
+    // 12. Rect.It declared via dot-notation type
+    Rect.It r4 = Rect.create(0, 0, 3, 4)
+    if (Rect.area(r4) != 12) {
+        printf("FAIL: Rect.It r4 area expected 12, got %d\n", Rect.area(r4))
+        return 1
+    }
+
+    // ── auto-ref vs no-ref: explicit Namespace::It in param bypasses & ──────────
+
+    // Box with `self` param → auto-ref → mutation visible to caller (already tested above)
+    // Verify b1 is still 12×15 from the scale test
+    if (b1.width != 12 || b1.height != 15) {
+        printf("FAIL: b1 should still be 12x15 after scale, got %dx%d\n", b1.width, b1.height)
+        return 1
+    }
+
+    // Rect::It explicit param → NO auto-ref → mutation inside function not visible
+    // areaExplicit(Rect::It r) passes by value; changes inside don't affect caller
+    // Verify r2 unchanged after passing to areaExplicit
+    r2.w = 10
+    r2.h = 2
+    I32 explicitResult = Rect.areaExplicit(r2)
+    if (explicitResult != 20) {
+        printf("FAIL: areaExplicit expected 20, got %d\n", explicitResult)
+        return 1
+    }
+    if (r2.w != 10 || r2.h != 2) {
+        printf("FAIL: r2 should be unchanged after areaExplicit, got %d %d\n", r2.w, r2.h)
+        return 1
+    }
+
+    printf("self_vs_it: all tests passed\n")
+    return 0
+}

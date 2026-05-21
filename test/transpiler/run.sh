@@ -44,6 +44,7 @@ run_test swizzle
 run_test percent_t
 run_test operators
 run_test templates
+run_test self_vs_it
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
