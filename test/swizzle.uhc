@@ -1,0 +1,11 @@
+#include <uhcio.uhh>
+#include <uhcmath.uhh>
+
+I32 main() {
+    VectorI v = { 10, 20, 30, 40 }
+    
+    VectorI v2 = v.bgra / 10
+    Log.info("%T", v2)
+
+    return 0
+}
