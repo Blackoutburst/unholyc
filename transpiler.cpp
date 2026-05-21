@@ -1381,6 +1381,16 @@ class Transpiler {
                 buf << tok.value; i++; continue;
             }
 
+            // "lit" + expr → String::It("lit") + expr for string concatenation
+            if (tok.type == TK::STRING) {
+                size_t n = nextNonWSLocal(i + 1);
+                if (n < toks.size() && toks[n].type == TK::OTHER && toks[n].value == "+") {
+                    buf << "String::It(" << tok.value << ")";
+                    i++;
+                    continue;
+                }
+            }
+
             if (tok.type == TK::OTHER        ||
                 tok.type == TK::LINE_COMMENT ||
                 tok.type == TK::BLOCK_COMMENT||
@@ -1730,7 +1740,7 @@ public:
         preamble << "#include <stdio.h>\n"
                  << "#ifndef UHC_TOSTRING_DEFINED\n"
                  << "#define UHC_TOSTRING_DEFINED\n"
-                 << "template<typename T> inline const char* uhc_tostring(T&) { return \"[object]\"; }\n"
+                 << "template<typename T> inline const char* uhc_tostring(const T&) { return \"[object]\"; }\n"
                  << "#endif\n";
 
         size_t i = 0;
@@ -1785,7 +1795,7 @@ public:
                         !globalUserToStringNS.count(closingNS)) {
                         const auto& fields = it->second.selfFields;
                         if (fields.empty()) {
-                            out << "    static const char* toString(It& __self) {"
+                            out << "    static const char* toString(const It& __self) {"
                                 << " (void)__self; return \"" << closingNS << "{}\"; }\n";
                         } else {
                             std::string fmt = closingNS + "{";
@@ -1798,7 +1808,7 @@ public:
                             fmt += "}";
                             // Rotating pool of 4 buffers so multiple %T in one printf call
                             // don't clobber each other (each uhc_tostring() call gets its own slot).
-                            out << "    static const char* toString(It& __self) {"
+                            out << "    static const char* toString(const It& __self) {"
                                 << " static char __pool[4][512]; static int __pi = 0;"
                                 << " __pi = (__pi + 1) & 3; char* __buf = __pool[__pi];"
                                 << " snprintf(__buf, 512, \"" << fmt << "\", " << args << ");"
@@ -1814,7 +1824,7 @@ public:
                     if (it != fileNSInfo.end() && it->second.hasSelf && !it->second.isTemplate &&
                         !emittedUhcToString.count(closingNS)) {
                         emittedUhcToString.insert(closingNS);
-                        out << "\ninline const char* uhc_tostring(" << closingNS
+                        out << "\ninline const char* uhc_tostring(const " << closingNS
                             << "::It& v) { return " << closingNS << "::toString(v); }";
                     }
                 }
@@ -1945,6 +1955,17 @@ public:
                         if (tSet.count(ai)) out << ")";
                     }
                     i = endIdx; // let normal loop handle the closing RPAREN
+                    continue;
+                }
+            }
+
+            // "lit" + expr → String::It("lit") + expr for string concatenation
+            if (tok.type == TK::STRING) {
+                size_t n = nextNonWS(i + 1);
+                if (n < tokens.size() && tokens[n].type == TK::OTHER && tokens[n].value == "+") {
+                    out << "String::It(" << tok.value << ")";
+                    i++;
+                    lastIdentAtDepth0.clear();
                     continue;
                 }
             }

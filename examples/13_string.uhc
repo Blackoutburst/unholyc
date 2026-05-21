@@ -1,0 +1,70 @@
+#include <uhcio.uhh>
+#include <uhcstd.uhh>
+
+I32 main() {
+    // Construction
+    String hello = "Hello"
+    String world = "World"
+
+    // Concatenation with +
+    String greeting = hello + ", " + world + "!"
+    Log.info("greeting: %T", greeting)
+
+    // Length and empty check
+    Log.info("length: %llu", String.length(greeting))
+    Log.info("isEmpty: %d", String.isEmpty(String.from("")))
+
+    // Queries
+    Log.info("contains 'World': %d", String.contains(greeting, String.from("World")))
+    Log.info("startsWith 'Hello': %d", String.startsWith(greeting, String.from("Hello")))
+    Log.info("endsWith '!': %d", String.endsWith(greeting, String.from("!")))
+    Log.info("indexOf 'World': %lld", String.indexOf(greeting, String.from("World")))
+
+    // Transforms
+    String upper = String.toUpperCase(greeting)
+    String lower = String.toLowerCase(greeting)
+    Log.info("upper: %T", upper)
+    Log.info("lower: %T", lower)
+
+    String padded = String.from("   trim me   ")
+    Log.info("trimmed: '%T'", String.trim(padded))
+
+    String replaced = String.replace(greeting, String.from("World"), String.from("UnholyC"))
+    Log.info("replaced: %T", replaced)
+
+    // Substring
+    String sub = String.substring(greeting, 7, 12)
+    Log.info("substring(7,12): %T", sub)
+
+    // Repeat and reverse
+    String bang = String.repeat(String.from("na"), 4)
+    Log.info("repeat: %T", bang)
+    String rev = String.reverse(String.from("stressed"))
+    Log.info("reverse: %T", rev)
+
+    // Number conversions
+    String n = String.fromI32(42)
+    String f = String.fromF64(3.14)
+    Log.info("fromI32: %T  fromF64: %T", n, f)
+    Log.info("toI32: %d  toF64: %f", String.toI32(n), String.toF64(f))
+
+    // Format
+    String msg = String.format("x=%d y=%.2f", 10, 3.14)
+    Log.info("format: %T", msg)
+
+    // Split and join
+    String csv = String.from("one,two,three,four")
+    List<String> parts = String.split(csv, String.from(","))
+    Log.info("split size: %llu", List.size(parts))
+    Log.info("parts[1]: %T", List.get(parts, 1))
+
+    String joined = String.join(parts, String.from(" | "))
+    Log.info("joined: %T", joined)
+
+    // Literal + String concat (transpiler rewrite)
+    String name = String.from("UnholyC")
+    String welcome = "Welcome to " + name + "!"
+    Log.info("%T", welcome)
+
+    return 0
+}

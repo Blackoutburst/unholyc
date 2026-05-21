@@ -1,0 +1,228 @@
+#include <algorithm>
+#include <cctype>
+#include <cstdarg>
+
+#include "uhcstd.uhh"
+
+namespace String {
+
+    String from(const I8* s) {
+        String r
+        r.handle = s ? s : ""
+        return r
+    }
+
+    String fromI32(I32 n) {
+        String r
+        r.handle = std::to_string(n)
+        return r
+    }
+
+    String fromI64(I64 n) {
+        String r
+        r.handle = std::to_string(n)
+        return r
+    }
+
+    String fromF32(F32 f) {
+        String r
+        r.handle = std::to_string((double)f)
+        return r
+    }
+
+    String fromF64(F64 f) {
+        String r
+        r.handle = std::to_string(f)
+        return r
+    }
+
+    const I8* c(const String s) {
+        return s.handle.c_str()
+    }
+
+    U64 length(const String s) {
+        return (U64)s.handle.size()
+    }
+
+    U8 isEmpty(const String s) {
+        return s.handle.empty() ? 1 : 0
+    }
+
+    I8 charAt(const String s, I32 i) {
+        return (I8)s.handle[(size_t)i]
+    }
+
+    U8 equals(const String a, const String b) {
+        return a.handle == b.handle ? 1 : 0
+    }
+
+    U8 contains(const String s, const String sub) {
+        return s.handle.find(sub.handle) != std::string::npos ? 1 : 0
+    }
+
+    U8 startsWith(const String s, const String prefix) {
+        return s.handle.rfind(prefix.handle, 0) == 0 ? 1 : 0
+    }
+
+    U8 endsWith(const String s, const String suffix) {
+        if (suffix.handle.size() > s.handle.size()) return 0
+        return s.handle.compare(
+            s.handle.size() - suffix.handle.size(),
+            suffix.handle.size(),
+            suffix.handle
+        ) == 0 ? 1 : 0
+    }
+
+    I64 indexOf(const String s, const String sub) {
+        size_t pos = s.handle.find(sub.handle)
+        return pos == std::string::npos ? (I64)-1 : (I64)pos
+    }
+
+    I64 lastIndexOf(const String s, const String sub) {
+        size_t pos = s.handle.rfind(sub.handle)
+        return pos == std::string::npos ? (I64)-1 : (I64)pos
+    }
+
+    String toUpperCase(const String s) {
+        String r
+        r.handle = s.handle
+        std::transform(r.handle.begin(), r.handle.end(), r.handle.begin(),
+            [](unsigned char c){ return std::toupper(c); })
+        return r
+    }
+
+    String toLowerCase(const String s) {
+        String r
+        r.handle = s.handle
+        std::transform(r.handle.begin(), r.handle.end(), r.handle.begin(),
+            [](unsigned char c){ return std::tolower(c); })
+        return r
+    }
+
+    String trim(const String s) {
+        String r
+        r.handle = s.handle
+        r.handle.erase(r.handle.begin(),
+            std::find_if(r.handle.begin(), r.handle.end(),
+                [](unsigned char c){ return !std::isspace(c); }))
+        r.handle.erase(
+            std::find_if(r.handle.rbegin(), r.handle.rend(),
+                [](unsigned char c){ return !std::isspace(c); }).base(),
+            r.handle.end())
+        return r
+    }
+
+    String trimStart(const String s) {
+        String r
+        r.handle = s.handle
+        r.handle.erase(r.handle.begin(),
+            std::find_if(r.handle.begin(), r.handle.end(),
+                [](unsigned char c){ return !std::isspace(c); }))
+        return r
+    }
+
+    String trimEnd(const String s) {
+        String r
+        r.handle = s.handle
+        r.handle.erase(
+            std::find_if(r.handle.rbegin(), r.handle.rend(),
+                [](unsigned char c){ return !std::isspace(c); }).base(),
+            r.handle.end())
+        return r
+    }
+
+    String replace(const String s, const String from, const String to) {
+        String r
+        r.handle = s.handle
+        size_t pos = 0
+        while ((pos = r.handle.find(from.handle, pos)) != std::string::npos) {
+            r.handle.replace(pos, from.handle.size(), to.handle)
+            pos += to.handle.size()
+        }
+        return r
+    }
+
+    String substring(const String s, I32 start) {
+        String r
+        r.handle = s.handle.substr((size_t)start)
+        return r
+    }
+
+    String substring(const String s, I32 start, I32 end) {
+        String r
+        r.handle = s.handle.substr((size_t)start, (size_t)(end - start))
+        return r
+    }
+
+    String repeat(const String s, I32 n) {
+        String r
+        for (I32 i = 0; i < n; i++) r.handle += s.handle
+        return r
+    }
+
+    String reverse(const String s) {
+        String r
+        r.handle = s.handle
+        std::reverse(r.handle.begin(), r.handle.end())
+        return r
+    }
+
+    I32 toI32(const String s) {
+        return std::stoi(s.handle)
+    }
+
+    I64 toI64(const String s) {
+        return std::stoll(s.handle)
+    }
+
+    F32 toF32(const String s) {
+        return std::stof(s.handle)
+    }
+
+    F64 toF64(const String s) {
+        return std::stod(s.handle)
+    }
+
+    String format(const I8* fmt, ...) {
+        va_list args
+        va_start(args, fmt)
+        I8 buf[4096]
+        vsnprintf(buf, sizeof(buf), fmt, args)
+        va_end(args)
+        String r
+        r.handle = buf
+        return r
+    }
+
+    List<String> split(const String s, const String delim) {
+        List<String> result
+        size_t start = 0
+        size_t pos = s.handle.find(delim.handle)
+        while (pos != std::string::npos) {
+            String part
+            part.handle = s.handle.substr(start, pos - start)
+            List.add(result, part)
+            start = pos + delim.handle.size()
+            pos = s.handle.find(delim.handle, start)
+        }
+        String last
+        last.handle = s.handle.substr(start)
+        List.add(result, last)
+        return result
+    }
+
+    String join(List<String> parts, const String sep) {
+        String result
+        U8 first = 1
+        for (auto& p : parts.handle) {
+            if (!first) result.handle += sep.handle
+            result.handle += p.handle
+            first = 0
+        }
+        return result
+    }
+
+    const I8* toString(const String s) {
+        return s.handle.c_str()
+    }
+}

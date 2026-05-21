@@ -11,6 +11,7 @@
 #endif
 
 #include <list>
+#include <string>
 #include <algorithm>
 
 /// Mutual exclusion primitive for thread synchronization
@@ -305,6 +306,61 @@ namespace List {
     U0 clear(List<T> list) {
         list.handle.clear()
     }
+}
+
+/// UTF-8 string with value semantics and Kotlin-style API
+namespace String {
+    self {
+        std::string handle;
+        It() = default;
+        It(const I8* s) : handle(s ? s : "") {}
+        It(const std::string& s) : handle(s) {}
+        It operator+(const It& o) { return It(handle + o.handle); }
+        It operator+(const I8* s) { return It(handle + (s ? s : "")); }
+        friend It operator+(const I8* s, const It& o) { return It(std::string(s ? s : "") + o.handle); }
+        U8 operator==(const It& o) { return handle == o.handle ? 1 : 0; }
+        U8 operator!=(const It& o) { return handle != o.handle ? 1 : 0; }
+    }
+
+    /// Wrap a C string (null → empty string)
+    String from(const I8* s)
+    /// Number → String conversions
+    String fromI32(I32 n)
+    String fromI64(I64 n)
+    String fromF32(F32 f)
+    String fromF64(F64 f)
+    /// Underlying C string pointer — valid while String is alive
+    const I8* c(const String s)
+    /// Byte length (not Unicode code points)
+    U64 length(const String s)
+    U8 isEmpty(const String s)
+    I8 charAt(const String s, I32 i)
+    U8 equals(const String a, const String b)
+    U8 contains(const String s, const String sub)
+    U8 startsWith(const String s, const String prefix)
+    U8 endsWith(const String s, const String suffix)
+    /// Returns -1 if not found
+    I64 indexOf(const String s, const String sub)
+    I64 lastIndexOf(const String s, const String sub)
+    String toUpperCase(const String s)
+    String toLowerCase(const String s)
+    String trim(const String s)
+    String trimStart(const String s)
+    String trimEnd(const String s)
+    String replace(const String s, const String from, const String to)
+    String substring(const String s, I32 start)
+    String substring(const String s, I32 start, I32 end)
+    String repeat(const String s, I32 n)
+    String reverse(const String s)
+    I32 toI32(const String s)
+    I64 toI64(const String s)
+    F32 toF32(const String s)
+    F64 toF64(const String s)
+    /// sprintf-style: String.format("Hello %s!", name)
+    String format(const I8* fmt, ...)
+    List<String> split(const String s, const String delim)
+    String join(List<String> parts, const String sep)
+    const I8* toString(const String s)
 }
 
 /// Cross-platform time utilities
