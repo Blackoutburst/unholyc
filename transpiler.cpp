@@ -2271,10 +2271,30 @@ public:
                             continue;
                         }
                     } else if (!prevMeaningfulIs(i, "namespace")) {
-                        // If followed by ::, user wrote explicit scope — pass through as-is
+                        // If followed by ::, user wrote explicit scope (e.g. Namespace::It).
+                        // In a function param list, still add & so it's passed by reference.
                         {
                             size_t nextCheck = nextNonWS(i + 1);
                             if (nextCheck < tokens.size() && tokens[nextCheck].type == TK::SCOPE) {
+                                if (parenDepth > 0 && !inFunctionBody) {
+                                    // Lookahead: Namespace :: It  → emit Namespace::It&
+                                    size_t afterScope = nextNonWS(nextCheck + 1);
+                                    if (afterScope < tokens.size() &&
+                                        tokens[afterScope].type == TK::IDENT &&
+                                        tokens[afterScope].value == "It") {
+                                        // Emit Namespace::It (all tokens including whitespace)
+                                        for (size_t w = i; w <= afterScope; w++)
+                                            out << tokens[w].value;
+                                        i = afterScope + 1;
+                                        // Add & unless user already wrote * or &
+                                        size_t ni = nextNonWS(i);
+                                        if (ni >= tokens.size() ||
+                                            (tokens[ni].value != "*" && tokens[ni].value != "&"))
+                                            out << "&";
+                                        lastIdentAtDepth0.clear();
+                                        continue;
+                                    }
+                                }
                                 out << v; i++; continue;
                             }
                         }

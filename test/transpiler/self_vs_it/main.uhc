@@ -61,9 +61,15 @@ namespace Rect {
         return r
     }
 
-    // Using Rect::It explicitly in param (no auto-ref added — bypasses expansion)
+    // Using Rect::It explicitly in param — now gets auto-ref same as Rect
     I32 areaExplicit(Rect::It r) {
         return r.w * r.h
+    }
+
+    // Mutation via Rect::It explicit param — should now be visible (ref added)
+    U0 doubleSize(Rect::It r) {
+        r.w *= 2
+        r.h *= 2
     }
 }
 
@@ -168,27 +174,27 @@ I32 main() {
         return 1
     }
 
-    // ── auto-ref vs no-ref: explicit Namespace::It in param bypasses & ──────────
+    // ── Namespace::It explicit param now gets auto-ref same as Namespace ─────────
 
-    // Box with `self` param → auto-ref → mutation visible to caller (already tested above)
-    // Verify b1 is still 12×15 from the scale test
+    // Box with `self` param → auto-ref → mutation visible (already tested above via scale)
     if (b1.width != 12 || b1.height != 15) {
-        printf("FAIL: b1 should still be 12x15 after scale, got %dx%d\n", b1.width, b1.height)
+        printf("FAIL: b1 should be 12x15, got %dx%d\n", b1.width, b1.height)
         return 1
     }
 
-    // Rect::It explicit param → NO auto-ref → mutation inside function not visible
-    // areaExplicit(Rect::It r) passes by value; changes inside don't affect caller
-    // Verify r2 unchanged after passing to areaExplicit
+    // Rect::It explicit param now also gets & → mutation visible to caller
     r2.w = 10
     r2.h = 2
-    I32 explicitResult = Rect.areaExplicit(r2)
-    if (explicitResult != 20) {
-        printf("FAIL: areaExplicit expected 20, got %d\n", explicitResult)
+    Rect.doubleSize(r2)
+    if (r2.w != 20 || r2.h != 4) {
+        printf("FAIL: doubleSize via Rect::It ref expected 20x4, got %dx%d\n", r2.w, r2.h)
         return 1
     }
-    if (r2.w != 10 || r2.h != 2) {
-        printf("FAIL: r2 should be unchanged after areaExplicit, got %d %d\n", r2.w, r2.h)
+
+    // areaExplicit (Rect::It r) also ref now — still reads correctly
+    I32 explicitResult = Rect.areaExplicit(r2)
+    if (explicitResult != 80) {
+        printf("FAIL: areaExplicit expected 80, got %d\n", explicitResult)
         return 1
     }
 
