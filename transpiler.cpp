@@ -2331,11 +2331,11 @@ int main(int argc, char* argv[]) {
     bool driverMode = !outputBinary.empty();
 
     if (driverMode && positional.size() < 1) {
-        std::cerr << "Usage: unholyc <input_dir> -o <output> [flags...] [--preserve-source]\n";
+        std::cerr << "Usage: unholyc <input_dir_or_file> -o <output> [flags...] [--preserve-source]\n";
         return 1;
     }
     if (!driverMode && positional.size() < 2) {
-        std::cerr << "Usage: unholyc <input_dir> <output_dir> [-I<include_dir> ...]\n";
+        std::cerr << "Usage: unholyc <input_dir_or_file> <output_dir> [-I<include_dir> ...]\n";
         return 1;
     }
 
@@ -2349,8 +2349,14 @@ int main(int argc, char* argv[]) {
         outRoot  = fs::absolute(fs::path(positional[1]));
     }
 
-    if (!fs::is_directory(inRoot)) {
-        std::cerr << "Error: " << inRoot << " is not a directory\n";
+    // Accept a single file as input: use its parent as the scan root but only
+    // compile that one file in the main processing loop.
+    fs::path singleInputFile;
+    if (fs::is_regular_file(inRoot)) {
+        singleInputFile = fs::canonical(inRoot);
+        inRoot          = singleInputFile.parent_path();
+    } else if (!fs::is_directory(inRoot)) {
+        std::cerr << "Error: " << inRoot << " is not a file or directory\n";
         return 1;
     }
 
@@ -2408,6 +2414,7 @@ int main(int argc, char* argv[]) {
 
     for (auto& entry : fs::recursive_directory_iterator(inRoot)) {
         if (!entry.is_regular_file()) continue;
+        if (!singleInputFile.empty() && entry.path() != singleInputFile) continue;
         auto ext     = entry.path().extension().string();
         if (ext != ".uhc" && ext != ".uhh" && !copyExts.count(ext)) continue;
 
