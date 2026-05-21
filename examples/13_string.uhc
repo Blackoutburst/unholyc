@@ -56,7 +56,7 @@ I32 main() {
     String csv = "one,two,three,four"
     List<String> parts = String.split(csv, ",")
     Log.info("split size: %llu", List.size(parts))
-    Log.info("parts[1]: %T", List.get(parts, 1))
+    Log.info("parts[1]: %T", parts[1])
 
     String joined = String.join(parts, " | ")
     Log.info("joined: %T", joined)
