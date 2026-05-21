@@ -33,7 +33,12 @@
       "Bash(/Users/florianchanson/Documents/code/unholyc/dist/bin/unholyc)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(./dist/bin/unholyc *)",
+      "Bash(xargs ls -la)",
+      "Bash(git show *)",
+      "Bash(git commit *)",
+      "Bash(/tmp/test_tostring *)"
     ]
   }
 }
