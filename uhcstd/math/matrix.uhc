@@ -221,6 +221,63 @@ namespace Matrix {
         mat.values[M33] = 1.0f
     }
 
+    U0 add(Matrix result, Matrix a, Matrix b) {
+        for (I32 i = 0; i < 16; i++) {
+            result.values[i] = a.values[i] + b.values[i]
+        }
+    }
+
+    U0 sub(Matrix result, Matrix a, Matrix b) {
+        for (I32 i = 0; i < 16; i++) {
+            result.values[i] = a.values[i] - b.values[i]
+        }
+    }
+
+    U0 mul(Matrix result, Matrix a, Matrix b) {
+        multiply(result, a, b)
+    }
+
+    U8 inverse(Matrix result, Matrix src) {
+        F32 c0  =  src.values[5]*src.values[10]*src.values[15] - src.values[5]*src.values[11]*src.values[14] - src.values[9]*src.values[6]*src.values[15] + src.values[9]*src.values[7]*src.values[14] + src.values[13]*src.values[6]*src.values[11] - src.values[13]*src.values[7]*src.values[10]
+        F32 c1  = -src.values[1]*src.values[10]*src.values[15] + src.values[1]*src.values[11]*src.values[14] + src.values[9]*src.values[2]*src.values[15] - src.values[9]*src.values[3]*src.values[14] - src.values[13]*src.values[2]*src.values[11] + src.values[13]*src.values[3]*src.values[10]
+        F32 c2  =  src.values[1]*src.values[6]*src.values[15]  - src.values[1]*src.values[7]*src.values[14]  - src.values[5]*src.values[2]*src.values[15] + src.values[5]*src.values[3]*src.values[14] + src.values[13]*src.values[2]*src.values[7]  - src.values[13]*src.values[3]*src.values[6]
+        F32 c3  = -src.values[1]*src.values[6]*src.values[11]  + src.values[1]*src.values[7]*src.values[10]  + src.values[5]*src.values[2]*src.values[11] - src.values[5]*src.values[3]*src.values[10] - src.values[9]*src.values[2]*src.values[7]   + src.values[9]*src.values[3]*src.values[6]
+        F32 c4  = -src.values[4]*src.values[10]*src.values[15] + src.values[4]*src.values[11]*src.values[14] + src.values[8]*src.values[6]*src.values[15] - src.values[8]*src.values[7]*src.values[14] - src.values[12]*src.values[6]*src.values[11] + src.values[12]*src.values[7]*src.values[10]
+        F32 c5  =  src.values[0]*src.values[10]*src.values[15] - src.values[0]*src.values[11]*src.values[14] - src.values[8]*src.values[2]*src.values[15] + src.values[8]*src.values[3]*src.values[14] + src.values[12]*src.values[2]*src.values[11] - src.values[12]*src.values[3]*src.values[10]
+        F32 c6  = -src.values[0]*src.values[6]*src.values[15]  + src.values[0]*src.values[7]*src.values[14]  + src.values[4]*src.values[2]*src.values[15] - src.values[4]*src.values[3]*src.values[14] - src.values[12]*src.values[2]*src.values[7]  + src.values[12]*src.values[3]*src.values[6]
+        F32 c7  =  src.values[0]*src.values[6]*src.values[11]  - src.values[0]*src.values[7]*src.values[10]  - src.values[4]*src.values[2]*src.values[11] + src.values[4]*src.values[3]*src.values[10] + src.values[8]*src.values[2]*src.values[7]   - src.values[8]*src.values[3]*src.values[6]
+        F32 c8  =  src.values[4]*src.values[9]*src.values[15]  - src.values[4]*src.values[11]*src.values[13] - src.values[8]*src.values[5]*src.values[15] + src.values[8]*src.values[7]*src.values[13] + src.values[12]*src.values[5]*src.values[11] - src.values[12]*src.values[7]*src.values[9]
+        F32 c9  = -src.values[0]*src.values[9]*src.values[15]  + src.values[0]*src.values[11]*src.values[13] + src.values[8]*src.values[1]*src.values[15] - src.values[8]*src.values[3]*src.values[13] - src.values[12]*src.values[1]*src.values[11] + src.values[12]*src.values[3]*src.values[9]
+        F32 c10 =  src.values[0]*src.values[5]*src.values[15]  - src.values[0]*src.values[7]*src.values[13]  - src.values[4]*src.values[1]*src.values[15] + src.values[4]*src.values[3]*src.values[13] + src.values[12]*src.values[1]*src.values[7]  - src.values[12]*src.values[3]*src.values[5]
+        F32 c11 = -src.values[0]*src.values[5]*src.values[11]  + src.values[0]*src.values[7]*src.values[9]   + src.values[4]*src.values[1]*src.values[11] - src.values[4]*src.values[3]*src.values[9]  - src.values[8]*src.values[1]*src.values[7]   + src.values[8]*src.values[3]*src.values[5]
+        F32 c12 = -src.values[4]*src.values[9]*src.values[14]  + src.values[4]*src.values[10]*src.values[13] + src.values[8]*src.values[5]*src.values[14] - src.values[8]*src.values[6]*src.values[13] - src.values[12]*src.values[5]*src.values[10] + src.values[12]*src.values[6]*src.values[9]
+        F32 c13 =  src.values[0]*src.values[9]*src.values[14]  - src.values[0]*src.values[10]*src.values[13] - src.values[8]*src.values[1]*src.values[14] + src.values[8]*src.values[2]*src.values[13] + src.values[12]*src.values[1]*src.values[10] - src.values[12]*src.values[2]*src.values[9]
+        F32 c14 = -src.values[0]*src.values[5]*src.values[14]  + src.values[0]*src.values[6]*src.values[13]  + src.values[4]*src.values[1]*src.values[14] - src.values[4]*src.values[2]*src.values[13] - src.values[12]*src.values[1]*src.values[6]  + src.values[12]*src.values[2]*src.values[5]
+        F32 c15 =  src.values[0]*src.values[5]*src.values[10]  - src.values[0]*src.values[6]*src.values[9]   - src.values[4]*src.values[1]*src.values[10] + src.values[4]*src.values[2]*src.values[9]  + src.values[8]*src.values[1]*src.values[6]   - src.values[8]*src.values[2]*src.values[5]
+
+        F32 det = src.values[0]*c0 + src.values[1]*c4 + src.values[2]*c8 + src.values[3]*c12
+        if (det == 0.0f) return 0
+
+        det = 1.0f / det
+        result.values[0]  = c0  * det
+        result.values[1]  = c1  * det
+        result.values[2]  = c2  * det
+        result.values[3]  = c3  * det
+        result.values[4]  = c4  * det
+        result.values[5]  = c5  * det
+        result.values[6]  = c6  * det
+        result.values[7]  = c7  * det
+        result.values[8]  = c8  * det
+        result.values[9]  = c9  * det
+        result.values[10] = c10 * det
+        result.values[11] = c11 * det
+        result.values[12] = c12 * det
+        result.values[13] = c13 * det
+        result.values[14] = c14 * det
+        result.values[15] = c15 * det
+        return 1
+    }
+
     U0 rotate(Matrix mat, F32 angle, F32 x, F32 y, F32 z) {
         Matrix cpy
         Matrix.copy(mat, cpy)

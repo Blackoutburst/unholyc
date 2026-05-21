@@ -236,6 +236,11 @@ namespace Matrix {
     /// Matrix object (16 floats, initialized to identity)
     self {
         F32 values[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
+        bool operator==(const It& o) { for (int i=0;i<16;i++) if (values[i]!=o.values[i]) return false; return true; }
+        It operator+(const It& o) { It r; for (int i=0;i<16;i++) r.values[i]=values[i]+o.values[i]; return r; }
+        It operator-(const It& o) { It r; for (int i=0;i<16;i++) r.values[i]=values[i]-o.values[i]; return r; }
+        It operator*(const It& o) { It r; for (int row=0;row<4;row++) for (int col=0;col<4;col++) { r.values[row*4+col]=0.0f; for (int k=0;k<4;k++) r.values[row*4+col]+=values[row*4+k]*o.values[k*4+col]; } return r; }
+        It operator*(float s) { It r; for (int i=0;i<16;i++) r.values[i]=values[i]*s; return r; }
     }
 
     /// Reset a matrix to the identity matrix
@@ -303,4 +308,24 @@ namespace Matrix {
     /// @param center Camera target point
     /// @param up World up direction
     U0 lookAt(Matrix mat, VectorF eye, VectorF center, VectorF up)
+    /// Add two matrices element-wise
+    /// @param result Matrix to store the result
+    /// @param a First matrix
+    /// @param b Second matrix
+    U0 add(Matrix result, Matrix a, Matrix b)
+    /// Subtract two matrices element-wise
+    /// @param result Matrix to store the result
+    /// @param a Minuend matrix
+    /// @param b Subtrahend matrix
+    U0 sub(Matrix result, Matrix a, Matrix b)
+    /// Multiply two matrices (matrix product)
+    /// @param result Matrix to store the result
+    /// @param a Left matrix
+    /// @param b Right matrix
+    U0 mul(Matrix result, Matrix a, Matrix b)
+    /// Compute the inverse of a 4x4 matrix
+    /// @param result Matrix to store the inverse
+    /// @param src Source matrix to invert
+    /// @returns 1 on success, 0 if matrix is singular
+    U8 inverse(Matrix result, Matrix src)
 }
