@@ -1,0 +1,25 @@
+#include "uhcstd.uhh"
+
+namespace Time {
+    U0 sleep(U64 ms) {
+#if defined(_WIN32) || defined(_WIN64)
+        Sleep((DWORD)ms)
+#else
+        usleep((unsigned long)(ms * 1000ULL))
+#endif
+    }
+
+    U64 millis() {
+#if defined(_WIN32) || defined(_WIN64)
+        LARGE_INTEGER freq
+        LARGE_INTEGER counter
+        QueryPerformanceFrequency(&freq)
+        QueryPerformanceCounter(&counter)
+        return (U64)((counter.QuadPart * 1000LL) / freq.QuadPart)
+#else
+        struct timespec ts
+        clock_gettime(CLOCK_MONOTONIC, &ts)
+        return (U64)(ts.tv_sec * 1000LL + ts.tv_nsec / 1000000LL)
+#endif
+    }
+}

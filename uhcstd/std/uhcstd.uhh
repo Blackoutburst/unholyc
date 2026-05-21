@@ -7,6 +7,7 @@
     #include <unistd.h>
     #include <pthread.h>
     #include <dlfcn.h>
+    #include <time.h>
 #endif
 
 #include <list>
@@ -306,4 +307,15 @@ namespace List {
     U0 clear(List<T> list) {
         list.handle.clear()
     }
+}
+
+/// Cross-platform time utilities
+namespace Time {
+    /// Sleep for the given number of milliseconds
+    /// @param ms Duration in milliseconds
+    U0 sleep(U64 ms)
+    /// Current value of a monotonic clock in milliseconds.
+    /// Subtract two calls to measure elapsed time.
+    /// @returns Milliseconds since an arbitrary fixed start point
+    U64 millis()
 }
