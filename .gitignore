@@ -30,3 +30,5 @@ test/uhc_test_runner
 test/transpiler/**/_compile.log
 test/transpiler/**/_run.log
 test/transpiler/**/_bin
+
+mcp/node_modules
