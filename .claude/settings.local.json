@@ -43,7 +43,10 @@
       "Bash(pkg-config --exists catch2)",
       "Read(//usr/local/include/**)",
       "Read(//opt/homebrew/include/**)",
-      "Read(//usr/local/**)"
+      "Read(//usr/local/**)",
+      "Bash(git -C /Users/florianchanson/Documents/code/unholyc rev-parse HEAD)",
+      "Bash(git -C /Users/florianchanson/Documents/code/unholyc rev-parse --git-dir)",
+      "Bash(git -C /Users/florianchanson/Documents/code/unholyc rev-parse --git-common-dir)"
     ]
   }
 }

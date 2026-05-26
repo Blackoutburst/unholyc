@@ -61,7 +61,9 @@
         { "name": "DynamicLibrary", "slug": "dynamiclibrary" },
         { "name": "List",           "slug": "list"           },
         { "name": "Mutex",          "slug": "mutex"          },
-        { "name": "Thread",         "slug": "thread"         }
+        { "name": "String",         "slug": "string"         },
+        { "name": "Thread",         "slug": "thread"         },
+        { "name": "Time",           "slug": "time"           }
       ]
     },
     {
