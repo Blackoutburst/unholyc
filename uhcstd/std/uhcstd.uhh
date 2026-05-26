@@ -314,6 +314,10 @@ namespace String {
     /// @param s Source string
     /// @returns Read-only C string pointer
     const I8* c(const String s)
+    /// Return a heap-allocated copy of the C string — caller must free()
+    /// @param s Source string
+    /// @returns Owned C string pointer
+    I8* strdup(const String s)
     /// Return the number of bytes in the string (not Unicode code points)
     /// @param s Source string
     /// @returns Byte count

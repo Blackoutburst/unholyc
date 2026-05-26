@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdarg>
+#include <cstring>
 
 #include "uhcstd.uhh"
 
@@ -38,6 +39,10 @@ namespace String {
 
     const I8* c(const String s) {
         return s.handle.c_str()
+    }
+
+    I8* strdup(const String s) {
+        return ::strdup(s.handle.c_str())
     }
 
     U64 length(const String s) {
