@@ -337,7 +337,15 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
             (initBraceStack.empty() || !initBraceStack.back()) &&
             lastReal >= 0) {
             const Token& prev = out[lastReal];
-            bool prevEndsStmt =
+            // Don't inject before method CV-qualifiers (const/noexcept/override/final)
+            // that follow a closing ')' — they belong to the function signature,
+            // not the start of a new statement.
+            static const std::unordered_set<std::string> METHOD_QUAL = {
+                "const", "noexcept", "override", "final"
+            };
+            bool isMethodQual = prev.type == TK::RPAREN &&
+                                METHOD_QUAL.count(tok.value);
+            bool prevEndsStmt = !isMethodQual && (
                 prev.type == TK::NUMBER ||
                 prev.type == TK::STRING ||
                 prev.type == TK::CHAR_LIT ||
@@ -346,7 +354,7 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
                 (prev.type == TK::RPAREN && !lastRParenWasCF) ||
                 (prev.type == TK::IDENT &&
                  !STMT_START_KW.count(prev.value) &&
-                 !NO_SEMI_KW.count(prev.value));
+                 !NO_SEMI_KW.count(prev.value)));
             if (prevEndsStmt)
                 out.push_back({ TK::SEMICOLON, ";", tok.line });
         }
@@ -406,6 +414,9 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
 }
 
 std::unordered_set<std::string> collectNamespaces(const std::vector<Token>& tokens) {
+    static const std::unordered_set<std::string> CPP_NS = {
+        "std", "boost", "detail", "internal", "impl"
+    };
     std::unordered_set<std::string> ns;
 
     for (size_t i = 0; i + 1 < tokens.size(); i++) {
@@ -414,7 +425,8 @@ std::unordered_set<std::string> collectNamespaces(const std::vector<Token>& toke
 
             while (j < tokens.size() && tokens[j].type == TK::OTHER) j++;
 
-            if (j < tokens.size() && tokens[j].type == TK::IDENT)
+            if (j < tokens.size() && tokens[j].type == TK::IDENT &&
+                !CPP_NS.count(tokens[j].value))
                 ns.insert(tokens[j].value);
         }
     }
@@ -642,7 +654,34 @@ collectLambdaDecls(const std::vector<Token>& tokens) {
         return result;
     };
 
+    // Track current namespace to avoid bare-name collisions between
+    // top-level and namespace-scoped lambda-accepting functions.
+    std::string curNS;
+    int braceDepth = 0;
+    std::string pendingNS; // namespace name waiting for its opening {
+
     for (size_t i = 0; i < tokens.size(); i++) {
+        if (tokens[i].type == TK::LBRACE) {
+            braceDepth++;
+            if (!pendingNS.empty() && braceDepth == 1) {
+                curNS = pendingNS;
+            }
+            pendingNS.clear();
+            continue;
+        }
+        if (tokens[i].type == TK::RBRACE) {
+            if (braceDepth == 1) curNS.clear();
+            if (braceDepth > 0) braceDepth--;
+            continue;
+        }
+        if (tokens[i].type == TK::IDENT && tokens[i].value == "namespace") {
+            size_t j = i + 1;
+            while (j < tokens.size() && tokens[j].type == TK::OTHER) j++;
+            if (j < tokens.size() && tokens[j].type == TK::IDENT)
+                pendingNS = tokens[j].value;
+            continue;
+        }
+
         // Look for IDENT followed by LPAREN — a function declaration.
         if (tokens[i].type != TK::IDENT) continue;
         std::string funcName = tokens[i].value;
@@ -696,14 +735,23 @@ collectLambdaDecls(const std::vector<Token>& tokens) {
                     }
                 }
 
+                // For namespace-scoped functions, qualify the callee name so
+                // identically-named top-level functions aren't shadowed in the registry.
+                std::string qualName = curNS.empty() ? funcName : (curNS + "::" + funcName);
                 LambdaReg reg;
                 reg.lambdaParamName = paramName;
-                reg.calleeName      = funcName;
+                reg.calleeName      = qualName;
                 reg.argCTypes       = argCTypes;
                 reg.retCType        = retCType;
-                result[funcName + "::" + paramName] = reg;
-                result[paramName] = reg;
-                result[funcName]  = reg; // allow lookup by callee name alone
+                result[qualName + "::" + paramName] = reg;
+                if (curNS.empty()) {
+                    // Top-level: register by param name and bare callee name.
+                    result[paramName] = reg;
+                    result[funcName]  = reg;
+                } else {
+                    // Namespace-scoped: only register by qualified key.
+                    result[qualName] = reg;
+                }
             } else {
                 j++;
             }
@@ -1824,8 +1872,8 @@ public:
                     if (it != fileNSInfo.end() && it->second.hasSelf && !it->second.isTemplate &&
                         !emittedUhcToString.count(closingNS)) {
                         emittedUhcToString.insert(closingNS);
-                        out << "\ninline const char* uhc_tostring(const " << closingNS
-                            << "::It& v) { return " << closingNS << "::toString(v); }";
+                        out << "\ninline const char* uhc_tostring(" << closingNS
+                            << "::It v) { return " << closingNS << "::toString(v); }";
                     }
                 }
                 i++; continue;
@@ -2142,6 +2190,10 @@ public:
                     if (callee.empty() && !callStack.empty()) {
                         callee = callStack[0].calleeName;
                     }
+                    // Qualify with namespace so namespace-scoped lambda-accepting
+                    // functions don't collide with identically-named top-level ones.
+                    if (!currentNamespace.empty() && !callee.empty())
+                        callee = currentNamespace + "::" + callee;
                     i++;
                     parseLambdaDecl(i, callee);
                     continue;

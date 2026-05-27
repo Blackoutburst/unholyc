@@ -8,7 +8,7 @@ LDFLAGS  = -L$(BREW)/lib -lCatch2Main -lCatch2 -L$(UHC)/lib -luhc -lpthread
 
 SRCS = test_math.cpp test_matrix.cpp test_list.cpp test_buffer.cpp \
        test_lambda.cpp test_file.cpp test_time.cpp test_threading.cpp test_log.cpp \
-       test_network.cpp
+       test_network.cpp test_hashmap.cpp
 OBJS = $(SRCS:.cpp=.o)
 BIN  = uhc_test_runner
 

@@ -42,7 +42,8 @@ TEST_CASE("TcpServer::create / destroy no crash", "[network]") {
 }
 
 TEST_CASE("TcpClient connect to closed port fails", "[network]") {
-    TcpClient::It c = TcpClient::create((char*)"127.0.0.1", PORT_NOLIST);
+    String::It ip1("127.0.0.1");
+    TcpClient::It c = TcpClient::create(ip1, PORT_NOLIST);
     CHECK(c.sockfd < 0);
 }
 
@@ -55,7 +56,8 @@ TEST_CASE("TCP loopback echo single message", "[network]") {
     Thread::It srv_thread = Thread::start(server_fn, &g_server);
     Time::sleep(50);  // let server reach accept()
 
-    TcpClient::It client = TcpClient::create((char*)"127.0.0.1", PORT_ECHO);
+    String::It ip2("127.0.0.1");
+    TcpClient::It client = TcpClient::create(ip2, PORT_ECHO);
     REQUIRE(client.sockfd >= 0);
 
     unsigned char wok = TcpClient::write(client, "PING", 4);
@@ -99,7 +101,8 @@ TEST_CASE("TCP loopback echo multiple sequential clients", "[network]") {
     Time::sleep(50);
 
     for (int i = 0; i < 3; i++) {
-        TcpClient::It c = TcpClient::create((char*)"127.0.0.1", PORT_ECHO + 1);
+        String::It ip3("127.0.0.1");
+        TcpClient::It c = TcpClient::create(ip3, PORT_ECHO + 1);
         REQUIRE(c.sockfd >= 0);
         TcpClient::write(c, "DATA", 4);
         char r[5] = {0};

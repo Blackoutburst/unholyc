@@ -276,6 +276,151 @@ namespace List {
     }
 }
 
+/// Hash map with Kotlin-style API backed by std::unordered_map
+namespace HashMap {
+    template<typename K, typename V>
+    self {
+        std::unordered_map<K, V> handle
+        It() = default;
+    }
+
+    /// Insert or overwrite a key-value pair
+    /// @param map Target map
+    /// @param key Key
+    /// @param value Value to associate with key
+    template<typename K, typename V>
+    U0 put(HashMap<K, V> map, K key, V value) {
+        map.handle[key] = value
+    }
+
+    /// Get pointer to value for key, or null if not found
+    /// @param map Target map
+    /// @param key Key to look up
+    /// @returns Reference to value; throws std::out_of_range if key absent
+    template<typename K, typename V>
+    V& get(HashMap<K, V> map, K key) {
+        return map.handle.at(key)
+    }
+
+    /// Get value for key, or defaultValue if key not present
+    /// @param map Target map
+    /// @param key Key to look up
+    /// @param defaultValue Fallback value
+    /// @returns Value or default
+    template<typename K, typename V>
+    V getOrDefault(HashMap<K, V> map, K key, V defaultValue) {
+        auto it = map.handle.find(key)
+        if (it == map.handle.end()) return defaultValue
+        return it->second
+    }
+
+    /// Remove entry by key
+    /// @param map Target map
+    /// @param key Key to remove
+    /// @returns Non-zero if key was present and removed
+    template<typename K, typename V>
+    U8 remove(HashMap<K, V> map, K key) {
+        return (U8)map.handle.erase(key)
+    }
+
+    /// Check if key exists in map
+    /// @param map Target map
+    /// @param key Key to check
+    /// @returns Non-zero if key is present
+    template<typename K, typename V>
+    U8 containsKey(HashMap<K, V> map, K key) {
+        return map.handle.count(key) ? 1 : 0
+    }
+
+    /// Check if value exists in map (linear scan)
+    /// @param map Target map
+    /// @param value Value to search for
+    /// @returns Non-zero if any entry has this value
+    template<typename K, typename V>
+    U8 containsValue(HashMap<K, V> map, V value) {
+        for (auto& [k, v] : map.handle) {
+            if (v == value) return 1
+        }
+        return 0
+    }
+
+    /// Number of entries in the map
+    /// @param map Target map
+    /// @returns Entry count
+    template<typename K, typename V>
+    U64 size(HashMap<K, V> map) {
+        return (U64)map.handle.size()
+    }
+
+    /// Check if map has no entries
+    /// @param map Target map
+    /// @returns Non-zero if empty
+    template<typename K, typename V>
+    U8 isEmpty(HashMap<K, V> map) {
+        return map.handle.empty() ? 1 : 0
+    }
+
+    /// Remove all entries from the map
+    /// @param map Target map
+    template<typename K, typename V>
+    U0 clear(HashMap<K, V> map) {
+        map.handle.clear()
+    }
+
+    /// Get a list of all keys
+    /// @param map Target map
+    /// @returns List containing every key
+    template<typename K, typename V>
+    List<K> keys(HashMap<K, V> map) {
+        List<K> result
+        for (auto& [k, v] : map.handle) {
+            result.handle.push_back(k)
+        }
+        return result
+    }
+
+    /// Get a list of all values
+    /// @param map Target map
+    /// @returns List containing every value
+    template<typename K, typename V>
+    List<V> values(HashMap<K, V> map) {
+        List<V> result
+        for (auto& [k, v] : map.handle) {
+            result.handle.push_back(v)
+        }
+        return result
+    }
+
+    /// Copy all entries from other into map, overwriting on collision
+    /// @param map Destination map
+    /// @param other Source map
+    template<typename K, typename V>
+    U0 putAll(HashMap<K, V> map, HashMap<K, V> other) {
+        for (auto& [k, v] : other.handle) {
+            map.handle[k] = v
+        }
+    }
+
+    /// Insert key-value pair only if key is not already present
+    /// @param map Target map
+    /// @param key Key to insert
+    /// @param value Value to associate
+    /// @returns Non-zero if inserted, zero if key already existed
+    template<typename K, typename V>
+    U8 putIfAbsent(HashMap<K, V> map, K key, V value) {
+        auto [it, inserted] = map.handle.emplace(key, value)
+        return inserted ? 1 : 0
+    }
+
+    /// Iterate over all entries, calling block(key, value) for each
+    /// @param map Target map
+    /// @param block Lambda receiving (key, value) per entry
+    template<typename K, typename V>
+    U0 forEach(HashMap<K, V> map, lambda block(K, V) -> U0) {
+        for (auto& [k, v] : map.handle) { block(k, v) }
+    }
+}
+
 /// UTF-8 string with value semantics and Kotlin-style API
 namespace String {
     self {
@@ -286,8 +431,8 @@ namespace String {
         It operator+(const It& o) { return It(handle + o.handle); }
         It operator+(const I8* s) { return It(handle + (s ? s : "")); }
         friend It operator+(const I8* s, const It& o) { return It(std::string(s ? s : "") + o.handle); }
-        U8 operator==(const It& o) { return handle == o.handle ? 1 : 0; }
-        U8 operator!=(const It& o) { return handle != o.handle ? 1 : 0; }
+        U8 operator==(const It& o) const { return handle == o.handle ? 1 : 0; }
+        U8 operator!=(const It& o) const { return handle != o.handle ? 1 : 0; }
     }
 
     /// Create a String from a C string literal or pointer — null becomes empty string
@@ -441,6 +586,15 @@ namespace String {
     /// @param s Source string
     /// @returns Read-only C string pointer
     const I8* toString(const String s)
+}
+
+namespace std {
+    template<>
+    struct hash<String::It> {
+        std::size_t operator()(const String::It& s) const noexcept {
+            return std::hash<std::string>{}(s.handle);
+        }
+    };
 }
 
 /// Cross-platform shared library loader

@@ -58,8 +58,8 @@ I32 main() {
         printf("FAIL: filter evens size expected 2, got %llu\n", List.size(evens))
         return 1
     }
-    if (*List.get(evens, 0) != 2 || *List.get(evens, 1) != 4) {
-        printf("FAIL: filter evens content: %d %d\n", *List.get(evens, 0), *List.get(evens, 1))
+    if (List.get(evens, 0) != 2 || List.get(evens, 1) != 4) {
+        printf("FAIL: filter evens content: %d %d\n", List.get(evens, 0), List.get(evens, 1))
         return 1
     }
 
@@ -92,9 +92,9 @@ I32 main() {
         printf("FAIL: chained size expected 3, got %llu\n", List.size(filteredMapped))
         return 1
     }
-    if (*List.get(filteredMapped, 0) != 10 || *List.get(filteredMapped, 1) != 30 || *List.get(filteredMapped, 2) != 50) {
+    if (List.get(filteredMapped, 0) != 10 || List.get(filteredMapped, 1) != 30 || List.get(filteredMapped, 2) != 50) {
         printf("FAIL: chained content: %d %d %d\n",
-            *List.get(filteredMapped, 0), *List.get(filteredMapped, 1), *List.get(filteredMapped, 2))
+            List.get(filteredMapped, 0), List.get(filteredMapped, 1), List.get(filteredMapped, 2))
         return 1
     }
 
