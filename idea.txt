@@ -1,0 +1,31 @@
+  Data structures
+  - HashMap<K,V> — biggest gap. O(n) List lookup is painful at scale. HashSet too.
+
+  Concurrency
+  - Atomic — CAS, fetch-add. Mutex alone forces lock for simple counters
+  - Channel — thread-safe queue for producer/consumer. Thread+Mutex without this is verbose
+
+  File system
+  - File.exists, File.delete, File.listDir, File.mkdir, File.stat (size, mtime) — open/read/close is there but no FS navigation
+
+  Encoding
+  - Base64 encode/decode — network/binary work hits this constantly
+  - Hex encode/decode — same class of problem
+
+  Serialization
+  - JSON parse + serialize — painful to implement from scratch, extremely common
+
+  Other
+  - Random — seeded RNG, random range, shuffle
+  - DateTime — Time has millis() but no date formatting/parsing/diff
+  - Process — spawn subprocess, capture stdout, get exit code
+  - Env — getenv, argv parsing (CLI tools need this immediately)
+  - Regex — at minimum match + replace with patterns
+  
+  Priority order (pain × frequency):
+  1. HashMap — critical
+  2. File FS additions — hits every real tool
+  3. Atomic — correctness hole in threading
+  4. Random — trivial to want, annoying to roll correctly
+  5. JSON — high demand, high impl pain 
+  6. Process / Env — CLI tools need both immediately
