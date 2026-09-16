@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 #include <algorithm>
+#include <functional>
 
 namespace fs = std::filesystem;
 
