@@ -75,3 +75,6 @@ See the [`examples/`](examples/) directory for runnable examples covering:
 - `List<T>`, `Buffer`, `Matrix`, `VectorF`
 - Threads, mutexes
 - TCP client/server
+
+
+A real project written in it: [fish](https://github.com/Blackoutburst/fish), a low-poly island rendered with Vulkan.
