@@ -7,9 +7,9 @@
 /// @param block Called with each element in order
 template<typename T>
 U0 forEach(List<T> list, lambda block(T) -> U0) {
-    U32 size = (U32)List.size(list)
-    for (U32 i = 0; i < size; i++) {
-        block(List.get(list, i))
+    // Walk the list directly: List.get(list, i) is O(i) on a linked list.
+    for (auto& item : list.handle) {
+        block(item)
     }
 }
 
@@ -20,9 +20,7 @@ U0 forEach(List<T> list, lambda block(T) -> U0) {
 template<typename T>
 List<T> filter(List<T> list, lambda pred(T) -> U8) {
     List<T> result
-    U32 size = (U32)List.size(list)
-    for (U32 i = 0; i < size; i++) {
-        T item = List.get(list, i)
+    for (auto& item : list.handle) {
         if (pred(item)) {
             List.add(result, item)
         }
@@ -37,9 +35,8 @@ List<T> filter(List<T> list, lambda pred(T) -> U8) {
 template<typename T>
 List<T> map(List<T> list, lambda block(T) -> T) {
     List<T> result
-    U32 size = (U32)List.size(list)
-    for (U32 i = 0; i < size; i++) {
-        List.add(result, block(List.get(list, i)))
+    for (auto& item : list.handle) {
+        List.add(result, block(item))
     }
     return result
 }

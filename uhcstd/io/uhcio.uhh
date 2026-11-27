@@ -51,7 +51,7 @@ namespace File {
     /// Open a file for reading
     /// @param filePath Path to the file
     /// @returns The file
-    File open(String filePath)
+    File open(const String filePath)
     /// Close an open file
     /// @param file The file
     U0 close(File file)
@@ -59,4 +59,8 @@ namespace File {
     /// @param file The file
     /// @returns File contents, or empty string on error
     String read(File file)
+    /// Read the entire file as raw bytes and close it — binary safe, unlike read
+    /// @param file The file — its size field is the number of bytes returned
+    /// @returns Heap buffer of file.size bytes that the caller must free(), or NULL on error
+    U8* readBytes(File file)
 }

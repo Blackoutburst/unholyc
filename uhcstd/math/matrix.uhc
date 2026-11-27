@@ -24,25 +24,29 @@ namespace Matrix {
     }
 
     U0 multiply(Matrix result, Matrix left, Matrix right) {
-        result.values[M00] = left.values[M00] * right.values[M00] + left.values[M01] * right.values[M10] + left.values[M02] * right.values[M20] + left.values[M03] * right.values[M30]
-        result.values[M01] = left.values[M00] * right.values[M01] + left.values[M01] * right.values[M11] + left.values[M02] * right.values[M21] + left.values[M03] * right.values[M31]
-        result.values[M02] = left.values[M00] * right.values[M02] + left.values[M01] * right.values[M12] + left.values[M02] * right.values[M22] + left.values[M03] * right.values[M32]
-        result.values[M03] = left.values[M00] * right.values[M03] + left.values[M01] * right.values[M13] + left.values[M02] * right.values[M23] + left.values[M03] * right.values[M33]
+        // Computed into a temporary so result may be the same matrix as left or right.
+        Matrix tmp
+        tmp.values[M00] = left.values[M00] * right.values[M00] + left.values[M01] * right.values[M10] + left.values[M02] * right.values[M20] + left.values[M03] * right.values[M30]
+        tmp.values[M01] = left.values[M00] * right.values[M01] + left.values[M01] * right.values[M11] + left.values[M02] * right.values[M21] + left.values[M03] * right.values[M31]
+        tmp.values[M02] = left.values[M00] * right.values[M02] + left.values[M01] * right.values[M12] + left.values[M02] * right.values[M22] + left.values[M03] * right.values[M32]
+        tmp.values[M03] = left.values[M00] * right.values[M03] + left.values[M01] * right.values[M13] + left.values[M02] * right.values[M23] + left.values[M03] * right.values[M33]
 
-        result.values[M10] = left.values[M10] * right.values[M00] + left.values[M11] * right.values[M10] + left.values[M12] * right.values[M20] + left.values[M13] * right.values[M30]
-        result.values[M11] = left.values[M10] * right.values[M01] + left.values[M11] * right.values[M11] + left.values[M12] * right.values[M21] + left.values[M13] * right.values[M31]
-        result.values[M12] = left.values[M10] * right.values[M02] + left.values[M11] * right.values[M12] + left.values[M12] * right.values[M22] + left.values[M13] * right.values[M32]
-        result.values[M13] = left.values[M10] * right.values[M03] + left.values[M11] * right.values[M13] + left.values[M12] * right.values[M23] + left.values[M13] * right.values[M33]
+        tmp.values[M10] = left.values[M10] * right.values[M00] + left.values[M11] * right.values[M10] + left.values[M12] * right.values[M20] + left.values[M13] * right.values[M30]
+        tmp.values[M11] = left.values[M10] * right.values[M01] + left.values[M11] * right.values[M11] + left.values[M12] * right.values[M21] + left.values[M13] * right.values[M31]
+        tmp.values[M12] = left.values[M10] * right.values[M02] + left.values[M11] * right.values[M12] + left.values[M12] * right.values[M22] + left.values[M13] * right.values[M32]
+        tmp.values[M13] = left.values[M10] * right.values[M03] + left.values[M11] * right.values[M13] + left.values[M12] * right.values[M23] + left.values[M13] * right.values[M33]
 
-        result.values[M20] = left.values[M20] * right.values[M00] + left.values[M21] * right.values[M10] + left.values[M22] * right.values[M20] + left.values[M23] * right.values[M30]
-        result.values[M21] = left.values[M20] * right.values[M01] + left.values[M21] * right.values[M11] + left.values[M22] * right.values[M21] + left.values[M23] * right.values[M31]
-        result.values[M22] = left.values[M20] * right.values[M02] + left.values[M21] * right.values[M12] + left.values[M22] * right.values[M22] + left.values[M23] * right.values[M32]
-        result.values[M23] = left.values[M20] * right.values[M03] + left.values[M21] * right.values[M13] + left.values[M22] * right.values[M23] + left.values[M23] * right.values[M33]
+        tmp.values[M20] = left.values[M20] * right.values[M00] + left.values[M21] * right.values[M10] + left.values[M22] * right.values[M20] + left.values[M23] * right.values[M30]
+        tmp.values[M21] = left.values[M20] * right.values[M01] + left.values[M21] * right.values[M11] + left.values[M22] * right.values[M21] + left.values[M23] * right.values[M31]
+        tmp.values[M22] = left.values[M20] * right.values[M02] + left.values[M21] * right.values[M12] + left.values[M22] * right.values[M22] + left.values[M23] * right.values[M32]
+        tmp.values[M23] = left.values[M20] * right.values[M03] + left.values[M21] * right.values[M13] + left.values[M22] * right.values[M23] + left.values[M23] * right.values[M33]
 
-        result.values[M30] = left.values[M30] * right.values[M00] + left.values[M31] * right.values[M10] + left.values[M32] * right.values[M20] + left.values[M33] * right.values[M30]
-        result.values[M31] = left.values[M30] * right.values[M01] + left.values[M31] * right.values[M11] + left.values[M32] * right.values[M21] + left.values[M33] * right.values[M31]
-        result.values[M32] = left.values[M30] * right.values[M02] + left.values[M31] * right.values[M12] + left.values[M32] * right.values[M22] + left.values[M33] * right.values[M32]
-        result.values[M33] = left.values[M30] * right.values[M03] + left.values[M31] * right.values[M13] + left.values[M32] * right.values[M23] + left.values[M33] * right.values[M33]
+        tmp.values[M30] = left.values[M30] * right.values[M00] + left.values[M31] * right.values[M10] + left.values[M32] * right.values[M20] + left.values[M33] * right.values[M30]
+        tmp.values[M31] = left.values[M30] * right.values[M01] + left.values[M31] * right.values[M11] + left.values[M32] * right.values[M21] + left.values[M33] * right.values[M31]
+        tmp.values[M32] = left.values[M30] * right.values[M02] + left.values[M31] * right.values[M12] + left.values[M32] * right.values[M22] + left.values[M33] * right.values[M32]
+        tmp.values[M33] = left.values[M30] * right.values[M03] + left.values[M31] * right.values[M13] + left.values[M32] * right.values[M23] + left.values[M33] * right.values[M33]
+
+        Matrix.copy(tmp, result)
     }
 
 
@@ -191,6 +195,7 @@ namespace Matrix {
     U0 lookAt(Matrix mat, VectorF eye, VectorF center, VectorF up) {
         VectorF f
         VectorF.sub(f, center, eye)
+        f.w = 0.0f // a direction: eye/center may carry different w
         VectorF.normalize(f)
 
         VectorF s

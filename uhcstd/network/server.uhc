@@ -5,13 +5,24 @@
 
 namespace TcpServer {
 #if defined(_WIN32) || defined(_WIN64)
+    // Winsock is started once per process and left running until exit. Pairing a
+    // WSACleanup with every destroy() tore Winsock down under sockets still in use
+    // (a server-accepted client never called WSAStartup itself).
+    static U8 _wsaInit() {
+        static U8 ready = 0
+        if (ready) return 1
+        WSADATA wsaData
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) return 0
+        ready = 1
+        return 1
+    }
+
     TcpServer create(I16 port, U16 slots) {
         TcpServer server
         
         struct sockaddr_in serverAddress
-        WSADATA wsaData
 
-        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        if (!_wsaInit()) {
             Log.warn("WSAStartup failed")
             return server
         }
@@ -19,7 +30,6 @@ namespace TcpServer {
         server.sockfd = socket(AF_INET, SOCK_STREAM, 0)
         if (server.sockfd == INVALID_SOCKET) {
             Log.warn("Server socket creation failed")
-            WSACleanup()
             return server
         }
 
@@ -41,7 +51,7 @@ namespace TcpServer {
 
     U0 destroy(TcpServer server) {
         closesocket(server.sockfd)
-        WSACleanup()
+        server.sockfd = INVALID_SOCKET
         server.running = 0
     }
 

@@ -1,0 +1,132 @@
+#include <stdio.h>
+#include <string.h>
+#include <uhcstd.uhh>
+#include <uhcio.uhh>
+#include <uhcmath.uhh>
+#include <lambda.uhh>
+
+// Test: stdlib regressions
+// - String.replace / String.split with an empty pattern
+// - string literals passed to String parameters, + on a const String
+// - File.read / File.close on a file that failed to open
+// - File.readBytes on a file containing zero bytes
+// - forEach / filter / map over a large list
+// - VectorF.cross and Matrix.multiply with the result aliasing an input
+// - VectorF.dot consistent with VectorF.length
+
+String exclaim(const String s) {
+    return s + "!"
+}
+
+I32 main() {
+    // --- empty patterns terminate ---
+    String r = String.replace("abc", "", "x")
+    if (!String.equals(r, "abc")) {
+        printf("FAIL: replace with empty pattern got '%s'\n", String.c(r))
+        return 1
+    }
+    List<String> parts = String.split("abc", "")
+    if (List.size(parts) != 1 || !String.equals(List.get(parts, 0), "abc")) {
+        printf("FAIL: split with empty delimiter got %llu parts\n", List.size(parts))
+        return 1
+    }
+    List<String> csv = String.split("a,b,c", ",")
+    if (List.size(csv) != 3 || !String.equals(String.join(csv, "-"), "a-b-c")) {
+        printf("FAIL: split/join\n")
+        return 1
+    }
+
+    // --- const String + literal ---
+    if (!String.equals(exclaim("hi"), "hi!")) {
+        printf("FAIL: const String + literal\n")
+        return 1
+    }
+
+    // --- literal path, missing file: read and close must be harmless ---
+    File f = File.open("this_file_does_not_exist.txt")
+    String content = File.read(f)
+    File.close(f)
+    File.close(f)
+    if (!String.isEmpty(content)) {
+        printf("FAIL: missing file returned content\n")
+        return 1
+    }
+
+    // --- readBytes is binary safe ---
+    FILE* out = fopen("_readbytes_test.bin", "wb")
+    U8 raw[6] = {1, 0, 2, 0, 0, 3}
+    fwrite(raw, 1, 6, out)
+    fclose(out)
+    File bf = File.open("_readbytes_test.bin")
+    I64 bsize = bf.size
+    U8* bytes = File.readBytes(bf)
+    U8 bytesOk = bytes != NULL && bsize == 6 && memcmp(bytes, raw, 6) == 0
+    free(bytes)
+    remove("_readbytes_test.bin")
+    if (!bytesOk) {
+        printf("FAIL: readBytes (size %lld)\n", bsize)
+        return 1
+    }
+
+    // --- lambda helpers stay linear on a big list ---
+    List<I32> big
+    for (I32 i = 0; i < 200000; i++) { List.add(big, i) }
+    U64 t0 = Time.millis()
+    I64 sum = 0
+    forEach(big) { (n) ->
+        sum += n
+    }
+    List<I32> evens = filter(big) { (n) ->
+        return n % 2 == 0
+    }
+    List<I32> doubled = map(big) { (n) ->
+        return n * 2
+    }
+    U64 elapsed = Time.millis() - t0
+    if (sum != 19999900000LL || List.size(evens) != 100000 || List.last(doubled) != 399998) {
+        printf("FAIL: lambda helpers results\n")
+        return 1
+    }
+    if (elapsed > 5000) {
+        printf("FAIL: lambda helpers took %llu ms on 200k elements\n", elapsed)
+        return 1
+    }
+
+    // --- cross in place ---
+    VectorF a
+    VectorF b
+    VectorF.set(a, 1, 2, 3, 0)
+    VectorF.set(b, 4, 5, 6, 0)
+    VectorF c
+    VectorF.cross(c, a, b)
+    VectorF.cross(a, a, b)
+    if (c.x != -3 || c.y != 6 || c.z != -3 || !VectorF.equals(a, c)) {
+        printf("FAIL: cross in place got %g %g %g\n", a.x, a.y, a.z)
+        return 1
+    }
+
+    // --- multiply in place ---
+    Matrix m
+    Matrix n
+    Matrix.translate(m, 1, 2, 3, 0)
+    Matrix.rotate(n, 1.0f, 0, 1, 0)
+    Matrix expected
+    Matrix.multiply(expected, m, n)
+    Matrix.multiply(m, m, n)
+    if (!(expected == m)) {
+        printf("FAIL: multiply in place\n")
+        return 1
+    }
+
+    // --- dot agrees with length ---
+    VectorF v
+    VectorF.set(v, 1, 2, 2, 4)
+    F32 len = VectorF.length(v)
+    if (VectorF.dot(v, v) != 25.0f || len != 5.0f) {
+        printf("FAIL: dot(v,v)=%g length=%g\n", VectorF.dot(v, v), len)
+        return 1
+    }
+
+    printf("OK\n")
+    return 0
+}

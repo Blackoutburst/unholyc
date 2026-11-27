@@ -31,13 +31,17 @@ namespace VectorI {
     }
 
     I32 dot(VectorI a, VectorI b) {
-        return a.x * b.x + a.y * b.y + a.z * b.z
+        return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w
     }
 
     U0 cross(VectorI result, VectorI a, VectorI b) {
-        result.x = a.y * b.z - a.z * b.y
-        result.y = a.z * b.x - a.x * b.z
-        result.z = a.x * b.y - a.y * b.x
+        // Computed into locals first so result may be the same vector as a or b.
+        I32 x = a.y * b.z - a.z * b.y
+        I32 y = a.z * b.x - a.x * b.z
+        I32 z = a.x * b.y - a.y * b.x
+        result.x = x
+        result.y = y
+        result.z = z
         result.w = 0
     }
 

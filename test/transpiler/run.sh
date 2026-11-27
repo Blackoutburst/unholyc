@@ -48,6 +48,7 @@ run_test self_vs_it
 run_test semicolons_edge
 run_test lambda_edge
 run_test rewrites
+run_test stdlib
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

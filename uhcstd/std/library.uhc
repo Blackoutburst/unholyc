@@ -10,7 +10,7 @@ namespace DynamicLibrary {
 
 #if defined(_WIN32) || defined(_WIN64)
 
-    DynamicLibrary load(String name) {
+    DynamicLibrary load(const String name) {
         DynamicLibrary dll
 
         dll.handle = LoadLibrary(String.c(name))
@@ -25,7 +25,7 @@ namespace DynamicLibrary {
         return dll
     }
 
-    U0* get(DynamicLibrary dll, String functionName) {
+    U0* get(DynamicLibrary dll, const String functionName) {
         U0* func = (U0*)(GetProcAddress(dll.handle, String.c(functionName)))
 
         if (func == NULL) {
@@ -47,7 +47,7 @@ namespace DynamicLibrary {
 
 #else
 
-    DynamicLibrary load(String name) {
+    DynamicLibrary load(const String name) {
         DynamicLibrary dll
 
         dll.handle = dlopen(String.c(name), RTLD_LAZY)
@@ -63,7 +63,7 @@ namespace DynamicLibrary {
 
     }
 
-    U0* get(DynamicLibrary lib, String functionName) {
+    U0* get(DynamicLibrary lib, const String functionName) {
         U0* func = dlsym(lib.handle, String.c(functionName))
 
         if (func == NULL) {

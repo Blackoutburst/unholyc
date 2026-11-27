@@ -2507,6 +2507,10 @@ int main(int argc, char* argv[]) {
                 compilerFlags.insert(compilerFlags.begin(), "-I" + incDir.string());
                 compilerFlags.insert(compilerFlags.begin() + 1, "-L" + libDir.string());
                 if (!hasLuhc) compilerFlags.push_back("-luhc");
+#if defined(_WIN32)
+                // libuhc's networking needs Winsock; it has to come after -luhc.
+                compilerFlags.push_back("-lws2_32");
+#endif
             }
         }
     }

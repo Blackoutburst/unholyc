@@ -1,7 +1,7 @@
 #include "uhcio.uhh"
 
 namespace File {
-    File open(String filePath) {
+    File open(const String filePath) {
         File file
 
         FILE* handle = fopen(String.c(filePath), "rb")
@@ -22,11 +22,19 @@ namespace File {
     }
 
     U0 close(File file) {
+        // read() already closes the handle, and a failed open() never had one.
+        if (!file.handle) return
         fclose(file.handle)
+        file.handle = NULL
     }
 
     String read(File file) {
         String empty
+
+        if (!file.handle) {
+            Log.warn("File is not open")
+            return empty
+        }
 
         if (!file.size) {
             Log.warn("File size error")
@@ -59,5 +67,40 @@ namespace File {
         String result = String.from(buffer)
         free(buffer)
         return result
+    }
+
+    U8* readBytes(File file) {
+        if (!file.handle) {
+            Log.warn("File is not open")
+            return NULL
+        }
+
+        if (file.size < 0) {
+            Log.warn("File size error")
+            fclose(file.handle)
+            file.handle = NULL
+            return NULL
+        }
+
+        // An empty file still gets a valid (1 byte) buffer so NULL always means failure.
+        U8* buffer = (U8*)malloc(file.size > 0 ? file.size : 1)
+        if (!buffer) {
+            Log.warn("File allocation failed")
+            fclose(file.handle)
+            file.handle = NULL
+            return NULL
+        }
+
+        I64 data = fread(buffer, 1, file.size, file.handle)
+        fclose(file.handle)
+        file.handle = NULL
+
+        if (data != file.size) {
+            Log.warn("Reading file failed")
+            free(buffer)
+            return NULL
+        }
+
+        return buffer
     }
 }

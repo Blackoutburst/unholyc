@@ -31,13 +31,17 @@ namespace VectorF {
     }
 
     F32 dot(VectorF a, VectorF b) {
-        return a.x * b.x + a.y * b.y + a.z * b.z
+        return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w
     }
 
     U0 cross(VectorF result, VectorF a, VectorF b) {
-        result.x = a.y * b.z - a.z * b.y
-        result.y = a.z * b.x - a.x * b.z
-        result.z = a.x * b.y - a.y * b.x
+        // Computed into locals first so result may be the same vector as a or b.
+        F32 x = a.y * b.z - a.z * b.y
+        F32 y = a.z * b.x - a.x * b.z
+        F32 z = a.x * b.y - a.y * b.x
+        result.x = x
+        result.y = y
+        result.z = z
         result.w = 0.0f
     }
 

@@ -139,6 +139,8 @@ namespace String {
     String replace(const String s, const String from, const String to) {
         String r
         r.handle = s.handle
+        // An empty pattern matches at every position and would never terminate.
+        if (from.handle.empty()) return r
         size_t pos = 0
         while ((pos = r.handle.find(from.handle, pos)) != std::string::npos) {
             r.handle.replace(pos, from.handle.size(), to.handle)
@@ -201,6 +203,13 @@ namespace String {
 
     List<String> split(const String s, const String delim) {
         List<String> result
+        // An empty delimiter matches everywhere: return the string as the only part.
+        if (delim.handle.empty()) {
+            String whole
+            whole.handle = s.handle
+            List.add(result, whole)
+            return result
+        }
         size_t start = 0
         size_t pos = s.handle.find(delim.handle)
         while (pos != std::string::npos) {

@@ -3,14 +3,24 @@
 
 namespace TcpClient {
 #if defined(_WIN32) || defined(_WIN64)
-    TcpClient create(String ip, I16 port) {
+    // Winsock is started once per process and left running until exit. Pairing a
+    // WSACleanup with every destroy() tore Winsock down under sockets still in use
+    // (a server-accepted client never called WSAStartup itself).
+    static U8 _wsaInit() {
+        static U8 ready = 0
+        if (ready) return 1
+        WSADATA wsaData
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) return 0
+        ready = 1
+        return 1
+    }
+
+    TcpClient create(const String ip, I16 port) {
         TcpClient client
 
         struct sockaddr_in server_addr
 
-        WSADATA wsaData
-        I32 result = WSAStartup(MAKEWORD(2, 2), &wsaData)
-        if (result != 0) {
+        if (!_wsaInit()) {
             Log.warn("WSA startup failed")
             return client
         }
@@ -18,7 +28,6 @@ namespace TcpClient {
         client.sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
         if (client.sockfd == INVALID_SOCKET) {
             Log.warn("Socket creation failed, error code: %d", WSAGetLastError())
-            WSACleanup()
             return client
         }
 
@@ -45,7 +54,6 @@ namespace TcpClient {
         if (client.sockfd == INVALID_SOCKET) return
         closesocket(client.sockfd)
         client.sockfd = INVALID_SOCKET
-        WSACleanup()
     }
 
     U8 write(TcpClient client, const I8* buffer, U32 size) {
@@ -77,7 +85,7 @@ namespace TcpClient {
         return 1
     }
 #else
-    TcpClient create(String ip, I16 port) {
+    TcpClient create(const String ip, I16 port) {
         TcpClient client
 
         struct sockaddr_in server_addr
