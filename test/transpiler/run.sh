@@ -45,6 +45,9 @@ run_test percent_t
 run_test operators
 run_test templates
 run_test self_vs_it
+run_test semicolons_edge
+run_test lambda_edge
+run_test rewrites
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+// Test: implicit-semicolon edge cases
+// - trailing line comments and multi-line block comments
+// - statements continued on the next line by an operator
+// - do/while, `}` followed by `else` on the next line, braced case blocks
+// - enums, braced temporaries, inline / extern "C" / new
+// - multi-line #define
+
+#define ADD3(x) \
+    ((x) + 1 \
+     + 2)
+
+enum Color { RED, GREEN, BLUE }
+enum Shape {
+    CIRCLE,
+    SQUARE
+}
+enum class Mode : U8 { OFF, ON }
+
+struct Vec3 { F32 x; F32 y; F32 z }
+
+inline I32 twice(I32 a) { return a * 2 }
+extern "C" I32 abs(I32 a)
+
+I32 main() {
+    I32 x = 5 // trailing comment
+    if (x != 5) {
+        printf("FAIL: trailing comment\n")
+        return 1
+    }
+
+    I32 total = x
+        + 10
+        - 1
+    if (total != 14) {
+        printf("FAIL: operator continuation expected 14, got %d\n", total)
+        return 1
+    }
+
+    U8 both = x == 5
+        && total == 14
+    if (!both) {
+        printf("FAIL: && continuation\n")
+        return 1
+    }
+
+    I32 k = 0
+    do {
+        k++
+    } while (k < 3)
+    if (k != 3) {
+        printf("FAIL: do/while expected 3, got %d\n", k)
+        return 1
+    }
+
+    if (k == 99) {
+        k = 4
+    }
+    else {
+        k = 5
+    }
+    if (k != 5) {
+        printf("FAIL: else on its own line expected 5, got %d\n", k)
+        return 1
+    }
+
+    switch (k) {
+        case 5: {
+            x = 1
+            k = 2
+            break
+        }
+        default: break
+    }
+    if (x != 1 || k != 2) {
+        printf("FAIL: braced case block got x=%d k=%d\n", x, k)
+        return 1
+    }
+
+    Vec3 v = Vec3{1, 2, 3}
+    if (v.z != 3) {
+        printf("FAIL: braced temporary\n")
+        return 1
+    }
+
+    I32* p = new I32[4]
+    p[0] = 7
+    I32 z = p[0] /* multi
+    line comment */
+    delete[] p
+    if (z != 7) {
+        printf("FAIL: statement before multi-line comment\n")
+        return 1
+    }
+
+    if (ADD3(1) != 4) {
+        printf("FAIL: multi-line macro expected 4, got %d\n", ADD3(1))
+        return 1
+    }
+
+    if (twice(4) != 8 || abs(-3) != 3) {
+        printf("FAIL: inline / extern \"C\" declarations\n")
+        return 1
+    }
+
+    if (BLUE != 2 || SQUARE != 1 || Mode::ON == Mode::OFF) {
+        printf("FAIL: enums\n")
+        return 1
+    }
+
+    printf("OK\n")
+    return 0
+}

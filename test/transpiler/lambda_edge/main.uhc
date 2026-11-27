@@ -1,0 +1,128 @@
+#include <stdio.h>
+#include <string.h>
+#include <uhcstd.uhh>
+#include <lambda.uhh>
+
+// Test: trailing-lambda edge cases
+// - lambda parameter on a non-template function
+// - namespace function that shares its name with a lambda-accepting function
+// - trailing lambda on a namespace-scoped function (Ns.func(args) { ... })
+// - lambda body using a struct local, a pointer local and a struct parameter
+// - lambda body calling a function defined in this file
+// - %T inside a lambda for a namespace defined in this file
+
+U0 each(I32* arr, I32 len, lambda block(I32) -> U0) {
+    for (I32 i = 0; i < len; i++) { block(arr[i]) }
+}
+
+namespace Tree {
+    self { I32 n }
+
+    // Same name as the top-level `each`, but an ordinary function definition.
+    I32 each(Tree t) {
+        return t.n * 2
+    }
+
+    U0 walk(Tree t, lambda visit(I32) -> U0) { visit(t.n) }
+}
+
+namespace Counter {
+    self { I32 value }
+    U0 bump(Counter c) { c.value++ }
+}
+
+namespace Color {
+    self { I32 r }
+}
+
+I32 helperTotal = 0
+U0 helper(I32 n) { helperTotal += n }
+
+I32 sumInto(Counter c, List<I32> nums) {
+    forEach(nums) { (n) ->
+        Counter.bump(c)
+        c.value += n
+    }
+    return c.value
+}
+
+I32 main() {
+    I32 nums[3] = {1, 2, 3}
+
+    // --- non-template lambda function + same-file helper ---
+    each(nums, 3) { (n) ->
+        helper(n)
+    }
+    if (helperTotal != 6) {
+        printf("FAIL: helper total expected 6, got %d\n", helperTotal)
+        return 1
+    }
+
+    // --- struct local and pointer local used in the body ---
+    Counter local
+    local.value = 0
+    I32* ptr = nums
+    I32 cnt = 0
+    each(nums, 3) { (n) ->
+        cnt += n + ptr[0]
+        local.value = cnt
+    }
+    if (cnt != 9 || local.value != 9) {
+        printf("FAIL: locals expected 9/9, got %d/%d\n", cnt, local.value)
+        return 1
+    }
+
+    // --- namespace-scoped lambda function, and its non-lambda namesake ---
+    Tree t
+    t.n = 21
+    I32 seen = 0
+    Tree.walk(t) { (n) ->
+        seen = n
+    }
+    if (seen != 21 || Tree.each(t) != 42) {
+        printf("FAIL: Tree.walk/Tree.each got %d/%d\n", seen, Tree.each(t))
+        return 1
+    }
+
+    // --- struct parameter modified inside the body ---
+    List<I32> list
+    List.add(list, 4)
+    List.add(list, 5)
+    Counter c
+    c.value = 0
+    I32 r = sumInto(c, list)
+    if (r != 11 || c.value != 11) {
+        printf("FAIL: sumInto expected 11/11, got %d/%d\n", r, c.value)
+        return 1
+    }
+
+    // --- HashMap.forEach ---
+    HashMap<I32, I32> m
+    HashMap.put(m, 1, 10)
+    I32 hv = 0
+    HashMap.forEach(m) { (k, v) ->
+        hv += k + v
+    }
+    if (hv != 11) {
+        printf("FAIL: HashMap.forEach expected 11, got %d\n", hv)
+        return 1
+    }
+
+    // --- %T inside a lambda body ---
+    List<Color> colors
+    Color col
+    col.r = 7
+    List.add(colors, col)
+    char buf[64]
+    buf[0] = 0
+    forEach(colors) { (x) ->
+        snprintf(buf, 64, "%T", x)
+    }
+    if (strcmp(buf, "Color{r: 7}") != 0) {
+        printf("FAIL: %%T in lambda got '%s'\n", buf)
+        return 1
+    }
+
+    printf("OK\n")
+    return 0
+}

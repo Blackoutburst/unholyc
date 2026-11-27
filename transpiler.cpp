@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -12,6 +13,14 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
+
+#if defined(_WIN32)
+// Declared by hand: <windows.h> defines macros that collide with the token names below.
+extern "C" __declspec(dllimport) unsigned long __stdcall
+GetModuleFileNameA(void* module, char* filename, unsigned long size);
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -94,17 +103,17 @@ class Lexer {
         std::string val;
         if (peek() == '0' && (peek(1) == 'x' || peek(1) == 'X')) {
             val += advance(); val += advance();
-            while (std::isxdigit(peek())) val += advance();
+            while (std::isxdigit((unsigned char)peek())) val += advance();
         } else {
-            while (std::isdigit(peek())) val += advance();
+            while (std::isdigit((unsigned char)peek())) val += advance();
             if (peek() == '.') {
                 val += advance();
-                while (std::isdigit(peek())) val += advance();
+                while (std::isdigit((unsigned char)peek())) val += advance();
             }
             if (peek() == 'e' || peek() == 'E') {
                 val += advance();
                 if (peek() == '+' || peek() == '-') val += advance();
-                while (std::isdigit(peek())) val += advance();
+                while (std::isdigit((unsigned char)peek())) val += advance();
             }
         }
         while (peek() == 'f' || peek() == 'F' ||
@@ -115,7 +124,7 @@ class Lexer {
 
     Token lexIdent() {
         std::string val;
-        while (std::isalnum(peek()) || peek() == '_') val += advance();
+        while (std::isalnum((unsigned char)peek()) || peek() == '_') val += advance();
         return { TK::IDENT, val, line };
     }
 
@@ -126,9 +135,9 @@ public:
         std::vector<Token> tokens;
 
         while (pos < src.size()) {
-            if (std::isspace(peek())) {
+            if (std::isspace((unsigned char)peek())) {
                 std::string ws;
-                while (pos < src.size() && std::isspace(peek())) {
+                while (pos < src.size() && std::isspace((unsigned char)peek())) {
                     ws += advance();
                 }
                 tokens.push_back({ TK::OTHER, ws, line });
@@ -154,6 +163,14 @@ public:
 
             if (c == '#') {
                 std::string val = readLineRest();
+                // Backslash-newline continues the directive (multi-line #define):
+                // keep it as a single token so the macro body is passed through untouched.
+                while (pos < src.size()) {
+                    size_t e = val.find_last_not_of('\r');
+                    if (e == std::string::npos || val[e] != '\\') break;
+                    val += advance(); // the newline
+                    val += readLineRest();
+                }
                 tokens.push_back({ TK::PREPROCESSOR, val, l });
                 continue;
             }
@@ -163,12 +180,12 @@ public:
                 continue;
             }
 
-            if (std::isdigit(c) || (c == '.' && std::isdigit(peek(1)))) {
+            if (std::isdigit((unsigned char)c) || (c == '.' && std::isdigit((unsigned char)peek(1)))) {
                 tokens.push_back(lexNumber());
                 continue;
             }
 
-            if (std::isalpha(c) || c == '_') {
+            if (std::isalpha((unsigned char)c) || c == '_') {
                 tokens.push_back(lexIdent());
                 continue;
             }
@@ -248,6 +265,14 @@ static const std::unordered_set<std::string> STMT_START_KW = {
     "return","break","continue","goto",
 };
 
+// Identifiers that introduce a declaration or expression rather than end one:
+// no ; is injected after them, and a type keyword following them is not a new statement.
+static const std::unordered_set<std::string> PREFIX_KW = {
+    "inline","extern","constexpr","constinit","consteval","mutable","register",
+    "thread_local","virtual","friend","explicit","typename","new","unused",
+    "deprecated","operator","sizeof","alignof","case","export"
+};
+
 static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tokens) {
     std::vector<Token> out;
     out.reserve(tokens.size() + 64);
@@ -258,6 +283,10 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
     std::vector<bool> cfParenStack;
     // true = initializer list  {}; false = code block {}
     std::vector<bool> initBraceStack;
+    // true = this brace is the body of a `do`
+    std::vector<bool> doBraceStack;
+    bool afterDoBlock   = false; // the previous real token closed a `do { }` body
+    bool doWhilePending = false; // saw the `while` of a do-while; its (...) ends a statement
 
     // Keywords after which '{' introduces an initializer, not a code block
     static const std::unordered_set<std::string> initBraceKw = { "return", "throw" };
@@ -269,16 +298,33 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
         return true;
     };
 
+    auto isSkippable = [&](const Token& t) -> bool {
+        return isWS(t) || t.type == TK::LINE_COMMENT || t.type == TK::BLOCK_COMMENT;
+    };
+
     // First non-WS, non-comment token at or after index start in the ORIGINAL token array
-    auto firstRealAfter = [&](size_t start) -> const Token* {
+    auto firstRealIdxAfter = [&](size_t start) -> size_t {
         for (size_t k = start; k < tokens.size(); k++) {
-            const Token& t = tokens[k];
-            if (t.type == TK::END) break;
-            if (isWS(t) || t.type == TK::LINE_COMMENT || t.type == TK::BLOCK_COMMENT)
-                continue;
-            return &t;
+            if (tokens[k].type == TK::END) break;
+            if (!isSkippable(tokens[k])) return k;
         }
-        return nullptr;
+        return tokens.size();
+    };
+
+    // Previous non-WS, non-comment token before idx in the OUTPUT array (-1 if none)
+    auto prevRealIdx = [&](int idx) -> int {
+        for (int k = idx - 1; k >= 0; k--) {
+            if (out[k].type == TK::PREPROCESSOR) return -1;
+            if (!isSkippable(out[k])) return k;
+        }
+        return -1;
+    };
+
+    // Place the ; directly after the last real token so it never lands behind a
+    // trailing comment (`x = 5 // note` -> `x = 5; // note`).
+    auto insertSemi = [&]() {
+        Token semi{ TK::SEMICOLON, ";", out[lastReal].line };
+        out.insert(out.begin() + lastReal + 1, semi);
     };
 
     auto qualifies = [&](int idx) -> bool {
@@ -294,7 +340,7 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
             case TK::RPAREN:
                 return !lastRParenWasCF;
             case TK::IDENT:
-                return !NO_SEMI_KW.count(t.value);
+                return !NO_SEMI_KW.count(t.value) && !PREFIX_KW.count(t.value);
             default:
                 // Array subscript closer ] and post-increment/decrement end a statement
                 return t.type == TK::OTHER &&
@@ -302,44 +348,115 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
         }
     };
 
+    // Does the token starting the next line continue the current statement?
+    auto isContinuation = [&](const Token& prev, size_t nextIdx) -> bool {
+        if (nextIdx >= tokens.size()) return false;
+        const Token& next = tokens[nextIdx];
+        if (next.type == TK::DOT) return true; // method chain on the next line
+        if (next.type == TK::OTHER) {
+            // Binary operators that cannot begin a statement. `*` and `(` are left out
+            // on purpose: `*p = x` and `(void)x` are valid statement starts.
+            static const std::unordered_set<std::string> CONT = {
+                "?", ":", "+", "-", "/", "%", "|", "^", "<", ">", "=", ",", "&"
+            };
+            if (CONT.count(next.value)) return true;
+            if (next.value == "!" && nextIdx + 1 < tokens.size() &&
+                tokens[nextIdx + 1].type == TK::OTHER && tokens[nextIdx + 1].value == "=")
+                return true;
+        }
+        if (prev.type == TK::RBRACE && next.type == TK::IDENT) {
+            if (next.value == "else" || next.value == "catch") return true;
+            if (next.value == "while" && afterDoBlock) return true;
+        }
+        return false;
+    };
+
+    // `enum Name {`, `enum class Name : U8 {`, `enum {` - enumerator lists take no ;
+    auto isEnumHead = [&](int idx) -> bool {
+        for (int k = idx; k >= 0; k = prevRealIdx(k)) {
+            const Token& t = out[k];
+            if (t.type == TK::IDENT) {
+                if (t.value == "enum") return true;
+                continue;
+            }
+            if (t.type == TK::SCOPE || (t.type == TK::OTHER && t.value == ":")) continue;
+            break;
+        }
+        return false;
+    };
+
+    // `{ (a, b) ->` - the header of a trailing lambda body
+    auto looksLikeLambdaHeader = [&](size_t start) -> bool {
+        size_t k = firstRealIdxAfter(start);
+        if (k >= tokens.size() || tokens[k].type != TK::LPAREN) return false;
+        k++;
+        while (k < tokens.size() &&
+               (isWS(tokens[k]) || tokens[k].type == TK::IDENT ||
+                (tokens[k].type == TK::OTHER && tokens[k].value == ",")))
+            k++;
+        if (k >= tokens.size() || tokens[k].type != TK::RPAREN) return false;
+        k = firstRealIdxAfter(k + 1);
+        return k + 1 < tokens.size() &&
+               tokens[k].type == TK::OTHER && tokens[k].value == "-" &&
+               tokens[k + 1].type == TK::OTHER && tokens[k + 1].value == ">";
+    };
+
+    // `= Type{...}`, `, Type{...}`, `return Ns.Type{...}` - a braced temporary, not a block.
+    // idx is the identifier right before the '{' at original index braceIdx.
+    auto isBracedInitExpr = [&](int idx, size_t braceIdx) -> bool {
+        int k = idx;
+        while (true) { // walk back over a qualified name: A.B / A::B
+            int d = prevRealIdx(k);
+            if (d < 0 || (out[d].type != TK::DOT && out[d].type != TK::SCOPE)) break;
+            int q = prevRealIdx(d);
+            if (q < 0 || out[q].type != TK::IDENT) break;
+            k = q;
+        }
+        int p = prevRealIdx(k);
+        if (p < 0) return false;
+        const Token& t = out[p];
+        bool exprContext =
+            (t.type == TK::OTHER && (t.value == "=" || t.value == ",")) ||
+            (t.type == TK::IDENT && t.value == "return");
+        return exprContext && !looksLikeLambdaHeader(braceIdx + 1);
+    };
+
     for (size_t ti = 0; ti < tokens.size(); ti++) {
         const Token& tok = tokens[ti];
         const bool ws     = isWS(tok);
         const bool hasNL  = ws && tok.value.find('\n') != std::string::npos;
         const bool isCmt  = tok.type == TK::LINE_COMMENT || tok.type == TK::BLOCK_COMMENT;
+        const bool cmtNL  = isCmt && tok.value.find('\n') != std::string::npos;
         const bool isPrep = tok.type == TK::PREPROCESSOR;
         const bool isEnd  = tok.type == TK::END;
+        const bool real   = !ws && !isCmt && !isPrep && !isEnd;
 
-        // Inject semicolon before a line break if the last real token qualifies
-        if (hasNL && qualifies(lastReal)) {
-            // Lookahead: skip injection if next real token starts a continuation
-            // (ternary ? / :, and similar line-continuation operators)
-            const Token* next = firstRealAfter(ti + 1);
-            bool isContinuation = next && next->type == TK::OTHER &&
-                (next->value == "?" || next->value == ":");
-            if (!isContinuation)
-                out.push_back({ TK::SEMICOLON, ";", out[lastReal].line });
+        // Inject semicolon at a line break (or a comment spanning lines) if the last
+        // real token qualifies and the next line does not continue the statement.
+        if ((hasNL || cmtNL) && qualifies(lastReal)) {
+            if (!isContinuation(out[lastReal], firstRealIdxAfter(ti + 1)))
+                insertSemi();
         }
 
         // Inject ; before a code-block closing brace for the last in-line statement
-        // e.g. `{ ...; va_end(a) }` → `{ ...; va_end(a); }`
+        // e.g. `{ ...; va_end(a) }` -> `{ ...; va_end(a); }`
         if (tok.type == TK::RBRACE &&
             !initBraceStack.empty() && !initBraceStack.back() &&
             qualifies(lastReal))
-            out.push_back({ TK::SEMICOLON, ";", out[lastReal].line });
+            insertSemi();
 
         // Inject ; before a TYPE keyword that starts a new statement on the same line
-        // e.g. `union { U32 i F32 f }` → `union { U32 i; F32 f }`
-        // Only inject when the previous real token genuinely ends a statement — NOT
+        // e.g. `union { U32 i F32 f }` -> `union { U32 i; F32 f }`
+        // Only inject when the previous real token genuinely ends a statement - NOT
         // when it is itself a type/storage qualifier (static, const, typedef, etc.).
-        if (!ws && !isCmt && !isPrep && !isEnd &&
+        if (real &&
             tok.type == TK::IDENT && STMT_START_KW.count(tok.value) &&
             parenDepth == 0 &&
             (initBraceStack.empty() || !initBraceStack.back()) &&
             lastReal >= 0) {
             const Token& prev = out[lastReal];
             // Don't inject before method CV-qualifiers (const/noexcept/override/final)
-            // that follow a closing ')' — they belong to the function signature,
+            // that follow a closing ')' - they belong to the function signature,
             // not the start of a new statement.
             static const std::unordered_set<std::string> METHOD_QUAL = {
                 "const", "noexcept", "override", "final"
@@ -355,16 +472,33 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
                 (prev.type == TK::RPAREN && !lastRParenWasCF) ||
                 (prev.type == TK::IDENT &&
                  !STMT_START_KW.count(prev.value) &&
-                 !NO_SEMI_KW.count(prev.value)));
+                 !NO_SEMI_KW.count(prev.value) &&
+                 !PREFIX_KW.count(prev.value)));
+            // `extern "C" I32 f()` - the linkage string does not end a statement
+            if (prevEndsStmt && prev.type == TK::STRING) {
+                int pp = prevRealIdx(lastReal);
+                if (pp >= 0 && out[pp].type == TK::IDENT && out[pp].value == "extern")
+                    prevEndsStmt = false;
+            }
             if (prevEndsStmt)
-                out.push_back({ TK::SEMICOLON, ";", tok.line });
+                insertSemi();
+        }
+
+        // do { } while (...) - the while's parens end a statement, unlike a plain while
+        if (real) {
+            if (tok.type == TK::IDENT && tok.value == "while" && afterDoBlock)
+                doWhilePending = true;
+            afterDoBlock = false;
         }
 
         // Track paren depth and control-flow parens
         if (tok.type == TK::LPAREN) {
             parenDepth++;
+            // `deprecated("msg")` is an attribute: like control flow, its ) ends nothing
             bool cf = lastReal >= 0 && out[lastReal].type == TK::IDENT &&
-                      CONTROL_FLOW_KW.count(out[lastReal].value);
+                      (CONTROL_FLOW_KW.count(out[lastReal].value) ||
+                       out[lastReal].value == "deprecated");
+            if (doWhilePending) { cf = false; doWhilePending = false; }
             cfParenStack.push_back(cf);
         } else if (tok.type == TK::RPAREN) {
             if (parenDepth > 0) parenDepth--;
@@ -377,35 +511,49 @@ static std::vector<Token> injectImplicitSemicolons(const std::vector<Token>& tok
         }
 
         // Track whether each brace level is an initializer list or a code block.
-        // Rule: code block if preceded by IDENT (non-return/throw), RPAREN, or RBRACE;
-        //       initializer list otherwise (preceded by =, ,, [, etc. or return/throw).
+        // Code block: preceded by an identifier (struct Foo {, else {), ')', '}', ';'
+        //             or a label/case ':'.
+        // Initializer: preceded by =, ,, [, ( etc., by return/throw, an enum head,
+        //              or a braced temporary such as `= Vec3{1, 2, 3}`.
         if (tok.type == TK::LBRACE) {
             bool isInit = false;
+            bool isDo   = false;
             if (lastReal >= 0) {
                 const Token& prev = out[lastReal];
-                if (prev.type == TK::IDENT)
-                    isInit = initBraceKw.count(prev.value) > 0;
-                else if (prev.type == TK::RPAREN || prev.type == TK::RBRACE)
+                if (prev.type == TK::IDENT) {
+                    isDo   = prev.value == "do";
+                    isInit = initBraceKw.count(prev.value) > 0 ||
+                             isEnumHead(lastReal) ||
+                             isBracedInitExpr(lastReal, ti);
+                } else if (prev.type == TK::RPAREN || prev.type == TK::RBRACE ||
+                           prev.type == TK::SEMICOLON ||
+                           (prev.type == TK::OTHER && prev.value == ":")) {
                     isInit = false;
-                else
+                } else {
                     isInit = true; // OTHER (=, ,, [, etc.), LBRACE, LPAREN, ...
+                }
             }
             initBraceStack.push_back(isInit);
+            doBraceStack.push_back(isDo);
         } else if (tok.type == TK::RBRACE) {
             if (!initBraceStack.empty()) initBraceStack.pop_back();
+            if (!doBraceStack.empty()) {
+                afterDoBlock = doBraceStack.back();
+                doBraceStack.pop_back();
+            }
         }
 
         out.push_back(tok);
 
         // Update lastReal for meaningful tokens
-        if (!ws && !isCmt && !isPrep && !isEnd) {
+        if (real) {
             lastReal = (int)out.size() - 1;
             if (tok.type != TK::RPAREN)
                 lastRParenWasCF = false;
         }
 
         // Reset line context after a line boundary
-        if (hasNL || isPrep || (isCmt && tok.value.find('\n') != std::string::npos)) {
+        if (hasNL || isPrep || cmtNL) {
             lastReal        = -1;
             lastRParenWasCF = false;
         }
@@ -459,7 +607,8 @@ static size_t skipWSIdx(const std::vector<Token>& toks, size_t i) {
 
 static std::string uhcTypeToFmt(const std::string& t, bool ptr) {
     if (ptr) return (t == "U8" || t == "I8") ? "%s" : "";
-    if (t == "F32" || t == "F64" || t == "F128") return "%f";
+    if (t == "F32" || t == "F64") return "%f";
+    if (t == "F128") return "%Lf";
     if (t == "I8"  || t == "I16" || t == "I32")  return "%d";
     if (t == "I64") return "%lld";
     if (t == "U8"  || t == "U16" || t == "U32")  return "%u";
@@ -506,7 +655,11 @@ static std::unordered_map<std::string, NSInfo> collectNSInfo(const std::vector<T
         if (tok.value == "namespace" && depth == 0) {
             size_t j = i + 1;
             while (j < tokens.size() && tokens[j].type == TK::OTHER) j++;
-            if (j < tokens.size() && tokens[j].type == TK::IDENT) {
+            // Only a namespace definition (`namespace X {`) opens a scope here;
+            // `using namespace X` does not.
+            size_t jb = (j < tokens.size()) ? skipWSIdx(tokens, j + 1) : j;
+            if (j < tokens.size() && tokens[j].type == TK::IDENT &&
+                jb < tokens.size() && tokens[jb].type == TK::LBRACE) {
                 curNS = tokens[j].value;
                 result[curNS].isTemplate |= seenTemplate;
                 i = j;
@@ -559,35 +712,26 @@ static std::unordered_map<std::string, NSInfo> collectNSInfo(const std::vector<T
         }
 
         if (curNS.empty()) continue;
-        if (tok.value == "toString" && depth >= 1)
-            result[curNS].hasUserToString = true;
+        // A user toString is a function declared directly in the namespace:
+        // `toString(` not reached through `Other.toString(` / `Other::toString(`.
+        if (tok.value == "toString" && depth == 1) {
+            size_t n = skipWSIdx(tokens, i + 1);
+            size_t p = i;
+            while (p > 0 && isWSTok(tokens[p - 1])) p--;
+            bool qualified = p > 0 && (tokens[p - 1].type == TK::DOT ||
+                                       tokens[p - 1].type == TK::SCOPE);
+            if (!qualified && n < tokens.size() && tokens[n].type == TK::LPAREN)
+                result[curNS].hasUserToString = true;
+        }
     }
     return result;
 }
-
-struct ScopeVar {
-    std::string name;
-    std::string cType;
-};
 
 struct LambdaReg {
     std::string              lambdaParamName;
     std::string              calleeName;
     std::vector<std::string> argCTypes;
     std::string              retCType;
-};
-
-struct PatchSite {
-    size_t      outputByteOffset;
-    std::string calleeName;
-    size_t      fptrInnerCloseOffset;
-    std::string lambdaParamName;
-};
-
-struct CallSiteCapture {
-    std::string calleeName;
-    int         sourceLine;
-    std::vector<std::pair<std::string,std::string>> captures;
 };
 
 struct CallFrame {
@@ -676,10 +820,12 @@ collectLambdaDecls(const std::vector<Token>& tokens) {
             continue;
         }
         if (tokens[i].type == TK::IDENT && tokens[i].value == "namespace") {
-            size_t j = i + 1;
-            while (j < tokens.size() && tokens[j].type == TK::OTHER) j++;
-            if (j < tokens.size() && tokens[j].type == TK::IDENT)
-                pendingNS = tokens[j].value;
+            size_t j = skipWS(i + 1);
+            if (j < tokens.size() && tokens[j].type == TK::IDENT) {
+                size_t jb = skipWS(j + 1);
+                if (jb < tokens.size() && tokens[jb].type == TK::LBRACE)
+                    pendingNS = tokens[j].value;
+            }
             continue;
         }
 
@@ -774,7 +920,34 @@ collectLambdaDeclsFromHH(const std::vector<Token>& tokens) {
         return i;
     };
 
+    // Same namespace tracking as collectLambdaDecls, so a namespace-scoped function is
+    // registered as `Ns::name` whether it was found in a .uhh or a compiled .hh.
+    std::string curNS;
+    int braceDepth = 0;
+    std::string pendingNS;
+
     for (size_t i = 0; i < tokens.size(); i++) {
+        if (tokens[i].type == TK::LBRACE) {
+            braceDepth++;
+            if (!pendingNS.empty() && braceDepth == 1) curNS = pendingNS;
+            pendingNS.clear();
+            continue;
+        }
+        if (tokens[i].type == TK::RBRACE) {
+            if (braceDepth == 1) curNS.clear();
+            if (braceDepth > 0) braceDepth--;
+            continue;
+        }
+        if (tokens[i].type == TK::IDENT && tokens[i].value == "namespace") {
+            size_t j = skipWS(i + 1);
+            if (j < tokens.size() && tokens[j].type == TK::IDENT) {
+                size_t jb = skipWS(j + 1);
+                if (jb < tokens.size() && tokens[jb].type == TK::LBRACE)
+                    pendingNS = tokens[j].value;
+            }
+            continue;
+        }
+
         // Look for IDENT followed by LPAREN
         if (tokens[i].type != TK::IDENT) continue;
         std::string funcName = tokens[i].value;
@@ -791,28 +964,25 @@ collectLambdaDeclsFromHH(const std::vector<Token>& tokens) {
                 const std::string& v = tokens[j].value;
                 if (v.size() > 8 && v.substr(0, 8) == "__Block_") {
                     std::string paramName = v.substr(8); // strip __Block_ prefix
+                    std::string qualName =
+                        curNS.empty() ? funcName : (curNS + "::" + funcName);
                     LambdaReg reg;
                     reg.lambdaParamName = paramName;
-                    reg.calleeName      = funcName;
+                    reg.calleeName      = qualName;
                     reg.retCType        = "void";
-                    result[funcName + "::" + paramName] = reg;
-                    result[paramName] = reg;
-                    result[funcName]  = reg;
+                    result[qualName + "::" + paramName] = reg;
+                    if (curNS.empty()) {
+                        result[paramName] = reg;
+                        result[funcName]  = reg;
+                    } else {
+                        result[qualName] = reg;
+                    }
                 }
             }
             j++;
         }
     }
     return result;
-}
-
-static uint32_t fnv1a32(const std::string& s) {
-    uint32_t h = 2166136261u;
-    for (unsigned char c : s) {
-        h ^= c;
-        h *= 16777619u;
-    }
-    return h;
 }
 
 class Transpiler {
@@ -826,14 +996,24 @@ class Transpiler {
 
     std::unordered_map<std::string, LambdaReg> lambdaRegistry;
 
-    std::vector<PatchSite> patchSites;
     // Template typename patches: insert ", typename Block" at template > offset.
     struct TemplatePatch { size_t offset; std::string insertion; };
     std::vector<TemplatePatch> templatePatches;
+    // A lambda parameter on a function that has no template<...> of its own:
+    // a `template<typename __Block_x>` header is inserted before the declaration.
+    struct HeaderPatch { size_t offset; std::string text; };
+    std::vector<HeaderPatch> headerPatches;
+    // Output offset just past the last ; { } comment or directive at paren depth 0,
+    // i.e. where the declaration currently being emitted begins.
+    size_t stmtStartOffset = 0;
 
-    std::vector<CallSiteCapture> callSiteCaptures;
-    bool needsFunctional = false;
-    bool needsTypeTraits = false;
+    // Nesting of template argument lists inside a declaration's parameter list
+    // (`std::vector<Vec3> v`): types in there are not parameters and get no auto-&.
+    int declAngleDepth = 0;
+
+    // Swizzle names used in this file, in first-use order; each gets a helper pair.
+    std::vector<std::string>        swizzleOrder;
+    std::unordered_set<std::string> swizzleSeen;
 
     static bool isSwizzleIdent(const std::string& s) {
         if (s.size() < 2 || s.size() > 4) return false;
@@ -850,22 +1030,117 @@ class Transpiler {
         if (c == 'a') return 'w';
         return c;
     }
-    void emitSwizzle(std::ostringstream& dst, const std::string& varName, const std::string& sw) {
-        needsTypeTraits = true;
-        dst << "std::remove_reference_t<decltype(" << varName << ")>{";
-        for (int ci = 0; ci < 4; ci++) {
-            if (ci > 0) dst << ", ";
-            if ((size_t)ci < sw.size()) dst << varName << "." << swizzleComp(sw[ci]);
-            else                        dst << "0";
+    // `recv.xy` becomes `__uhc_sw_xy(recv, 0)`. The helper returns the real member when
+    // the type has one called `xy` (so ordinary fields such as `.ray` or `.bar` keep
+    // working) and otherwise builds the 4-component swizzle value.
+    void emitSwizzle(std::ostringstream& dst, const std::string& recv, const std::string& sw) {
+        if (swizzleSeen.insert(sw).second) swizzleOrder.push_back(sw);
+        dst << "__uhc_sw_" << sw << "(" << recv << ", 0)";
+    }
+
+    void emitSwizzleHelpers(std::ostringstream& dst) {
+        if (swizzleOrder.empty()) return;
+        dst << "#include <type_traits>\n";
+        for (auto& sw : swizzleOrder) {
+            dst << "#ifndef UHC_SWIZZLE_" << sw << "\n"
+                << "#define UHC_SWIZZLE_" << sw << "\n"
+                << "template<typename T> inline auto __uhc_sw_" << sw
+                << "(T&& v, int) -> decltype((v." << sw << ")) { return v." << sw << "; }\n"
+                << "template<typename T> inline auto __uhc_sw_" << sw
+                << "(T&& v, long) { return std::remove_reference_t<T>{";
+            for (int ci = 0; ci < 4; ci++) {
+                if (ci > 0) dst << ", ";
+                if ((size_t)ci < sw.size()) dst << "v." << swizzleComp(sw[ci]);
+                else                        dst << "0";
+            }
+            dst << "}; }\n#endif\n";
         }
-        dst << "}";
+    }
+
+    // Swizzle on a plain identifier chain: a.xyzw / a.b.rgba (2-4 chars from
+    // {x,y,z,w,r,g,b,a}). toks[i] is the first identifier of the chain. Returns true
+    // and moves i past the swizzle if one was emitted.
+    bool trySwizzle(const std::vector<Token>& toks, size_t& i, std::ostringstream& dst) {
+        auto nextNW = [&](size_t k) {
+            while (k < toks.size() && isWSTok(toks[k])) k++;
+            return k;
+        };
+        // The receiver must start here: in `arr[i].pos.xy` or `f().xy` the receiver
+        // expression is not known, so those stay plain member accesses.
+        for (size_t p = i; p-- > 0; ) {
+            if (isWSTok(toks[p])) continue;
+            if (toks[p].type == TK::DOT || toks[p].type == TK::SCOPE) return false;
+            if (toks[p].type == TK::OTHER && toks[p].value == ">" && p > 0 &&
+                toks[p - 1].type == TK::OTHER && toks[p - 1].value == "-") return false;
+            break;
+        }
+        std::string recv = toks[i].value;
+        size_t cur = i;
+        while (true) {
+            size_t j = nextNW(cur + 1);
+            if (j >= toks.size() || toks[j].type != TK::DOT) return false;
+            size_t k = nextNW(j + 1);
+            if (k >= toks.size() || toks[k].type != TK::IDENT) return false;
+            if (isSwizzleIdent(toks[k].value)) {
+                size_t after = nextNW(k + 1);
+                if (after < toks.size() && toks[after].type == TK::LPAREN)
+                    return false; // a method call, not a swizzle
+                emitSwizzle(dst, recv, toks[k].value);
+                i = k + 1;
+                return true;
+            }
+            recv += "." + toks[k].value;
+            cur = k;
+        }
+    }
+
+    // strftime-style calls use %T for the time of day; their format strings are not ours.
+    static bool isTimeFormatCall(const std::vector<Token>& toks, size_t strIdx) {
+        static const std::unordered_set<std::string> TIME_FMT = {
+            "strftime", "wcsftime", "strptime", "put_time", "get_time"
+        };
+        int depth = 0;
+        for (size_t k = strIdx; k-- > 0; ) {
+            if (toks[k].type == TK::RPAREN) { depth++; continue; }
+            if (toks[k].type == TK::LPAREN) {
+                if (depth > 0) { depth--; continue; }
+                while (k > 0 && isWSTok(toks[k - 1])) k--;
+                return k > 0 && toks[k - 1].type == TK::IDENT &&
+                       TIME_FMT.count(toks[k - 1].value) > 0;
+            }
+            if (toks[k].type == TK::SEMICOLON || toks[k].type == TK::LBRACE ||
+                toks[k].type == TK::RBRACE) return false;
+        }
+        return false;
+    }
+
+    // Record that the declaration/statement being emitted ended at the current output
+    // position. `endsDecl` is false for comments and directives, which may sit between
+    // a template<...> header and its function.
+    void markStmtStart(bool endsDecl) {
+        if (parenDepth != 0) return;
+        stmtStartOffset = (size_t)out.tellp();
+        if (endsDecl) lastTemplateCloseOffset = SIZE_MAX;
+    }
+
+    // Find the registry entry for a callee: a bare name, or an already qualified
+    // `Ns::name`. A bare name used inside a namespace resolves to that namespace first.
+    LambdaReg* findLambdaReg(const std::string& callee, bool untypedOnly = false) {
+        auto scan = [&](const std::string& name) -> LambdaReg* {
+            for (auto& [key, lr] : lambdaRegistry)
+                if (lr.calleeName == name && (!untypedOnly || lr.argCTypes.empty()))
+                    return &lr;
+            return nullptr;
+        };
+        if (callee.find("::") == std::string::npos && !currentNamespace.empty())
+            if (LambdaReg* r = scan(currentNamespace + "::" + callee)) return r;
+        return scan(callee);
     }
 
     // Track position of the closing > of the most recent template<...> so we can
     // inject extra typename Block params when a lambda parameter is encountered.
     size_t lastTemplateCloseOffset = SIZE_MAX;
 
-    std::vector<ScopeVar> scopeVars;
     bool inFunctionBody       = false;
     int  braceDepth           = 0;
     int  globalBraceDepth     = 0;
@@ -877,12 +1152,9 @@ class Transpiler {
     std::string pendingNamespaceName;
     std::unordered_set<std::string> emittedUhcToString;
 
-    std::unordered_map<std::string, int> lambdaNameCount;
-
     int parenDepth = 0;
 
     std::string pendingFuncForBrace;
-    size_t      pendingFuncParamIdx = 0;
 
     size_t nextNonWS(size_t i) const {
         while (i < tokens.size() && tokens[i].type == TK::OTHER &&
@@ -1017,138 +1289,19 @@ class Transpiler {
         lambdaRegistry[lambdaParamName] = reg;
 
         // Emit as a deduced template Block type so any callable (including
-        // capturing lambdas) can be passed.  Patch the preceding template<...>
-        // to insert the extra typename.
+        // capturing lambdas) can be passed. A function that already has template<...>
+        // gets the extra typename appended to it; any other function gets a
+        // template<...> header of its own in front of its declaration.
         std::string blockTypeName = "__Block_" + lambdaParamName;
         if (lastTemplateCloseOffset != SIZE_MAX) {
             templatePatches.push_back({lastTemplateCloseOffset,
                                        ", typename " + blockTypeName});
+        } else if (!headerPatches.empty() && headerPatches.back().offset == stmtStartOffset) {
+            headerPatches.back().text += ", typename " + blockTypeName;
+        } else {
+            headerPatches.push_back({stmtStartOffset, "template<typename " + blockTypeName});
         }
         out << blockTypeName << " " << lambdaParamName;
-
-        PatchSite ps;
-        ps.calleeName            = calleeName;
-        ps.lambdaParamName       = lambdaParamName;
-        ps.fptrInnerCloseOffset  = SIZE_MAX;
-        ps.outputByteOffset      = SIZE_MAX;
-        patchSites.push_back(ps);
-    }
-
-    std::string generateLambdaName(const std::vector<Token>& bodyTokens) {
-        std::string concat;
-        for (auto& t : bodyTokens) concat += t.value;
-        uint32_t h = fnv1a32(concat);
-        char buf[32];
-        std::snprintf(buf, sizeof(buf), "__lambda_%08x", h);
-        std::string base(buf);
-
-        auto it = lambdaNameCount.find(base);
-        if (it == lambdaNameCount.end()) {
-            lambdaNameCount[base] = 1;
-            return base;
-        } else {
-            it->second++;
-            return base + "_" + std::to_string(it->second);
-        }
-    }
-
-    std::vector<std::pair<std::string,std::string>> detectCaptures(
-        const std::vector<std::string>& headerParams,
-        const std::vector<Token>& bodyTokens)
-    {
-        std::unordered_set<std::string> headerSet(headerParams.begin(), headerParams.end());
-        std::vector<std::pair<std::string,std::string>> captures;
-        std::unordered_set<std::string> seen;
-
-        for (auto& t : bodyTokens) {
-            if (t.type != TK::IDENT) continue;
-            const std::string& name = t.value;
-            if (headerSet.count(name)) continue;
-            if (seen.count(name)) continue;
-            if (TYPE_MAP.count(name)) continue;
-            if (CONTROL_FLOW_KW.count(name)) continue;
-            if (namespaces.count(name)) continue;
-
-            for (auto& sv : scopeVars) {
-                if (sv.name == name) {
-                    seen.insert(name);
-                    captures.emplace_back(name, sv.cType);
-                    break;
-                }
-            }
-        }
-        return captures;
-    }
-
-    // Returns the set of names from `captures` that are written to in `bodyTokens`.
-    // A variable is written if it appears as the target of =, +=, -=, *=, /=, %=, etc.,
-    // or as the operand of ++ / -- (prefix or postfix).
-    // Note: compound assignment operators like += are lexed as two tokens (+ then =).
-    std::unordered_set<std::string> detectWrittenCaptures(
-        const std::vector<std::pair<std::string,std::string>>& captures,
-        const std::vector<Token>& bodyTokens)
-    {
-        std::unordered_set<std::string> captureNames;
-        for (auto& [n, _] : captures) captureNames.insert(n);
-
-        // Helper: skip whitespace tokens
-        auto skipWS = [&](size_t start) -> size_t {
-            while (start < bodyTokens.size() && bodyTokens[start].type == TK::OTHER &&
-                   (bodyTokens[start].value == " "  || bodyTokens[start].value == "\t" ||
-                    bodyTokens[start].value == "\r" || bodyTokens[start].value == "\n"))
-                start++;
-            return start;
-        };
-
-        std::unordered_set<std::string> written;
-        for (size_t i = 0; i < bodyTokens.size(); i++) {
-            const Token& t = bodyTokens[i];
-            // Prefix ++ / -- before an ident
-            if (t.type == TK::OTHER && (t.value == "++" || t.value == "--")) {
-                size_t j = skipWS(i + 1);
-                if (j < bodyTokens.size() && bodyTokens[j].type == TK::IDENT &&
-                    captureNames.count(bodyTokens[j].value))
-                    written.insert(bodyTokens[j].value);
-                continue;
-            }
-            if (t.type != TK::IDENT) continue;
-            if (!captureNames.count(t.value)) continue;
-            // Skip whitespace after variable name
-            size_t j = skipWS(i + 1);
-            if (j >= bodyTokens.size() || bodyTokens[j].type != TK::OTHER) continue;
-            const std::string& op = bodyTokens[j].value;
-            // Postfix ++ or --
-            if (op == "++" || op == "--") { written.insert(t.value); continue; }
-            // Plain assignment: `name =` (but not `name ==`)
-            if (op == "=") {
-                size_t k = skipWS(j + 1);
-                if (k >= bodyTokens.size() || bodyTokens[k].value != "=")
-                    written.insert(t.value);
-                continue;
-            }
-            // Compound assignment: lexed as two tokens e.g. + then =  or ++ (already handled)
-            // Operators that can precede =: + - * / % & | ^ << >>
-            static const std::string compoundOps = "+-*/%&|^";
-            if (compoundOps.find(op) != std::string::npos) {
-                size_t k = skipWS(j + 1);
-                if (k < bodyTokens.size() && bodyTokens[k].value == "=")
-                    written.insert(t.value);
-            }
-        }
-        return written;
-    }
-
-    void emitCaptureList(std::ostringstream& dst,
-                         const std::vector<std::pair<std::string,std::string>>& captures,
-                         const std::unordered_set<std::string>& written)
-    {
-        dst << "[";
-        for (size_t ci = 0; ci < captures.size(); ci++) {
-            if (ci > 0) dst << ", ";
-            if (written.count(captures[ci].first)) dst << "&";
-            dst << captures[ci].first;
-        }
-        dst << "]";
     }
 
     struct ExtractedBody {
@@ -1217,127 +1370,23 @@ class Transpiler {
         return result;
     }
 
-    void emitLambdaFunction(
-        const std::string& name,
-        const std::string& retCType,
-        const std::vector<std::string>& argCTypes,
-        const std::vector<std::string>& headerParams,
-        const std::vector<Token>& bodyTokens,
-        const std::vector<std::pair<std::string,std::string>>& captures)
-    {
-        std::string bodyStr = transpileTokensToString(bodyTokens);
-
-        // Collect template type parameters used in arg/ret types (e.g. T, U, K, V).
-        // A token is a template param if it's a short all-uppercase identifier that
-        // isn't a known C++ keyword or type.
-        static const std::unordered_set<std::string> NOT_TMPL = {
-            "int","long","short","char","void","float","double","bool",
-            "unsigned","signed","const","auto","nullptr","NULL"
-        };
-        auto extractTemplateParams = [&](const std::string& t) {
-            std::vector<std::string> params;
-            size_t i = 0;
-            while (i < t.size()) {
-                if (std::isalpha((unsigned char)t[i]) || t[i] == '_') {
-                    size_t start = i;
-                    while (i < t.size() && (std::isalnum((unsigned char)t[i]) || t[i] == '_')) i++;
-                    std::string tok = t.substr(start, i - start);
-                    // treat as template param if all-uppercase, length 1-3, not a known type
-                    bool allUpper = true;
-                    for (char c : tok) if (!std::isupper((unsigned char)c)) { allUpper = false; break; }
-                    if (allUpper && tok.size() <= 3 && !NOT_TMPL.count(tok))
-                        params.push_back(tok);
-                } else {
-                    i++;
-                }
-            }
-            return params;
-        };
-        std::unordered_set<std::string> tmplParamSet;
-        for (auto& ct : argCTypes)
-            for (auto& p : extractTemplateParams(ct)) tmplParamSet.insert(p);
-        for (auto& p : extractTemplateParams(retCType)) tmplParamSet.insert(p);
-
-        // When arg types are unknown (registry from compiled .hh) or contain template
-        // type params (T, U, …), emit as a generic auto lambda object (C++14) so the
-        // block can be passed to __Block_xxx template params without deduction issues.
-        if ((argCTypes.empty() || !tmplParamSet.empty()) && !headerParams.empty()) {
-            preamble << "auto " << name << " = [](";
-            for (size_t k = 0; k < headerParams.size(); k++) {
-                if (k > 0) preamble << ", ";
-                preamble << "auto " << headerParams[k];
-            }
-            preamble << ") {" << bodyStr << "};\n";
-            return;
+    // Emit a trailing lambda as an inline C++ lambda. The callee only ever invokes it
+    // synchronously (stored lambdas are not supported), so capturing by reference is
+    // safe and lets the body read and modify any local, whatever its type. Emitting it
+    // in place also means it sees every declaration visible at the call site.
+    void emitInlineLambda(const LambdaReg& reg, const ExtractedBody& eb) {
+        out << "[&](";
+        // argCTypes may be empty when the registry came from a compiled .hh;
+        // fall back to the header's parameter count so params are still emitted.
+        size_t paramCount = reg.argCTypes.empty()
+            ? eb.headerParams.size()
+            : reg.argCTypes.size();
+        for (size_t k = 0; k < paramCount; k++) {
+            if (k > 0) out << ", ";
+            out << "auto";
+            if (k < eb.headerParams.size()) out << " " << eb.headerParams[k];
         }
-
-        if (!tmplParamSet.empty()) {
-            preamble << "template<";
-            bool ft = true;
-            for (auto& p : tmplParamSet) {
-                if (!ft) preamble << ", ";
-                ft = false;
-                preamble << "typename " << p;
-            }
-            preamble << ">\n";
-        }
-
-        preamble << retCType << " " << name << "(";
-
-        bool first = true;
-        if (!argCTypes.empty()) {
-            for (size_t k = 0; k < argCTypes.size(); k++) {
-                if (!first) preamble << ", ";
-                first = false;
-                preamble << argCTypes[k];
-                if (k < headerParams.size()) preamble << " " << headerParams[k];
-            }
-        } else {
-            // argCTypes unknown (from compiled .hh registry) — emit auto for each header param
-            for (size_t k = 0; k < headerParams.size(); k++) {
-                if (!first) preamble << ", ";
-                first = false;
-                preamble << "auto " << headerParams[k];
-            }
-        }
-
-        for (auto& [capName, capType] : captures) {
-            if (!first) preamble << ", ";
-            first = false;
-            preamble << capType << " " << capName;
-        }
-
-        // Split into lines, strip common leading indent, re-apply one level
-        {
-            // collect lines
-            std::vector<std::string> lines;
-            std::istringstream ss(bodyStr);
-            std::string ln;
-            while (std::getline(ss, ln)) lines.push_back(ln);
-
-            // find min indent among non-blank lines
-            size_t minIndent = std::string::npos;
-            for (auto& l : lines) {
-                size_t first = l.find_first_not_of(" \t");
-                if (first == std::string::npos) continue;
-                if (minIndent == std::string::npos || first < minIndent) minIndent = first;
-            }
-            if (minIndent == std::string::npos) minIndent = 0;
-
-            // rebuild with single indent level
-            std::ostringstream norm;
-            bool any = false;
-            for (auto& l : lines) {
-                size_t first = l.find_first_not_of(" \t");
-                if (first == std::string::npos) continue; // skip blank lines
-                if (any) norm << "\n";
-                norm << "    " << l.substr(minIndent);
-                any = true;
-            }
-            bodyStr = norm.str();
-        }
-
-        preamble << ") {\n" << bodyStr << "\n}\n\n";
+        out << ") {" << transpileTokensToString(eb.bodyTokens) << "}";
     }
 
     std::string transpileTokensToString(const std::vector<Token>& toks) {
@@ -1362,7 +1411,7 @@ class Transpiler {
             // %T rewriting inside lambda bodies
             if (tok.type == TK::STRING && tok.value.find("%T") != std::string::npos) {
                 auto tPositions = findTArgPositions(tok.value);
-                if (!tPositions.empty()) {
+                if (!tPositions.empty() && !isTimeFormatCall(toks, i)) {
                     // Collect comma-separated arg token ranges until matching RPAREN
                     auto collectArgsLocal = [&](size_t start, size_t& endOut)
                         -> std::vector<std::pair<size_t,size_t>>
@@ -1400,6 +1449,11 @@ class Transpiler {
 
                     size_t endIdx = i + 1;
                     auto argRanges = collectArgsLocal(i + 1, endIdx);
+                    // Every %T needs an argument to wrap; otherwise this is not a
+                    // printf-style call and the string is left alone.
+                    if (tPositions.back() >= argRanges.size()) {
+                        buf << tok.value; i++; continue;
+                    }
                     std::string newFmt = tok.value;
                     size_t p = 0;
                     while ((p = newFmt.find("%T", p)) != std::string::npos) {
@@ -1510,7 +1564,10 @@ class Transpiler {
                             while (true) {
                                 const std::string& ci = toks[i].value;
                                 size_t j2 = nextNonWSLocal(i + 1);
-                                if (j2 < toks.size() && toks[j2].type == TK::DOT) {
+                                // Only a nested namespace continues the :: chain;
+                                // `Ns.global.field` is a member access after Ns::global.
+                                if (namespaces.count(ci) &&
+                                    j2 < toks.size() && toks[j2].type == TK::DOT) {
                                     size_t k2 = nextNonWSLocal(j2 + 1);
                                     if (k2 < toks.size() && toks[k2].type == TK::IDENT) {
                                         buf << ci << "::";
@@ -1537,19 +1594,7 @@ class Transpiler {
                     }
                 }
 
-                // Swizzle: ident.xyzw / ident.rgba (2-4 chars from {x,y,z,w,r,g,b,a})
-                {
-                    size_t j = nextNonWSLocal(i + 1);
-                    if (j < toks.size() && toks[j].type == TK::DOT) {
-                        size_t k = nextNonWSLocal(j + 1);
-                        if (k < toks.size() && toks[k].type == TK::IDENT &&
-                            isSwizzleIdent(toks[k].value)) {
-                            emitSwizzle(buf, v, toks[k].value);
-                            i = k + 1;
-                            continue;
-                        }
-                    }
-                }
+                if (trySwizzle(toks, i, buf)) continue;
 
                 buf << v; i++; continue;
             }
@@ -1561,152 +1606,28 @@ class Transpiler {
     }
 
     std::string applyPatches(std::string outStr) {
-        // Inject template Block type params into template<...> declarations.
-        if (!templatePatches.empty()) {
-            auto sorted = templatePatches;
-            std::sort(sorted.begin(), sorted.end(),
-                      [](auto& a, auto& b) { return a.offset > b.offset; });
-            for (auto& p : sorted)
-                if (p.offset <= outStr.size()) outStr.insert(p.offset, p.insertion);
-        }
-
-        if (callSiteCaptures.empty()) return outStr;
-
-        std::unordered_map<std::string, std::vector<std::pair<std::string,std::string>>> calleeCaps;
-
-        for (auto& csc : callSiteCaptures) {
-            auto it = calleeCaps.find(csc.calleeName);
-            if (it == calleeCaps.end()) {
-                calleeCaps[csc.calleeName] = csc.captures;
-            } else {
-                auto& existing = it->second;
-                if (existing.size() != csc.captures.size()) {
-                    std::cerr << "Error: Incompatible capture sets across call sites for '"
-                              << csc.calleeName << "'\n";
-                    continue;
-                }
-                for (size_t k = 0; k < existing.size(); k++) {
-                    if (existing[k].first != csc.captures[k].first) {
-                        std::cerr << "Error: Incompatible capture sets across call sites for '"
-                                  << csc.calleeName << "'\n";
-                        break;
-                    }
-                }
-            }
-        }
-
-        struct Patch {
-            size_t offset;
-            std::string insertion;
-        };
+        struct Patch { size_t offset; std::string text; };
         std::vector<Patch> patches;
 
-        for (auto& [calleeName, caps] : calleeCaps) {
-            if (caps.empty()) continue;
+        // Extra `typename __Block_x` params for functions that already have template<...>.
+        for (auto& p : templatePatches) patches.push_back({p.offset, p.insertion});
 
-            bool found = false;
-            for (auto& ps : patchSites) {
-                if (ps.calleeName != calleeName) continue;
-                if (ps.outputByteOffset == SIZE_MAX) continue;
-                found = true;
-
-                std::string outerInsert;
-                for (auto& [capName, capType] : caps) {
-                    outerInsert += ", " + capType + " " + capName;
-                }
-
-                patches.push_back({ps.outputByteOffset, outerInsert});
-
-                if (ps.fptrInnerCloseOffset != SIZE_MAX) {
-                    std::string innerInsert;
-                    for (auto& [capName, capType] : caps) {
-                        innerInsert += ", " + capType;
-                    }
-                    patches.push_back({ps.fptrInnerCloseOffset, innerInsert});
-                }
-            }
-
-            if (!found) {
-                std::cerr << "Warning: Cannot auto-patch '" << calleeName
-                          << "' (defined in another file). Add capture parameters manually.\n";
-            }
+        // template<...> headers for the others, placed at the first token of the declaration.
+        for (auto& h : headerPatches) {
+            size_t at = h.offset;
+            while (at < outStr.size() && std::isspace((unsigned char)outStr[at])) at++;
+            patches.push_back({at, h.text + "> "});
         }
 
-        std::sort(patches.begin(), patches.end(), [](const Patch& a, const Patch& b) {
-            return a.offset > b.offset;
-        });
-
-        for (auto& p : patches) {
-            if (p.offset <= outStr.size()) {
-                outStr.insert(p.offset, p.insertion);
-            }
-        }
+        // Apply back to front so earlier offsets stay valid. Patches sharing an offset
+        // are applied in reverse so they end up in declaration order.
+        std::reverse(patches.begin(), patches.end());
+        std::stable_sort(patches.begin(), patches.end(),
+                         [](const Patch& a, const Patch& b) { return a.offset > b.offset; });
+        for (auto& p : patches)
+            if (p.offset <= outStr.size()) outStr.insert(p.offset, p.text);
 
         return outStr;
-    }
-
-    void recordFunctionParams(size_t funcParamStart) {
-        size_t i = funcParamStart;
-        while (i < tokens.size()) {
-            i = nextNonWS(i);
-            if (i >= tokens.size() || tokens[i].type == TK::END) break;
-            if (tokens[i].type == TK::RPAREN) break;
-            if (tokens[i].type == TK::OTHER && tokens[i].value == ",") { i++; continue; }
-
-            if (tokens[i].type == TK::IDENT && tokens[i].value == "lambda") {
-                while (i < tokens.size() && tokens[i].type != TK::END) {
-                    if (tokens[i].type == TK::RPAREN) break;
-                    if (tokens[i].type == TK::OTHER && tokens[i].value == ",") break;
-                    i++;
-                }
-                continue;
-            }
-
-            // skip const/unsigned/signed qualifiers
-            if (tokens[i].type == TK::IDENT &&
-                (tokens[i].value == "const" || tokens[i].value == "unsigned" ||
-                 tokens[i].value == "signed")) {
-                i++;
-                continue;
-            }
-
-            if (tokens[i].type != TK::IDENT) { i++; continue; }
-
-            // Use parseCType to handle templates like List<T> and pointer/ref suffixes.
-            std::string typePart = parseCType(i);
-
-            i = nextNonWS(i);
-            if (i < tokens.size() && tokens[i].type == TK::IDENT &&
-                tokens[i].value != "const" && tokens[i].value != "unsigned") {
-                scopeVars.push_back({tokens[i].value, typePart});
-                i++;
-            }
-        }
-    }
-
-    void tryRecordVarDecl(size_t i) {
-        if (!inFunctionBody) return;
-        if (i >= tokens.size() || tokens[i].type != TK::IDENT) return;
-
-        const std::string& v = tokens[i].value;
-        if (CONTROL_FLOW_KW.count(v)) return;
-        if (v == "return" || v == "lambda") return;
-
-        if (!TYPE_MAP.count(v)) return;
-
-        size_t j = nextNonWS(i + 1);
-        if (j >= tokens.size() || tokens[j].type != TK::IDENT) return;
-        const std::string& paramName = tokens[j].value;
-        if (CONTROL_FLOW_KW.count(paramName)) return;
-
-        size_t k = nextNonWS(j + 1);
-        if (k >= tokens.size()) return;
-        auto& nextTok = tokens[k];
-        if (nextTok.type == TK::OTHER && (nextTok.value == "=" || nextTok.value == ",")) {
-            scopeVars.push_back({paramName, resolveType(v)});
-        } else if (nextTok.type == TK::SEMICOLON) {
-            scopeVars.push_back({paramName, resolveType(v)});
-        }
     }
 
     // --- toString helpers ---
@@ -1782,7 +1703,6 @@ public:
         std::string lastIdentAtDepth0;
 
         std::string paramListCallee;
-        size_t paramListOpenIdx = 0;
 
         // Emit uhc_tostring template base (guarded so multiple includes don't redefine it).
         // Specializations are emitted after each self-namespace's closing brace.
@@ -1809,9 +1729,6 @@ public:
                     inFunctionBody     = true;
                     braceDepth         = 1;
                     funcBodyStartDepth = globalBraceDepth;
-                    scopeVars.clear();
-                    size_t pi = pendingFuncParamIdx + 1;
-                    recordFunctionParams(pi);
                     pendingFuncForBrace.clear();
                 } else if (!pendingFuncForBrace.empty() && !pendingNamespaceName.empty()) {
                     pendingFuncForBrace.clear(); // namespace { consumed the brace, not a function
@@ -1822,7 +1739,9 @@ public:
                     pendingNamespaceName.clear();
                 }
 
-                out << tok.value; i++; continue;
+                out << tok.value;
+                markStmtStart(true);
+                i++; continue;
             }
 
             if (tok.type == TK::RBRACE) {
@@ -1830,7 +1749,6 @@ public:
                     braceDepth--;
                     if (braceDepth == 0) {
                         inFunctionBody = false;
-                        scopeVars.clear();
                     }
                 }
                 // Before closing a namespace block, inject auto-generated toString if needed,
@@ -1877,6 +1795,7 @@ public:
                             << "::It v) { return " << closingNS << "::toString(v); }";
                     }
                 }
+                markStmtStart(true);
                 i++; continue;
             }
 
@@ -1885,11 +1804,10 @@ public:
                 if (parenDepth == 1 && !lastIdentAtDepth0.empty() &&
                     !CONTROL_FLOW_KW.count(lastIdentAtDepth0)) {
                     paramListCallee   = lastIdentAtDepth0;
-                    paramListOpenIdx  = i;
                     CallFrame cf;
                     cf.calleeName       = lastIdentAtDepth0;
                     cf.parenDepthAtOpen = parenDepth;
-                    cf.outLenAtArgStart = out.str().size();
+                    cf.outLenAtArgStart = (size_t)out.tellp();
                     callStack.push_back(cf);
                 }
                 lastIdentAtDepth0.clear();
@@ -1900,14 +1818,9 @@ public:
                 parenDepth--;
 
                 if (parenDepth == 0) {
-                    for (auto& ps : patchSites) {
-                        if (ps.outputByteOffset == SIZE_MAX && ps.calleeName == paramListCallee) {
-                            ps.outputByteOffset = out.str().size();
-                        }
-                    }
+                    declAngleDepth = 0;
                     if (!inFunctionBody) {
                         pendingFuncForBrace = paramListCallee;
-                        pendingFuncParamIdx = paramListOpenIdx;
                     }
                     paramListCallee.clear();
                 }
@@ -1916,17 +1829,15 @@ public:
                     CallFrame& frame = callStack.back();
                     if (parenDepth == frame.parenDepthAtOpen - 1) {
                         size_t peek = nextNonWS(i + 1);
+                        // `name(...) { ... }` is a trailing-lambda call only inside a
+                        // function body; anywhere else it is a function definition.
                         if (peek < tokens.size() && tokens[peek].type == TK::LBRACE &&
-                            !frame.hasLambdaParam && globalBraceDepth > 0) {
+                            !frame.hasLambdaParam && inFunctionBody) {
                             std::string calleeName      = frame.calleeName;
                             size_t      outLenAtArgStart = frame.outLenAtArgStart;
                             callStack.pop_back();
 
-                            LambdaReg* reg = nullptr;
-                            for (auto& [key, lr] : lambdaRegistry) {
-                                if (lr.calleeName == calleeName) { reg = &lr; break; }
-                            }
-
+                            LambdaReg* reg = findLambdaReg(calleeName);
                             if (!reg) {
                                 out << tok.value; i++;
                                 continue;
@@ -1936,37 +1847,13 @@ public:
                             ExtractedBody eb = extractBody(bodyStart);
                             i = bodyStart;
 
-                            auto captures = detectCaptures(eb.headerParams, eb.bodyTokens);
-
                             {
                                 std::string argsSoFar = out.str().substr(outLenAtArgStart + 1);
                                 bool hasArgs = argsSoFar.find_first_not_of(" \t\r\n") != std::string::npos;
                                 if (hasArgs) out << ", ";
                             }
 
-                            if (!captures.empty()) {
-                                // Inline C++ lambda with capture list; use auto params
-                                // so template type params (e.g. T) don't leak into scope.
-                                auto written = detectWrittenCaptures(captures, eb.bodyTokens);
-                                emitCaptureList(out, captures, written);
-                                out << "(";
-                                // argCTypes may be empty when registry came from a compiled .hh;
-                                // fall back to headerParams count so params are still emitted.
-                                size_t paramCount = reg->argCTypes.empty()
-                                    ? eb.headerParams.size()
-                                    : reg->argCTypes.size();
-                                for (size_t k = 0; k < paramCount; k++) {
-                                    if (k > 0) out << ", ";
-                                    out << "auto";
-                                    if (k < eb.headerParams.size()) out << " " << eb.headerParams[k];
-                                }
-                                out << ") {" << transpileTokensToString(eb.bodyTokens) << "}";
-                            } else {
-                                std::string lambdaName = generateLambdaName(eb.bodyTokens);
-                                emitLambdaFunction(lambdaName, reg->retCType, reg->argCTypes,
-                                                   eb.headerParams, eb.bodyTokens, captures);
-                                out << lambdaName;
-                            }
+                            emitInlineLambda(*reg, eb);
                             out << tok.value;
                             continue;
                         } else {
@@ -1982,29 +1869,33 @@ public:
             if (tok.type == TK::STRING && parenDepth > 0 &&
                 tok.value.find("%T") != std::string::npos) {
                 auto tPositions = findTArgPositions(tok.value);
-                if (!tPositions.empty()) {
+                if (!tPositions.empty() && !isTimeFormatCall(tokens, i)) {
                     size_t endIdx = i + 1;
                     auto argRanges = collectFormatArgs(i + 1, endIdx);
-                    // Rewrite %T → %s in format string
-                    std::string newFmt = tok.value;
-                    size_t p = 0;
-                    while ((p = newFmt.find("%T", p)) != std::string::npos) {
-                        newFmt.replace(p, 2, "%s");
-                        p += 2;
+                    // Every %T needs an argument to wrap; otherwise this is not a
+                    // printf-style call and the string is left alone.
+                    if (tPositions.back() < argRanges.size()) {
+                        // Rewrite %T → %s in format string
+                        std::string newFmt = tok.value;
+                        size_t p = 0;
+                        while ((p = newFmt.find("%T", p)) != std::string::npos) {
+                            newFmt.replace(p, 2, "%s");
+                            p += 2;
+                        }
+                        out << newFmt;
+                        std::unordered_set<size_t> tSet(tPositions.begin(), tPositions.end());
+                        for (size_t ai = 0; ai < argRanges.size(); ai++) {
+                            auto [argStart, argEnd] = argRanges[ai];
+                            std::vector<Token> argToks(tokens.begin() + argStart,
+                                                        tokens.begin() + argEnd);
+                            out << ", ";
+                            if (tSet.count(ai)) out << "uhc_tostring(";
+                            out << transpileTokensToString(argToks);
+                            if (tSet.count(ai)) out << ")";
+                        }
+                        i = endIdx; // let normal loop handle the closing RPAREN
+                        continue;
                     }
-                    out << newFmt;
-                    std::unordered_set<size_t> tSet(tPositions.begin(), tPositions.end());
-                    for (size_t ai = 0; ai < argRanges.size(); ai++) {
-                        auto [argStart, argEnd] = argRanges[ai];
-                        std::vector<Token> argToks(tokens.begin() + argStart,
-                                                    tokens.begin() + argEnd);
-                        out << ", ";
-                        if (tSet.count(ai)) out << "uhc_tostring(";
-                        out << transpileTokensToString(argToks);
-                        if (tSet.count(ai)) out << ")";
-                    }
-                    i = endIdx; // let normal loop handle the closing RPAREN
-                    continue;
                 }
             }
 
@@ -2073,11 +1964,28 @@ public:
                         continue; // lastIdentAtDepth0 preserved
                     }
                 }
-                if (parenDepth == 0 &&
+                // `operator==(` keeps "operator" as the pending function name so the
+                // body that follows is still recognised as a function body.
+                if (parenDepth == 0 && lastIdentAtDepth0 != "operator" &&
                     !tok.value.empty() && !std::isspace((unsigned char)tok.value[0])) {
                     lastIdentAtDepth0.clear();
                 }
-                out << tok.value; i++; continue;
+                // Template argument nesting inside a declaration's parameter list.
+                if (parenDepth > 0 && !inFunctionBody && tok.type == TK::OTHER) {
+                    if (tok.value == "<" && i > 0 && tokens[i - 1].type == TK::IDENT)
+                        declAngleDepth++;
+                    else if (tok.value == ">" && declAngleDepth > 0)
+                        declAngleDepth--;
+                }
+                out << tok.value;
+                if (tok.type == TK::SEMICOLON) {
+                    // `U0 f(I32 a);` is a prototype: the next { is not its body.
+                    if (parenDepth == 0 && !inFunctionBody) pendingFuncForBrace.clear();
+                    markStmtStart(true);
+                } else if (tok.type == TK::LINE_COMMENT || tok.type == TK::BLOCK_COMMENT) {
+                    markStmtStart(false);
+                }
+                i++; continue;
             }
 
             if (tok.type == TK::PREPROCESSOR) {
@@ -2094,7 +2002,9 @@ public:
                     replaceAll(val, ".uhh>",  ".hh>");
                 }
                 lastIdentAtDepth0.clear();
-                out << val; i++; continue;
+                out << val;
+                markStmtStart(false);
+                i++; continue;
             }
 
             if (tok.type == TK::SCOPE) {
@@ -2134,16 +2044,23 @@ public:
                                     lastTemplateCloseOffset = out.str().size(); // before >
                                     out << cv; i++;
                                 } else { out << cv; i++; }
-                            } else { out << tokens[i].value; i++; }
+                            } else if (tokens[i].type == TK::IDENT) {
+                                // Non-type parameters and defaults: template<I32 N, typename T = F32>
+                                out << resolveType(cv); i++;
+                            } else { out << cv; i++; }
                         }
                     }
                     continue;
                 }
 
                 if (v == "namespace" && globalBraceDepth == 0) {
+                    // Only `namespace X {` opens a namespace; `using namespace X` does not.
                     size_t j = nextNonWS(i + 1);
-                    if (j < tokens.size() && tokens[j].type == TK::IDENT)
-                        pendingNamespaceName = tokens[j].value;
+                    if (j < tokens.size() && tokens[j].type == TK::IDENT) {
+                        size_t jb = nextNonWS(j + 1);
+                        if (jb < tokens.size() && tokens[jb].type == TK::LBRACE)
+                            pendingNamespaceName = tokens[j].value;
+                    }
                 }
 
                 // `return "fmt", args` sugar: rewrite to snprintf + return inside toString
@@ -2219,31 +2136,9 @@ public:
                 }
 
                 if (v == "unused") {
-                    if (parenDepth > 0) {
-                        i++;
-                        std::ostringstream paramBuf;
-                        int relDepth = 0;
-                        while (i < tokens.size()) {
-                            const Token& pt = tokens[i];
-                            if (pt.type == TK::END) break;
-                            if (relDepth == 0 &&
-                                (pt.type == TK::RPAREN ||
-                                 (pt.type == TK::OTHER && pt.value == ",")))
-                                break;
-                            if (pt.type == TK::LPAREN) relDepth++;
-                            if (pt.type == TK::RPAREN) relDepth--;
-                            if (pt.type == TK::IDENT) {
-                                auto pit = TYPE_MAP.find(pt.value);
-                                std::string pv = (pit != TYPE_MAP.end()) ? pit->second : pt.value;
-                                paramBuf << pv;
-                            } else {
-                                paramBuf << pt.value;
-                            }
-                            i++;
-                        }
-                        out << paramBuf.str() << " __attribute__((unused))";
-                    } else {
-                        i++;
+                    i++;
+                    // `unused name;` on an existing variable → (void)name;
+                    if (parenDepth == 0) {
                         size_t n1 = nextNonWS(i);
                         if (n1 < tokens.size() && tokens[n1].type == TK::IDENT) {
                             size_t n2 = nextNonWS(n1 + 1);
@@ -2253,52 +2148,15 @@ public:
                                 continue;
                             }
                         }
-                        std::string varName;
-                        std::ostringstream stmtBuf;
-                        bool foundVar = false;
-                        while (i < tokens.size()) {
-                            const Token& st = tokens[i];
-                            if (st.type == TK::END) break;
-                            if (st.type == TK::IDENT) {
-                                auto sit = TYPE_MAP.find(st.value);
-                                if (sit != TYPE_MAP.end()) {
-                                    stmtBuf << sit->second;
-                                } else if (!foundVar) {
-                                    varName  = st.value;
-                                    foundVar = true;
-                                    stmtBuf << st.value;
-                                } else {
-                                    if (namespaces.count(st.value)) {
-                                        size_t j = nextNonWS(i + 1);
-                                        if (j < tokens.size() && tokens[j].type == TK::DOT) {
-                                            size_t k = nextNonWS(j + 1);
-                                            if (k < tokens.size() && tokens[k].type == TK::IDENT) {
-                                                for (size_t w = i + 1; w < j; w++) stmtBuf << tokens[w].value;
-                                                stmtBuf << st.value << "::";
-                                                for (size_t w = j + 1; w < k; w++) stmtBuf << tokens[w].value;
-                                                i = k;
-                                                continue;
-                                            }
-                                        }
-                                    }
-                                    stmtBuf << st.value;
-                                }
-                            } else {
-                                stmtBuf << st.value;
-                            }
-                            if (st.type == TK::SEMICOLON) { i++; break; }
-                            i++;
-                        }
-                        out << stmtBuf.str();
-                        if (!varName.empty())
-                            out << " (void)" << varName << ";";
                     }
+                    // `unused Type name` (parameter or local declaration): mark it with
+                    // the standard attribute and let the normal rules translate the type.
+                    out << "[[maybe_unused]]";
                     continue;
                 }
 
                 auto typeIt = TYPE_MAP.find(v);
                 if (typeIt != TYPE_MAP.end()) {
-                    tryRecordVarDecl(i);
                     out << typeIt->second; i++; continue;
                 }
 
@@ -2324,13 +2182,18 @@ public:
                             for (size_t w = j + 1; w < k; w++) out << tokens[w].value;
                             i = k;
 
+                            std::string qualified = v;
                             while (true) {
                                 const std::string& ci = tokens[i].value;
                                 size_t j2 = nextNonWS(i + 1);
-                                if (j2 < tokens.size() && tokens[j2].type == TK::DOT) {
+                                // Only a nested namespace continues the :: chain;
+                                // `Ns.global.field` is a member access after Ns::global.
+                                if (namespaces.count(ci) &&
+                                    j2 < tokens.size() && tokens[j2].type == TK::DOT) {
                                     size_t k2 = nextNonWS(j2 + 1);
                                     if (k2 < tokens.size() && tokens[k2].type == TK::IDENT) {
                                         out << ci << "::";
+                                        qualified += "::" + ci;
                                         for (size_t w = j2 + 1; w < k2; w++) out << tokens[w].value;
                                         i = k2;
                                         continue;
@@ -2338,10 +2201,13 @@ public:
                                 }
                                 auto typeIt2 = TYPE_MAP.find(ci);
                                 out << (typeIt2 != TYPE_MAP.end() ? typeIt2->second : ci);
+                                qualified += "::" + ci;
                                 i++;
                                 break;
                             }
-                            lastIdentAtDepth0.clear();
+                            // Remember `Ns::func` as the callee so `Ns.func(args) { ... }`
+                            // is recognised as a trailing-lambda call.
+                            if (parenDepth == 0) lastIdentAtDepth0 = qualified;
                             continue;
                         }
                     } else if (!prevMeaningfulIs(i, "namespace")) {
@@ -2350,7 +2216,7 @@ public:
                         {
                             size_t nextCheck = nextNonWS(i + 1);
                             if (nextCheck < tokens.size() && tokens[nextCheck].type == TK::SCOPE) {
-                                if (parenDepth > 0 && !inFunctionBody) {
+                                if (parenDepth > 0 && !inFunctionBody && declAngleDepth == 0) {
                                     // Lookahead: Namespace :: It  → emit Namespace::It&
                                     size_t afterScope = nextNonWS(nextCheck + 1);
                                     if (afterScope < tokens.size() &&
@@ -2379,7 +2245,7 @@ public:
                         // In a function definition's parameter list, automatically add &
                         // unless the user explicitly wrote * (pointer) or & (reference).
                         // Template args like List<T> must be emitted before the &.
-                        if (parenDepth > 0 && !inFunctionBody) {
+                        if (parenDepth > 0 && !inFunctionBody && declAngleDepth == 0) {
                             size_t ni = nextNonWS(i);
                             if (ni < tokens.size() && tokens[ni].value == "<") {
                                 // Emit whitespace up to and including '<'
@@ -2394,6 +2260,8 @@ public:
                                     else if (cv == ">") { depth--; out << cv; i++; }
                                     else if (tokens[i].type == TK::IDENT && namespaces.count(cv)) {
                                         out << cv << "::It"; i++;
+                                    } else if (tokens[i].type == TK::IDENT) {
+                                        out << resolveType(cv); i++; // List<I32> → List::It<int>
                                     } else {
                                         out << cv; i++;
                                     }
@@ -2416,45 +2284,17 @@ public:
 
                 {
                     size_t peek = nextNonWS(i + 1);
-                    if (peek < tokens.size() && tokens[peek].type == TK::LBRACE &&
+                    if (inFunctionBody &&
+                        peek < tokens.size() && tokens[peek].type == TK::LBRACE &&
                         !CONTROL_FLOW_KW.count(v)) {
-                        LambdaReg* reg = nullptr;
-                        for (auto& [key, lr] : lambdaRegistry) {
-                            if (lr.calleeName == v && lr.argCTypes.empty()) {
-                                reg = &lr; break;
-                            }
-                        }
+                        LambdaReg* reg = findLambdaReg(v, true);
                         if (reg) {
                             size_t bodyStart = peek;
                             ExtractedBody eb = extractBody(bodyStart);
                             i = bodyStart;
 
-                            auto captures = detectCaptures(eb.headerParams, eb.bodyTokens);
-
                             out << v << "(";
-                            if (!captures.empty()) {
-                                // Inline C++ lambda with capture list; use auto params
-                                // so template type params (e.g. T) don't leak into scope.
-                                auto written = detectWrittenCaptures(captures, eb.bodyTokens);
-                                emitCaptureList(out, captures, written);
-                                out << "(";
-                                // argCTypes may be empty when registry came from a compiled .hh;
-                                // fall back to headerParams count so params are still emitted.
-                                size_t paramCount = reg->argCTypes.empty()
-                                    ? eb.headerParams.size()
-                                    : reg->argCTypes.size();
-                                for (size_t k = 0; k < paramCount; k++) {
-                                    if (k > 0) out << ", ";
-                                    out << "auto";
-                                    if (k < eb.headerParams.size()) out << " " << eb.headerParams[k];
-                                }
-                                out << ") {" << transpileTokensToString(eb.bodyTokens) << "}";
-                            } else {
-                                std::string lambdaName = generateLambdaName(eb.bodyTokens);
-                                emitLambdaFunction(lambdaName, reg->retCType, reg->argCTypes,
-                                                   eb.headerParams, eb.bodyTokens, captures);
-                                out << lambdaName;
-                            }
+                            emitInlineLambda(*reg, eb);
                             out << ")";
                             lastIdentAtDepth0.clear();
                             continue;
@@ -2462,24 +2302,15 @@ public:
                     }
                 }
 
-                // Swizzle: ident.xyzw / ident.rgba (2-4 chars from {x,y,z,w,r,g,b,a})
-                {
-                    size_t j = nextNonWS(i + 1);
-                    if (j < tokens.size() && tokens[j].type == TK::DOT) {
-                        size_t k = nextNonWS(j + 1);
-                        if (k < tokens.size() && tokens[k].type == TK::IDENT &&
-                            isSwizzleIdent(tokens[k].value)) {
-                            emitSwizzle(out, v, tokens[k].value);
-                            i = k + 1;
-                            continue;
-                        }
-                    }
+                if (trySwizzle(tokens, i, out)) {
+                    lastIdentAtDepth0.clear();
+                    continue;
                 }
 
                 // `It` used as a type inside a namespace function param list
                 // → add & so the struct is passed by reference, consistent with
                 //   using the namespace name directly (e.g. `Box f` → `Box::It& f`).
-                if (v == "It" && parenDepth > 0 && !inFunctionBody) {
+                if (v == "It" && parenDepth > 0 && !inFunctionBody && declAngleDepth == 0) {
                     out << v; i++;
                     size_t ni = nextNonWS(i);
                     if (ni >= tokens.size() ||
@@ -2496,35 +2327,12 @@ public:
 
         std::string outStr = applyPatches(out.str());
 
-        if (needsTypeTraits) {
-            outStr = "#include <type_traits>\n" + outStr;
-        }
-        if (needsFunctional) {
-            outStr = "#include <functional>\n" + outStr;
-        }
+        emitSwizzleHelpers(preamble);
 
-        std::string lambdaStr = preamble.str();
-        if (lambdaStr.empty()) return outStr;
-
-        // Find insertion point: after all leading preprocessor lines (includes, #if guards, etc.)
-        // Insert lambdas there so they come after includes but before C++ code.
-        size_t insertPos = 0;
-        size_t pos = 0;
-        while (pos < outStr.size()) {
-            size_t lineEnd = outStr.find('\n', pos);
-            if (lineEnd == std::string::npos) lineEnd = outStr.size();
-            size_t nonWS = pos;
-            while (nonWS < lineEnd && std::isspace((unsigned char)outStr[nonWS])) nonWS++;
-            if (nonWS < lineEnd && outStr[nonWS] == '#') {
-                insertPos = lineEnd + 1;
-                pos = lineEnd + 1;
-                continue;
-            }
-            if (nonWS >= lineEnd) { pos = lineEnd + 1; continue; } // blank line
-            break; // first non-empty non-preprocessor line: stop
-        }
-        outStr.insert(insertPos, lambdaStr);
-        return outStr;
+        // The preamble is self-contained (own #include, guarded definitions), so it goes
+        // at the very top. Placing it after the leading directives could put it inside
+        // an #if block that is only active on one platform.
+        return preamble.str() + outStr;
     }
 };
 
@@ -2555,6 +2363,51 @@ static fs::path relativeOutputPath(const fs::path& file, const fs::path& inRoot,
     if (out.extension() == ".uhc") out.replace_extension(".cc");
     else if (out.extension() == ".uhh") out.replace_extension(".hh");
     return out;
+}
+
+// Path of the running transpiler binary. argv[0] alone is just "unholyc" when the
+// binary was found through PATH, which cannot be resolved to a location.
+static fs::path selfExePath(const char* argv0) {
+    try {
+#if defined(_WIN32)
+        char buf[4096];
+        unsigned long n = GetModuleFileNameA(nullptr, buf, sizeof(buf));
+        if (n > 0 && n < sizeof(buf)) return fs::canonical(fs::path(std::string(buf, n)));
+#elif defined(__APPLE__)
+        char buf[4096];
+        uint32_t size = sizeof(buf);
+        if (_NSGetExecutablePath(buf, &size) == 0) return fs::canonical(fs::path(buf));
+#else
+        std::error_code ec;
+        fs::path p = fs::read_symlink("/proc/self/exe", ec);
+        if (!ec && !p.empty()) return fs::canonical(p);
+#endif
+        return fs::canonical(argv0);
+    } catch (...) {
+        return {};
+    }
+}
+
+// Quote a compiler argument for the shell when it contains whitespace.
+static std::string shellQuote(const std::string& arg) {
+    if (arg.find_first_of(" \t") == std::string::npos) return arg;
+    if (arg.find('"') != std::string::npos) return arg; // already quoted by the caller
+    return "\"" + arg + "\"";
+}
+
+// Visit every regular file under dir, without descending into `skipDir`
+// (the output directory, when it lives inside the input tree).
+template<typename Fn>
+static void forEachFile(const fs::path& dir, const fs::path& skipDir, Fn fn) {
+    std::error_code ec;
+    for (auto it = fs::recursive_directory_iterator(dir); it != fs::recursive_directory_iterator(); ++it) {
+        if (it->is_directory()) {
+            if (!skipDir.empty() && fs::equivalent(it->path(), skipDir, ec))
+                it.disable_recursion_pending();
+            continue;
+        }
+        if (it->is_regular_file()) fn(it->path());
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -2621,18 +2474,16 @@ int main(int argc, char* argv[]) {
         };
         fs::path prefix;
         const char* uhcHomeEnv = std::getenv("UHC_HOME");
-        if (!prefix.empty()) {
-            // already set
-        } else if (uhcHomeEnv && *uhcHomeEnv) {
+        if (uhcHomeEnv && *uhcHomeEnv) {
             fs::path p = uhcHomeEnv;
             if (probePrefix(p)) prefix = p;
         }
         if (prefix.empty()) {
-            try {
-                fs::path bin = fs::canonical(argv[0]);
+            fs::path bin = selfExePath(argv[0]);
+            if (!bin.empty()) {
                 fs::path candidate = bin.parent_path().parent_path();
                 if (probePrefix(candidate)) prefix = candidate;
-            } catch (...) {}
+            }
         }
         if (prefix.empty()) {
             const char* home = std::getenv("HOME");
@@ -2672,9 +2523,11 @@ int main(int argc, char* argv[]) {
     fs::path inRoot  = positional[0];
     fs::path outRoot;
     if (driverMode) {
+        // Timestamp plus a random suffix: parallel invocations must not share a directory.
         auto ts  = std::chrono::duration_cast<std::chrono::milliseconds>(
                        std::chrono::system_clock::now().time_since_epoch()).count();
-        outRoot  = fs::temp_directory_path() / ("uhc_" + std::to_string(ts));
+        outRoot  = fs::temp_directory_path() /
+                   ("uhc_" + std::to_string(ts) + "_" + std::to_string(std::random_device{}()));
     } else {
         outRoot  = fs::absolute(fs::path(positional[1]));
     }
@@ -2696,12 +2549,11 @@ int main(int argc, char* argv[]) {
     std::unordered_set<std::string> globalUserToStringNS;
 
     auto scanDir = [&](const fs::path& dir) {
-        for (auto& entry : fs::recursive_directory_iterator(dir)) {
-            if (!entry.is_regular_file()) continue;
-            auto ext = entry.path().extension().string();
+        forEachFile(dir, outRoot, [&](const fs::path& path) {
+            auto ext = path.extension().string();
             if (ext == ".uhc" || ext == ".uhh" ||
                 ext == ".hh"  || ext == ".h"   || ext == ".hpp") {
-                auto src    = readFile(entry.path().string());
+                auto src    = readFile(path.string());
                 auto tokens = Lexer(src).tokenize();
                 auto ns     = collectNamespaces(tokens);
                 globalNS.insert(ns.begin(), ns.end());
@@ -2715,7 +2567,7 @@ int main(int argc, char* argv[]) {
                         if (ni.hasUserToString) globalUserToStringNS.insert(name);
                 }
             }
-        }
+        });
     };
 
     scanDir(inRoot);
@@ -2726,10 +2578,10 @@ int main(int argc, char* argv[]) {
     // syntax works when the function is defined in an included header.
     std::unordered_map<std::string, LambdaReg> globalLambdas;
     auto scanLambdas = [&](const fs::path& dir) {
-        for (auto& entry : fs::recursive_directory_iterator(dir)) {
-            if (!entry.is_regular_file()) continue;
-            auto ext = entry.path().extension().string();
-            auto src    = readFile(entry.path().string());
+        forEachFile(dir, outRoot, [&](const fs::path& path) {
+            auto ext = path.extension().string();
+            if (ext != ".uhh" && ext != ".hh") return; // don't read assets, objects, ...
+            auto src    = readFile(path.string());
             auto tokens = Lexer(src).tokenize();
             if (ext == ".uhh") {
                 auto decls = collectLambdaDecls(tokens);
@@ -2738,7 +2590,7 @@ int main(int argc, char* argv[]) {
                 auto decls = collectLambdaDeclsFromHH(tokens);
                 globalLambdas.insert(decls.begin(), decls.end());
             }
-        }
+        });
     };
     scanLambdas(inRoot);
     for (auto& incDir : includeDirs)
@@ -2748,40 +2600,43 @@ int main(int argc, char* argv[]) {
         ".c", ".cpp", ".cc", ".h", ".hpp", ".hh"
     };
 
-    for (auto& entry : fs::recursive_directory_iterator(inRoot)) {
-        if (!entry.is_regular_file()) continue;
-        if (!singleInputFile.empty() && entry.path() != singleInputFile) continue;
-        auto ext     = entry.path().extension().string();
-        if (ext != ".uhc" && ext != ".uhh" && !copyExts.count(ext)) continue;
+    forEachFile(inRoot, outRoot, [&](const fs::path& path) {
+        if (!singleInputFile.empty() && path != singleInputFile) return;
+        auto ext     = path.extension().string();
+        if (ext != ".uhc" && ext != ".uhh" && !copyExts.count(ext)) return;
 
-        auto outPath = relativeOutputPath(entry.path(), inRoot, outRoot);
+        auto outPath = relativeOutputPath(path, inRoot, outRoot);
         fs::create_directories(outPath.parent_path());
 
         if (ext == ".uhc" || ext == ".uhh") {
-            auto src      = readFile(entry.path().string());
+            auto src      = readFile(path.string());
             auto tokens   = Lexer(src).tokenize();
             auto fileInfo = collectNSInfo(tokens);
             auto output   = transpile(tokens, globalNS, fileInfo, globalUserToStringNS, globalLambdas);
             writeFile(outPath.string(), output);
-            if (verbose) std::cout << entry.path().string() << "  ->  " << outPath.string() << "\n";
+            if (verbose) std::cout << path.string() << "  ->  " << outPath.string() << "\n";
         } else {
-            fs::copy_file(entry.path(), outPath, fs::copy_options::overwrite_existing);
-            if (verbose) std::cout << entry.path().string() << "  ->  " << outPath.string() << " (copied)\n";
+            fs::copy_file(path, outPath, fs::copy_options::overwrite_existing);
+            if (verbose) std::cout << path.string() << "  ->  " << outPath.string() << " (copied)\n";
         }
-    }
+    });
 
     if (!driverMode)
         return 0;
 
     // --- compiler driver ---
+    if (!fs::exists(outRoot)) {
+        std::cerr << "Error: no .uhc sources found in " << positional[0] << "\n";
+        return 1;
+    }
     std::vector<std::string> sources;
     std::ostringstream       autoIncludes;
     autoIncludes << " -I\"" << outRoot.string() << "\"";
     for (auto& e : fs::recursive_directory_iterator(outRoot)) {
         if (e.is_directory())
             autoIncludes << " -I\"" << e.path().string() << "\"";
-        else if (e.path().extension() == ".cc")
-            sources.push_back("\"" + e.path().string() + "\"");
+        else if (e.path().extension() == ".cc" || e.path().extension() == ".cpp")
+            sources.push_back("\"" + e.path().string() + "\""); // .cpp: C++ copied from the input
     }
 
     const char* envCxx = std::getenv("CXX");
@@ -2791,7 +2646,7 @@ int main(int argc, char* argv[]) {
     cmd << cxx << " -std=c++17";
     cmd << autoIncludes.str();
     for (auto& s : sources)      cmd << " " << s;
-    for (auto& f : compilerFlags) cmd << " " << f;
+    for (auto& f : compilerFlags) cmd << " " << shellQuote(f);
     cmd << " -o \"" << outputBinary << "\"";
 
     if (verbose) std::cout << cmd.str() << "\n";

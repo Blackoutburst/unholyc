@@ -1,0 +1,131 @@
+// Test: type / namespace rewriting edge cases (file deliberately starts with a comment)
+// - List<I32> and std::vector<Ns> parameters
+// - template<I32 N>
+// - calling another namespace's toString does not suppress the auto-generated one
+// - `unused` with namespace and const types
+// - Ns.global.field member access
+// - fields whose names look like swizzles, and swizzle on a member chain
+// - %T left alone in time-format calls
+#include <stdio.h>
+#include <string.h>
+#include <vector>
+#include <uhcstd.uhh>
+#include <uhcmath.uhh>
+
+namespace Vec3 {
+    self { F32 x; F32 y; F32 z }
+}
+
+namespace Hit {
+    self { I32 ray; I32 raw; VectorF pos }
+}
+
+namespace Config {
+    self { I32 width }
+    Config current
+}
+
+namespace Player {
+    self { I32 hp }
+
+    I32 describeLen(Vec3 v) {
+        return (I32)strlen(Vec3.toString(v))
+    }
+}
+
+I32 sumList(List<I32> nums) {
+    I32 s = 0
+    for (U64 i = 0; i < List.size(nums); i++) { s += List.get(nums, i) }
+    return s
+}
+
+I32 countVec(std::vector<Vec3> items, unused Vec3 spare) {
+    return (I32)items.size()
+}
+
+template<I32 N>
+I32 getN() { return N }
+
+// Named like a time-format function: its "%T" must reach it untouched.
+const I8* put_time(const I8* fmt, unused I32 x) { return fmt }
+
+I32 main() {
+    // --- swizzle-looking field names are ordinary members ---
+    Hit h
+    h.ray = 3
+    h.raw = 4
+    if (h.ray != 3 || h.raw != 4) {
+        printf("FAIL: .ray/.raw got %d/%d\n", h.ray, h.raw)
+        return 1
+    }
+
+    // --- swizzle on a member chain ---
+    h.pos.x = 1.0f
+    h.pos.y = 2.0f
+    h.pos.z = 3.0f
+    h.pos.w = 4.0f
+    VectorF sw = h.pos.xy
+    if (sw.x != 1.0f || sw.y != 2.0f || sw.z != 0.0f || sw.w != 0.0f) {
+        printf("FAIL: h.pos.xy got %f %f %f %f\n", sw.x, sw.y, sw.z, sw.w)
+        return 1
+    }
+
+    // --- Ns.global.field ---
+    Config.current.width = 640
+    if (Config.current.width != 640) {
+        printf("FAIL: Config.current.width\n")
+        return 1
+    }
+
+    // --- List<I32> / std::vector<Ns> parameters ---
+    List<I32> nums
+    List.add(nums, 2)
+    List.add(nums, 3)
+    if (sumList(nums) != 5) {
+        printf("FAIL: sumList expected 5, got %d\n", sumList(nums))
+        return 1
+    }
+    std::vector<Vec3> items
+    Vec3 a
+    a.x = 1.0f
+    a.y = 2.0f
+    a.z = 3.0f
+    items.push_back(a)
+    if (countVec(items, a) != 1) {
+        printf("FAIL: countVec\n")
+        return 1
+    }
+
+    // --- template<I32 N> ---
+    if (getN<5>() != 5) {
+        printf("FAIL: getN<5>\n")
+        return 1
+    }
+
+    // --- auto toString survives a call to another namespace's toString ---
+    Player p
+    p.hp = 9
+    char buf[64]
+    snprintf(buf, 64, "%T", p)
+    if (strcmp(buf, "Player{hp: 9}") != 0) {
+        printf("FAIL: Player toString got '%s'\n", buf)
+        return 1
+    }
+    if (Player.describeLen(a) <= 0) {
+        printf("FAIL: describeLen\n")
+        return 1
+    }
+
+    // --- unused with namespace / const types ---
+    unused Vec3 spare
+    unused const I8* note = "x"
+
+    // --- %T in a time-format call ---
+    if (strcmp(put_time("%T", 1), "%T") != 0) {
+        printf("FAIL: %%T rewritten in put_time\n")
+        return 1
+    }
+
+    printf("OK\n")
+    return 0
+}

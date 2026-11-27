@@ -12,7 +12,7 @@ A custom programming language that transpiles to C++. The transpiler is a single
 ## Directory Layout
 
 ```
-transpiler.cpp       Single-file transpiler (~2450 lines, C++17)
+transpiler.cpp       Single-file transpiler (~2650 lines, C++17)
 uhcstd/              Standard library (io, math, network, std)
 graphics/            Vulkan-based graphics library
 examples/            Runnable examples covering language + stdlib features
@@ -84,7 +84,7 @@ U0 forEach(I32* arr, I32 len, lambda block(I32) -> U0) {
 }
 ```
 
-Template types in lambda params are fully supported — the transpiler injects a `typename __Block_<name>` into the `template<>` declaration automatically:
+The lambda parameter is emitted as a deduced template type `__Block_<name>`. A function that already has a `template<>` gets the extra `typename` injected into it; a plain function gets a `template<typename __Block_<name>>` header of its own, so a lambda-accepting function is always a template (define it in a `.uhh`). Template types in lambda params are fully supported:
 ```
 template<typename T>
 U0 forEach(List<T> list, lambda block(T) -> U0) { ... }
@@ -97,9 +97,9 @@ forEach(nums, 5) { (n) ->
 }
 ```
 
-Works anywhere — top-level, inside namespaces, and cross-file. The transpiler pre-scans `.uhh` source headers and compiled `.hh` headers to register lambda-accepting functions before transpiling call sites.
+Works anywhere inside a function body — for top-level functions, namespace-scoped functions (`HashMap.forEach(m) { (k, v) -> ... }`), and cross-file. The transpiler pre-scans `.uhh` source headers and compiled `.hh` headers to register lambda-accepting functions before transpiling call sites.
 
-If the lambda body captures local variables, the transpiler emits an inline C++ lambda with a capture list. Otherwise it hoists to a named generic lambda object (`auto __lambda_xxx = [](auto param) { ... }`).
+Every trailing lambda is emitted in place as an inline C++ lambda capturing by reference (`[&](auto n) { ... }`). The body can therefore read and modify any local or parameter of the enclosing function, whatever its type, and call anything visible at the call site. This is safe because the callee only invokes the block synchronously.
 
 Stored lambdas (`lambda x = ...`) and lambdas with non-void return types are not supported.
 
@@ -123,7 +123,7 @@ Log.info("%T", c)  // → [INFO] rgb(255, 128, 0)
 
 ### `unused` Keyword
 
-Silences compiler warnings for unused variables. Can appear in a function header or body:
+Silences compiler warnings for unused variables (emitted as `[[maybe_unused]]`, so it works with any type). Can appear in a function header or body:
 
 ```
 U0 foo(unused I32 x) { ... }
@@ -134,6 +134,9 @@ unused I32 y = someValue
 ### Other Syntax Notes
 
 - Semicolons are **optional** — the transpiler inserts them automatically
+- A statement continues onto the next line when that line starts with a binary operator (`+ - / % & | ^ < > = , ? :`, `!=`) or `.`; a line starting with `*` or `(` begins a new statement
+- The opening `{` must stay on the same line as its `namespace` / `struct` / function header (Allman style is not supported)
+- `Ns.name` becomes `Ns::name`; a further `.` stays a member access (`Config.current.width`) unless `name` is itself a namespace
 - `++` / `--` (post-increment/decrement) work as statements
 - Full C/C++ interop — `#include` of C headers is allowed
 - Cross-platform conditionals: `#if defined(_WIN32)` / `#if defined(__linux__)`
